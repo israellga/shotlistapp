@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import { Film, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
+import BoltMark from "./BoltMark";
+import ShotlistMark from "./ShotlistMark";
 
 const C = {
   ink: "#17181A",
@@ -102,135 +104,180 @@ export default function AuthScreen({ onAuthed }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: C.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 26, justifyContent: "center" }}>
-          <Film size={22} color={C.amber} />
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, letterSpacing: 0.5, color: C.paper }}>
-            PRODUÇÃO — ROTEIRO &amp; CAPTAÇÃO
+    <div className="auth-shell">
+      <style>{`
+        .auth-shell {
+          min-height: 100vh; min-height: 100dvh;
+          background: ${C.ink};
+          display: flex; flex-direction: column;
+          font-family: ${FONT_BODY};
+        }
+        .auth-main {
+          flex: 1;
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .auth-brandpanel { display: none; }
+        @media (min-width: 760px) {
+          .auth-main { grid-template-columns: 1.15fr 1fr; }
+          .auth-brandpanel { display: flex; }
+        }
+        .auth-formpanel {
+          display: flex; align-items: center; justify-content: center;
+          padding: 40px 22px;
+        }
+        @media (min-width: 760px) {
+          .auth-formpanel { padding: 40px; border-left: 1px solid ${C.line}; }
+        }
+        .auth-footer {
+          padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;
+          border-top: 1px solid ${C.line};
+        }
+        input::placeholder { color: ${C.faint}; }
+        @keyframes auth-spin { to { transform: rotate(360deg); } }
+      `}</style>
+
+      <div className="auth-main">
+        <BrandPanel />
+        <div className="auth-formpanel">
+          <div style={{ width: "100%", maxWidth: 340 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 30 }}>
+              <ShotlistMark size={26} lit />
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, letterSpacing: 1, color: C.paper }}>
+                SHOTLIST
+              </div>
+            </div>
+
+            {mode !== "forgot" && (
+              <div style={{ display: "flex", background: C.panel2, borderRadius: 9, padding: 4, marginBottom: 22 }}>
+                {["login", "signup"].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => { setMode(m); setError(""); setNotice(""); }}
+                    style={{
+                      flex: 1, padding: "9px 0", borderRadius: 6, border: "none", cursor: "pointer",
+                      background: mode === m ? C.amberDim : "transparent",
+                      color: mode === m ? C.amber : C.muted,
+                      fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4,
+                    }}
+                  >
+                    {m === "login" ? "ENTRAR" : "CRIAR CONTA"}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {mode === "forgot" ? (
+              <form onSubmit={handleForgotSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, margin: "0 0 4px" }}>
+                  Digite o email da sua conta. Vamos mandar um link pra você criar uma senha nova.
+                </p>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  autoComplete="email"
+                  style={inputStyle}
+                />
+                {error && <Notice tone="error">{error}</Notice>}
+                {notice && <Notice tone="ok">{notice}</Notice>}
+                <button type="submit" disabled={loading} style={primaryButtonStyle(loading)}>
+                  {loading && <Loader2 size={15} style={{ animation: "auth-spin 1s linear infinite" }} />}
+                  Enviar link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMode("login"); setError(""); setNotice(""); }}
+                  style={linkButtonStyle}
+                >
+                  Voltar pro login
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  autoComplete="email"
+                  style={inputStyle}
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Senha"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  style={inputStyle}
+                />
+
+                {error && <Notice tone="error">{error}</Notice>}
+                {notice && <Notice tone="ok">{notice}</Notice>}
+
+                <button type="submit" disabled={loading} style={primaryButtonStyle(loading)}>
+                  {loading && <Loader2 size={15} style={{ animation: "auth-spin 1s linear infinite" }} />}
+                  {mode === "login" ? "Entrar" : "Criar conta"}
+                </button>
+
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => { setMode("forgot"); setError(""); setNotice(""); }}
+                    style={linkButtonStyle}
+                  >
+                    Esqueci minha senha
+                  </button>
+                )}
+              </form>
+            )}
           </div>
         </div>
-
-        {mode !== "forgot" && (
-          <div style={{ display: "flex", background: C.panel2, borderRadius: 9, padding: 4, marginBottom: 20 }}>
-            {["login", "signup"].map((m) => (
-              <button
-                key={m}
-                onClick={() => { setMode(m); setError(""); setNotice(""); }}
-                style={{
-                  flex: 1, padding: "9px 0", borderRadius: 6, border: "none", cursor: "pointer",
-                  background: mode === m ? C.amberDim : "transparent",
-                  color: mode === m ? C.amber : C.muted,
-                  fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4,
-                }}
-              >
-                {m === "login" ? "ENTRAR" : "CRIAR CONTA"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {mode === "forgot" ? (
-          <form onSubmit={handleForgotSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, margin: "0 0 4px" }}>
-              Digite o email da sua conta. Vamos mandar um link pra você criar uma senha nova.
-            </p>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              autoComplete="email"
-              style={inputStyle}
-            />
-            {error && (
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 12px", color: C.brick, fontSize: 12.5, lineHeight: 1.5 }}>
-                <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
-              </div>
-            )}
-            {notice && (
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 8, padding: "10px 12px", color: C.sage, fontSize: 12.5, lineHeight: 1.5 }}>
-                <CheckCircle2 size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {notice}
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8,
-                padding: "11px 14px", color: C.amber, fontSize: 14, fontWeight: 600,
-                cursor: loading ? "default" : "pointer", marginTop: 4,
-              }}
-            >
-              {loading && <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />}
-              Enviar link
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode("login"); setError(""); setNotice(""); }}
-              style={{ background: "transparent", border: "none", color: C.muted, fontSize: 12.5, cursor: "pointer", padding: 4 }}
-            >
-              Voltar pro login
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-              autoComplete="email"
-              style={inputStyle}
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Senha"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              style={inputStyle}
-            />
-
-            {error && (
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 12px", color: C.brick, fontSize: 12.5, lineHeight: 1.5 }}>
-                <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
-              </div>
-            )}
-            {notice && (
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 8, padding: "10px 12px", color: C.sage, fontSize: 12.5, lineHeight: 1.5 }}>
-                <CheckCircle2 size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {notice}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8,
-                padding: "11px 14px", color: C.amber, fontSize: 14, fontWeight: 600,
-                cursor: loading ? "default" : "pointer", marginTop: 4,
-              }}
-            >
-              {loading && <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />}
-              {mode === "login" ? "Entrar" : "Criar conta"}
-            </button>
-
-            {mode === "login" && (
-              <button
-                type="button"
-                onClick={() => { setMode("forgot"); setError(""); setNotice(""); }}
-                style={{ background: "transparent", border: "none", color: C.muted, fontSize: 12.5, cursor: "pointer", padding: 4 }}
-              >
-                Esqueci minha senha
-              </button>
-            )}
-          </form>
-        )}
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      <div className="auth-footer">
+        <a
+          href="https://israellga.com"
+          target="_blank"
+          rel="noreferrer"
+          style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none", opacity: 0.6 }}
+        >
+          <BoltMark size={13} lit amber={C.faint} />
+          <span style={{ fontFamily: FONT_MONO, fontSize: 10.5, color: C.faint, letterSpacing: 1 }}>ISRAELLGA.COM</span>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function BrandPanel() {
+  return (
+    <div className="auth-brandpanel" style={{ background: "#111214", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
+      <div style={{ width: "min(46%, 260px)" }}>
+        <ShotlistMark size="100%" interactive />
+      </div>
+      <div style={{ position: "absolute", bottom: 40, left: 40, right: 40 }}>
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, letterSpacing: 0.5, lineHeight: 1.6 }}>
+          Cronograma, equipe e shotlist de produção — tudo num só lugar, compartilhado com quem precisa acompanhar.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Notice({ tone, children }) {
+  const isError = tone === "error";
+  return (
+    <div style={{
+      display: "flex", gap: 8, alignItems: "flex-start",
+      background: isError ? C.brickDim : C.sageDim,
+      border: `1px solid ${isError ? C.brick : C.sage}`,
+      borderRadius: 8, padding: "10px 12px",
+      color: isError ? C.brick : C.sage, fontSize: 12.5, lineHeight: 1.5,
+    }}>
+      {isError ? <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> : <CheckCircle2 size={15} style={{ flexShrink: 0, marginTop: 1 }} />}
+      {children}
     </div>
   );
 }
@@ -247,9 +294,23 @@ const inputStyle = {
   background: C.panel2,
   border: `1px solid ${C.line}`,
   borderRadius: 8,
-  padding: "11px 13px",
+  padding: "12px 14px",
   color: C.paper,
   fontFamily: FONT_BODY,
-  fontSize: 14,
+  fontSize: 14.5,
   outline: "none",
+};
+
+function primaryButtonStyle(loading) {
+  return {
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+    background: C.amber, border: "none", borderRadius: 24,
+    padding: "13px 14px", color: C.ink, fontSize: 14.5, fontWeight: 700,
+    cursor: loading ? "default" : "pointer", marginTop: 4,
+  };
+}
+
+const linkButtonStyle = {
+  background: "transparent", border: "none", color: C.muted,
+  fontSize: 12.5, cursor: "pointer", padding: 4,
 };
