@@ -1,30 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-const KEY = "producao-app:supabase-config";
+const url = import.meta.env.VITE_SUPABASE_URL;
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export function getSupabaseConfig() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
+export const supabaseConfigured = Boolean(url && anonKey);
 
-export function setSupabaseConfig(url, anonKey) {
-  localStorage.setItem(KEY, JSON.stringify({ url, anonKey }));
-}
-
-export function clearSupabaseConfig() {
-  localStorage.removeItem(KEY);
-}
-
-export function makeClient() {
-  const cfg = getSupabaseConfig();
-  if (!cfg || !cfg.url || !cfg.anonKey) return null;
-  try {
-    return createClient(cfg.url, cfg.anonKey);
-  } catch {
-    return null;
-  }
-}
+export const supabase = supabaseConfigured ? createClient(url, anonKey) : null;

@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
-  Film, Loader2, AlertCircle, Settings, Wifi, WifiOff
+  Film, Loader2, AlertCircle, Wifi, WifiOff, LogOut
 } from "lucide-react";
-import { getSupabaseConfig, setSupabaseConfig, makeClient } from "./supabaseClient";
+import { supabase, supabaseConfigured } from "./supabaseClient";
+import AuthScreen from "./AuthScreen";
 
 // ---------------------------------------------------------------------------
 // Design tokens — film-set / call-sheet aesthetic.
@@ -484,110 +485,32 @@ function ProductionCard({ p, onOpen, onDelete }) {
 }
 
 // ---------------------------------------------------------------------------
-// Settings screen (Supabase connection)
-// ---------------------------------------------------------------------------
-
-function SettingsScreen({ onSaved, initial, onCancel }) {
-  const [url, setUrl] = useState(initial?.url || "");
-  const [key, setKey] = useState(initial?.anonKey || "");
-  const [testing, setTesting] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSave() {
-    setError("");
-    if (!url.trim() || !key.trim()) {
-      setError("Preencha os dois campos.");
-      return;
-    }
-    setTesting(true);
-    try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const client = createClient(url.trim(), key.trim());
-      const { error: qErr } = await client.from(TABLE).select("id").limit(1);
-      if (qErr) {
-        setError(
-          `Conectou, mas a tabela "${TABLE}" não respondeu (${qErr.message}). Confira se você rodou o SQL de criação da tabela.`
-        );
-        setTesting(false);
-        return;
-      }
-      setSupabaseConfig(url.trim(), key.trim());
-      onSaved();
-    } catch (e) {
-      setError("Não consegui conectar. Confira a URL e a chave.");
-    }
-    setTesting(false);
-  }
-
-  return (
-    <div style={{ maxWidth: 480, margin: "60px auto", padding: "0 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
-        <Film size={22} color={C.amber} />
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, color: C.paper }}>CONFIGURAR CONEXÃO</div>
-      </div>
-      <p style={{ color: C.muted, fontSize: 13.5, lineHeight: 1.6, marginBottom: 20 }}>
-        Esse app guarda os dados num projeto Supabase (gratuito) pra sua equipe
-        compartilhar as produções. Cole a URL e a chave "anon public" do seu projeto.
-      </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <Field label="Supabase URL" value={url} onChange={setUrl} placeholder="https://xxxx.supabase.co" mono />
-        <Field label="Supabase anon key" value={key} onChange={setKey} placeholder="eyJhbGciOi..." mono multiline />
-      </div>
-      {error && (
-        <div style={{ marginTop: 14, display: "flex", gap: 8, alignItems: "flex-start", background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 12px", color: C.brick, fontSize: 12.5, lineHeight: 1.5 }}>
-          <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
-        </div>
-      )}
-      <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
-        {onCancel && (
-          <button onClick={onCancel} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 14px", color: C.muted, fontSize: 13.5, cursor: "pointer" }}>
-            Cancelar
-          </button>
-        )}
-        <button
-          onClick={handleSave}
-          disabled={testing}
-          style={{ flex: 2, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8, padding: "10px 14px", color: C.amber, fontSize: 13.5, fontWeight: 600, cursor: testing ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-        >
-          {testing ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : null}
-          {testing ? "Testando..." : "Conectar e salvar"}
-        </button>
-      </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // App root
 // ---------------------------------------------------------------------------
 
 export default function App() {
-  const [client, setClient] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
   const [productions, setProductions] = useState({});
   const [order, setOrder] = useState([]);
   const [currentId, setCurrentId] = useState(null);
   const [fieldMode, setFieldMode] = useState(false);
-  const [status, setStatus] = useState("boot"); // boot | loading | ready | error
+  const [status, setStatus] = useState("boot"); // boot | loading | ready
   const [online, setOnline] = useState(true);
   const saveTimers = useRef({});
 
   useEffect(() => {
-    const cfg = getSupabaseConfig();
-    if (cfg) {
-      const c = makeClient();
-      setClient(c);
-      setStatus("loading");
-    } else {
-      setShowSettings(true);
-      setStatus("ready");
+    if (!supabaseConfigured) {
+      setSession(null);
+      return;
     }
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  const loadAll = useCallback(async (c) => {
+  const loadAll = useCallback(async () => {
     setStatus("loading");
-    const { data, error } = await c.from(TABLE).select("id, payload, updated_at").order("updated_at", { ascending: false });
+    const { data, error } = await supabase.from(TABLE).select("id, payload, updated_at").order("updated_at", { ascending: false });
     if (error) {
       setOnline(false);
       setStatus("ready");
@@ -606,10 +529,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!client) return;
-    loadAll(client);
+    if (!session) return;
+    loadAll();
 
-    const channel = client
+    const channel = supabase
       .channel("productions-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: TABLE }, (payload) => {
         if (payload.eventType === "DELETE") {
@@ -628,15 +551,14 @@ export default function App() {
       .subscribe();
 
     return () => {
-      client.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, [client, loadAll]);
+  }, [session, loadAll]);
 
   function scheduleSave(id, payload) {
     if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
     saveTimers.current[id] = setTimeout(async () => {
-      if (!client) return;
-      const { error } = await client.from(TABLE).upsert({ id, payload, updated_at: new Date().toISOString() });
+      const { error } = await supabase.from(TABLE).upsert({ id, payload, updated_at: new Date().toISOString() });
       setOnline(!error);
     }, 400);
   }
@@ -662,28 +584,25 @@ export default function App() {
     });
     setOrder((prev) => prev.filter((o) => o !== id));
     if (currentId === id) setCurrentId(null);
-    if (client) {
-      const { error } = await client.from(TABLE).delete().eq("id", id);
-      setOnline(!error);
-    }
+    const { error } = await supabase.from(TABLE).delete().eq("id", id);
+    setOnline(!error);
   }
 
   const current = currentId ? productions[currentId] : null;
 
-  if (showSettings) {
+  if (session === undefined) {
     return (
       <div style={rootStyle}>
-        <SettingsScreen
-          initial={getSupabaseConfig()}
-          onCancel={client ? () => setShowSettings(false) : null}
-          onSaved={() => {
-            const c = makeClient();
-            setClient(c);
-            setShowSettings(false);
-          }}
-        />
+        <div style={{ display: "grid", placeItems: "center", height: 300, color: C.faint }}>
+          <Loader2 size={22} style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
+  }
+
+  if (!session) {
+    return <AuthScreen onAuthed={() => {}} />;
   }
 
   if (status === "boot" || status === "loading") {
@@ -707,10 +626,10 @@ export default function App() {
           PRODUÇÃO — ROTEIRO &amp; CAPTAÇÃO
         </div>
         {online ? <Wifi size={15} color={C.sage} /> : <WifiOff size={15} color={C.brick} />}
-        <IconButton onClick={() => setShowSettings(true)} title="Configurações">
-          <Settings size={17} />
-        </IconButton>
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
+        <IconButton onClick={() => supabase.auth.signOut()} title="Sair">
+          <LogOut size={17} />
+        </IconButton>
       </div>
 
       {!online && (
