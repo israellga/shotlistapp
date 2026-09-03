@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
-  Film, Loader2, AlertCircle, Wifi, WifiOff, LogOut
+  Film, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
@@ -55,6 +55,7 @@ function emptyProduction() {
     equipe: [],
     cronograma: [],
     shots: [],
+    clientShareEnabled: false,
   };
 }
 
@@ -350,6 +351,59 @@ function CronogramaSection({ cronograma, onChange }) {
   );
 }
 
+function ShareControl({ production, onChange }) {
+  const [copied, setCopied] = useState(false);
+  const enabled = !!production.clientShareEnabled;
+  const link = `${window.location.origin}/?client=${production.id}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard unavailable — link is still visible to select manually */
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: enabled ? 12 : 0 }}>
+        <span style={{ fontSize: 13, color: C.muted }}>
+          {enabled ? "O cliente pode ver o andamento por este link" : "Gerar um link de acompanhamento pro cliente"}
+        </span>
+        <button
+          onClick={() => onChange(!enabled)}
+          style={{ display: "flex", alignItems: "center", gap: 8, background: enabled ? C.amberDim : C.panel2, border: `1px solid ${enabled ? C.amber : C.line}`, borderRadius: 20, padding: "5px 10px 5px 5px", cursor: "pointer", flexShrink: 0 }}
+        >
+          <div style={{ width: 28, height: 16, borderRadius: 9, background: enabled ? C.amber : C.line, position: "relative" }}>
+            <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: enabled ? 14 : 2, transition: "left 0.15s" }} />
+          </div>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: enabled ? C.amber : C.muted }}>{enabled ? "ATIVO" : "INATIVO"}</span>
+        </button>
+      </div>
+
+      {enabled && (
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ flex: 1, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.muted, fontFamily: FONT_MONO, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {link}
+          </div>
+          <button
+            onClick={copyLink}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: copied ? C.sageDim : C.amberDim, border: `1px solid ${copied ? C.sage : C.amber}`, borderRadius: 7, padding: "8px 12px", color: copied ? C.sage : C.amber, fontSize: 12.5, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+            {copied ? "Copiado" : "Copiar"}
+          </button>
+        </div>
+      )}
+      <p style={{ fontSize: 11.5, color: C.faint, marginTop: 10, lineHeight: 1.5 }}>
+        O cliente vê só o nome e status de cada shot, sem detalhes internos de produção. Não precisa de login.
+      </p>
+    </div>
+  );
+}
+
 function Section({ title, icon, children, defaultOpen, count }) {
   const [open, setOpen] = useState(!!defaultOpen);
   return (
@@ -427,6 +481,11 @@ function ProductionDetail({ production, fieldMode, onChange, onBack }) {
         {!fieldMode && (
           <Section title="Cronograma do dia" icon={<Clock size={15} color={C.faint} />} count={production.cronograma.length}>
             <CronogramaSection cronograma={production.cronograma} onChange={(cronograma) => patch({ cronograma })} />
+          </Section>
+        )}
+        {!fieldMode && (
+          <Section title="Compartilhar com cliente" icon={<Share2 size={15} color={C.faint} />}>
+            <ShareControl production={production} onChange={(v) => patch({ clientShareEnabled: v })} />
           </Section>
         )}
       </div>
