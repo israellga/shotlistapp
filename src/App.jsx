@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
   Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
-  Building2, Phone, Mail, FileText, Menu, X as XIcon,
+  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, CalendarClock, ShieldCheck, DollarSign,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
@@ -13,9 +13,13 @@ import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { formatDataComDiaSemana, formatHorario, horarioMinutos } from "./datetime";
 import {
   uid, IconButton, Field, DateField, selectFieldStyle, selectInlineStyle,
-  inputInlineStyle, dashedAddStyle,
+  inputInlineStyle, dashedAddStyle, ConfirmDialog, EditableTitle,
 } from "./ui";
 import { ClientsList, ClientDetail, ClientPickerInline } from "./ClientsPanel";
+import { fetchThumbnail } from "./thumbnail";
+import { exportProductionPDF } from "./pdfExport";
+import AccountsPanel from "./AccountsPanel";
+import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 
 const TABLE = "productions";
 const TABLE_CLIENTS = "clients";
@@ -58,8 +62,9 @@ function emptyTake(n) {
 // ---------------------------------------------------------------------------
 
 const FUNCOES_PADRAO = [
-  "Diretor(a)", "Ator/Atriz", "Fotógrafo(a)", "Assistente de câmera",
-  "Assistente de set", "Videomaker", "Storymaker", "Catering", "Editor(a)", "Gaffer",
+  "Diretor(a)", "Produtor(a)", "Roteiro", "Ator/Atriz", "Fotógrafo(a)",
+  "Assistente de câmera", "Assistente de set", "Videomaker", "Storymaker",
+  "Editor(a)", "Gaffer", "Maquiagem", "Som/Áudio", "Motorista", "Catering",
 ];
 
 const TIPOS_PRODUCAO = ["Foto", "Reels", "Curta", "Stopmotion"];
@@ -169,15 +174,29 @@ function TakeRow({ take, fieldMode, onChange, onDelete }) {
 
 function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
   const doneCount = shot.takes.filter((t) => t.feito).length;
+  const [thumbLoading, setThumbLoading] = useState(false);
 
   function updateTake(id, next) {
-    onChange({ ...shot, takes: shot.takes.map((t) => (t.id === id ? next : t)) });
+    const nextTakes = shot.takes.map((t) => (t.id === id ? next : t));
+    const done = nextTakes.filter((t) => t.feito).length;
+    const total = nextTakes.length;
+    const status = total > 0 ? (done === 0 ? "afazer" : done === total ? "concluido" : "andamento") : shot.status;
+    onChange({ ...shot, takes: nextTakes, status });
   }
   function addTake() {
     onChange({ ...shot, takes: [...shot.takes, emptyTake(shot.takes.length + 1)] });
   }
   function deleteTake(id) {
     onChange({ ...shot, takes: shot.takes.filter((t) => t.id !== id).map((t, i) => ({ ...t, numero: i + 1 })) });
+  }
+
+  async function handleReferenciaBlur() {
+    const url = (shot.referencia || "").trim();
+    if (!url || url === shot.thumbnailSourceUrl) return;
+    setThumbLoading(true);
+    const thumb = await fetchThumbnail(url);
+    setThumbLoading(false);
+    if (thumb) onChange({ ...shot, thumbnailUrl: thumb, thumbnailSourceUrl: url });
   }
 
   return (
@@ -218,13 +237,40 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
               </label>
               <Field label="Equipamento" value={shot.equipamento} onChange={(v) => onChange({ ...shot, equipamento: v })} placeholder="Câmera, tripé, taça..." />
               <Field label="Objetivo" value={shot.objetivo} onChange={(v) => onChange({ ...shot, objetivo: v })} placeholder="O que essa cena precisa comunicar" multiline style={{ gridColumn: "1 / -1" }} />
-              <Field label="Referência (link)" value={shot.referencia} onChange={(v) => onChange({ ...shot, referencia: v })} placeholder="https://instagram.com/..." mono style={{ gridColumn: "1 / -1" }} />
+              <Field
+                label="Referência (link)"
+                value={shot.referencia}
+                onChange={(v) => onChange({ ...shot, referencia: v })}
+                onBlur={handleReferenciaBlur}
+                placeholder="https://instagram.com/..."
+                mono
+                style={{ gridColumn: "1 / -1" }}
+              />
+              {(thumbLoading || shot.thumbnailUrl) && (
+                <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 10 }}>
+                  {thumbLoading ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.faint, fontSize: 12 }}>
+                      <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Buscando miniatura...
+                    </div>
+                  ) : (
+                    <>
+                      <img src={shot.thumbnailUrl} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
+                      <span style={{ fontSize: 11.5, color: C.faint }}>Miniatura da referência</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {fieldMode && shot.referencia && (
-            <a href={shot.referencia} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: C.teal, marginTop: 14, textDecoration: "none" }}>
-              Ver referência <ExternalLink size={12} />
+            <a href={shot.referencia} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, textDecoration: "none" }}>
+              {shot.thumbnailUrl && (
+                <img src={shot.thumbnailUrl} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}`, flexShrink: 0 }} />
+              )}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: C.teal }}>
+                Ver referência <ExternalLink size={12} />
+              </span>
             </a>
           )}
 
@@ -298,18 +344,25 @@ function EquipeSection({ equipe, onChange, onKnowPerson }) {
 
 function CronogramaSection({ cronograma, onChange }) {
   function update(id, patch) { onChange(cronograma.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
-  function add() { onChange([...cronograma, { id: uid(), horario: "", item: "", local: "", elenco: "", equipamento: "" }]); }
+  function add() { onChange([...cronograma, { id: uid(), horario: "", local: "", equipe: "", elenco: "", plano: "", lente: "", observacao: "" }]); }
   function remove(id) { onChange(cronograma.filter((c) => c.id !== id)); }
   const sorted = [...cronograma].sort((a, b) => horarioMinutos(a.horario) - horarioMinutos(b.horario));
   return (
     <div>
       {sorted.map((c) => (
-        <div key={c.id} style={{ display: "grid", gridTemplateColumns: "72px 1.4fr 1fr 1fr 30px", gap: 8, marginBottom: 8, alignItems: "center" }}>
-          <HorarioInput value={c.horario} onCommit={(v) => update(c.id, { horario: v })} />
-          <input value={c.item} onChange={(e) => update(c.id, { item: e.target.value })} placeholder="Roteiro / item" style={inputInlineStyle(1)} />
-          <input value={c.local} onChange={(e) => update(c.id, { local: e.target.value })} placeholder="Local" style={inputInlineStyle(1)} />
-          <input value={c.elenco} onChange={(e) => update(c.id, { elenco: e.target.value })} placeholder="Elenco" style={inputInlineStyle(1)} />
-          <IconButton onClick={() => remove(c.id)} tone="brick" size={30}><Trash2 size={14} /></IconButton>
+        <div key={c.id} style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: 12, marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <HorarioInput value={c.horario} onCommit={(v) => update(c.id, { horario: v })} />
+            <input value={c.local} onChange={(e) => update(c.id, { local: e.target.value })} placeholder="Local" style={inputInlineStyle(2)} />
+            <IconButton onClick={() => remove(c.id)} tone="brick" size={28}><Trash2 size={13} /></IconButton>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            <input value={c.equipe} onChange={(e) => update(c.id, { equipe: e.target.value })} placeholder="Equipe" style={inputInlineStyle(1)} />
+            <input value={c.elenco} onChange={(e) => update(c.id, { elenco: e.target.value })} placeholder="Elenco" style={inputInlineStyle(1)} />
+            <input value={c.plano} onChange={(e) => update(c.id, { plano: e.target.value })} placeholder="Plano" style={inputInlineStyle(1)} />
+            <input value={c.lente} onChange={(e) => update(c.id, { lente: e.target.value })} placeholder="Lente" style={inputInlineStyle(1)} />
+          </div>
+          <input value={c.observacao} onChange={(e) => update(c.id, { observacao: e.target.value })} placeholder="Observação" style={{ ...inputInlineStyle(1), width: "100%" }} />
         </div>
       ))}
       <button onClick={add} style={dashedAddStyle}><Plus size={14} /> Adicionar horário</button>
@@ -415,7 +468,7 @@ function Section({ title, icon, children, defaultOpen, count }) {
 // Production detail
 // ---------------------------------------------------------------------------
 
-function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack }) {
+function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -460,14 +513,18 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
               </div>
             </>
           ) : (
-            <input
+            <EditableTitle
               value={production.cliente}
-              onChange={(e) => patch({ cliente: e.target.value })}
+              onChange={(v) => patch({ cliente: v })}
               placeholder="Nome do cliente / produção"
-              style={{ background: "transparent", border: "none", outline: "none", fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.paper, width: "100%" }}
             />
           )}
         </div>
+        {!fieldMode && (
+          <IconButton onClick={() => exportProductionPDF(production)} title="Exportar PDF">
+            <FileDown size={18} />
+          </IconButton>
+        )}
         <button
           onClick={handleSave}
           disabled={saving}
@@ -531,13 +588,8 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           </Section>
         )}
         {!fieldMode && (
-          <Section title="Cronograma do dia" icon={<Clock size={15} color={C.faint} />} count={production.cronograma.length}>
+          <Section title="Ordem do dia" icon={<Clock size={15} color={C.faint} />} count={production.cronograma.length}>
             <CronogramaSection cronograma={production.cronograma} onChange={(cronograma) => patch({ cronograma })} />
-          </Section>
-        )}
-        {!fieldMode && (
-          <Section title="Compartilhar com cliente" icon={<Share2 size={15} color={C.faint} />}>
-            <ShareControl production={production} onChange={(v) => patch({ clientShareEnabled: v })} />
           </Section>
         )}
       </div>
@@ -551,7 +603,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
         {production.shots.length === 0 && (
           <div style={{ color: C.faint, fontSize: 13.5, padding: "20px 4px", textAlign: "center" }}>
             Nenhum shot ainda. Adicione o primeiro pra montar a shotlist.
@@ -569,7 +621,52 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           />
         ))}
       </div>
+
+      {!fieldMode && (
+        <Section title="Compartilhar com cliente" icon={<Share2 size={15} color={C.faint} />}>
+          <ShareControl production={production} onChange={(v) => patch({ clientShareEnabled: v })} />
+        </Section>
+      )}
+
+      {!fieldMode && isGestor && (
+        <div style={{ marginTop: 12 }}>
+          <Section title="Financeiro" icon={<DollarSign size={15} color={C.faint} />}>
+            <FinanceSection
+              finance={finance}
+              onChange={onFinanceChange}
+            />
+            <SaveFinanceButton onSave={onFinanceSaveNow} />
+          </Section>
+        </div>
+      )}
     </div>
+  );
+}
+
+function SaveFinanceButton({ onSave }) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  async function handle() {
+    setSaving(true);
+    await onSave();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+  return (
+    <button
+      onClick={handle}
+      disabled={saving}
+      style={{
+        display: "flex", alignItems: "center", gap: 6, marginTop: 14,
+        background: saved ? C.sageDim : C.panel2, border: `1px solid ${saved ? C.sage : C.line}`,
+        borderRadius: 8, padding: "8px 14px", color: saved ? C.sage : C.muted,
+        fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer",
+      }}
+    >
+      {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : saved ? <Check size={13} /> : <Save size={13} />}
+      {saved ? "Salvo" : "Salvar financeiro"}
+    </button>
   );
 }
 
@@ -611,7 +708,7 @@ function useMediaQuery(query) {
 }
 
 function emptyClient() {
-  return { id: uid(), name: "", phone: "", email: "", notes: "" };
+  return { id: uid(), name: "", responsavel: "", phone: "", email: "", notes: "" };
 }
 
 // ---------------------------------------------------------------------------
@@ -632,8 +729,12 @@ export default function App() {
   const [online, setOnline] = useState(true);
   const [roster, setRoster] = useState([]);
   const [showAccount, setShowAccount] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [recovery, setRecovery] = useState(false);
-  const saveTimers = useRef({});
+  const [myRole, setMyRole] = useState(null); // null until known: 'regular' | 'gestor'
+  const [showAccounts, setShowAccounts] = useState(false);
+  const [financeMap, setFinanceMap] = useState({});
+  const isGestor = myRole === "gestor";
   const isWide = useMediaQuery("(min-width: 900px)");
 
   useEffect(() => {
@@ -647,6 +748,24 @@ export default function App() {
       if (event === "PASSWORD_RECOVERY") setRecovery(true);
     });
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!session) {
+      setMyRole(null);
+      return;
+    }
+    supabase.from("profiles").select("role").eq("id", session.user.id).single().then(({ data }) => {
+      setMyRole(data?.role || "regular");
+    });
+  }, [session]);
+
+  const loadFinance = useCallback(async () => {
+    const { data, error } = await supabase.from("production_finance").select("*");
+    if (error) return; // regular users: RLS blocks this, that's expected
+    const map = {};
+    for (const row of data || []) map[row.production_id] = { orcamento: row.orcamento, custos: row.custos || [] };
+    setFinanceMap(map);
   }, []);
 
   const loadAll = useCallback(async () => {
@@ -686,6 +805,7 @@ export default function App() {
     if (!session) return;
     loadAll();
     loadClients();
+    loadFinance();
     supabase.from(TABLE_TEAM).select("name").order("name").then(({ data }) => {
       setRoster((data || []).map((r) => r.name));
     });
@@ -726,29 +846,49 @@ export default function App() {
       })
       .subscribe();
 
+    const financeChannel = supabase
+      .channel("finance-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_finance" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setFinanceMap((prev) => {
+            const next = { ...prev };
+            delete next[payload.old.production_id];
+            return next;
+          });
+        } else {
+          const row = payload.new;
+          setFinanceMap((prev) => ({ ...prev, [row.production_id]: { orcamento: row.orcamento, custos: row.custos || [] } }));
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(clientsChannel);
+      supabase.removeChannel(financeChannel);
     };
-  }, [session, loadAll, loadClients]);
-
-  function scheduleSave(id, payload) {
-    if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
-    saveTimers.current[id] = setTimeout(async () => {
-      const { error } = await supabase.from(TABLE).upsert({ id, payload, updated_at: new Date().toISOString() });
-      setOnline(!error);
-    }, 400);
-  }
+  }, [session, loadAll, loadClients, loadFinance]);
 
   async function saveNow(id) {
-    if (saveTimers.current[id]) {
-      clearTimeout(saveTimers.current[id]);
-      delete saveTimers.current[id];
-    }
     const payload = productions[id];
     if (!payload) return;
     const { error } = await supabase.from(TABLE).upsert({ id, payload, updated_at: new Date().toISOString() });
     setOnline(!error);
+  }
+
+  async function saveFinanceNow(productionId) {
+    const f = financeMap[productionId] || { orcamento: "", custos: [] };
+    const { error } = await supabase.from("production_finance").upsert({
+      production_id: productionId,
+      orcamento: f.orcamento === "" ? null : Number(f.orcamento),
+      custos: f.custos || [],
+      updated_at: new Date().toISOString(),
+    });
+    setOnline(!error);
+  }
+
+  function updateFinance(productionId, next) {
+    setFinanceMap((prev) => ({ ...prev, [productionId]: next }));
   }
 
   function knowPerson(name) {
@@ -765,13 +905,21 @@ export default function App() {
     const p = emptyProduction();
     setProductions((prev) => ({ ...prev, [p.id]: p }));
     setOrder((prev) => [p.id, ...prev]);
-    scheduleSave(p.id, p);
     setCurrentId(p.id);
+  }
+
+  function addProductionForClient(client) {
+    const p = emptyProduction();
+    p.clienteId = client.id;
+    p.cliente = client.name;
+    setProductions((prev) => ({ ...prev, [p.id]: p }));
+    setOrder((prev) => [p.id, ...prev]);
+    setCurrentId(p.id);
+    setActiveTab("producoes");
   }
 
   function updateProduction(id, next) {
     setProductions((prev) => ({ ...prev, [id]: next }));
-    scheduleSave(id, next);
   }
 
   async function deleteProduction(id) {
@@ -786,21 +934,7 @@ export default function App() {
     setOnline(!error);
   }
 
-  function scheduleSaveClient(id, record) {
-    const key = `client:${id}`;
-    if (saveTimers.current[key]) clearTimeout(saveTimers.current[key]);
-    saveTimers.current[key] = setTimeout(async () => {
-      const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, updated_at: new Date().toISOString() });
-      setOnline(!error);
-    }, 400);
-  }
-
   async function saveClientNow(id) {
-    const key = `client:${id}`;
-    if (saveTimers.current[key]) {
-      clearTimeout(saveTimers.current[key]);
-      delete saveTimers.current[key];
-    }
     const record = clients[id];
     if (!record) return;
     const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, updated_at: new Date().toISOString() });
@@ -812,13 +946,11 @@ export default function App() {
     if (prefillName) c.name = prefillName;
     setClients((prev) => ({ ...prev, [c.id]: c }));
     setClientOrder((prev) => [...prev, c.id]);
-    scheduleSaveClient(c.id, c);
     return c.id;
   }
 
   function updateClient(id, next) {
     setClients((prev) => ({ ...prev, [id]: next }));
-    scheduleSaveClient(id, next);
   }
 
   async function deleteClient(id) {
@@ -897,8 +1029,9 @@ export default function App() {
     );
   }
 
-  const showList = isWide || (activeTab === "producoes" ? !current : !currentClient);
-  const showMain = isWide || (activeTab === "producoes" ? !!current : !!currentClient);
+  const showingProductions = activeTab === "producoes" || activeTab === "proximas" || fieldMode;
+  const showList = isWide || (showingProductions ? !current : !currentClient);
+  const showMain = isWide || (showingProductions ? !!current : !!currentClient);
 
   return (
     <div className="shell">
@@ -906,19 +1039,28 @@ export default function App() {
         * { box-sizing: border-box; }
         input::placeholder, textarea::placeholder { color: ${C.faint}; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .shell { min-height: 100vh; min-height: 100dvh; background: ${C.ink}; font-family: ${FONT_BODY}; display: flex; flex-direction: column; }
+        .shell { height: 100vh; height: 100dvh; background: ${C.ink}; font-family: ${FONT_BODY}; display: flex; flex-direction: column; overflow: hidden; }
         .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid ${C.line}; flex-shrink: 0; }
         .body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
         @media (min-width: 900px) {
           .body { display: grid; grid-template-columns: 340px 1fr; }
         }
-        .pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 14px 0; }
+        .sidebar { display: flex; flex-direction: column; min-height: 0; }
         @media (min-width: 900px) {
-          .pane-list { border-right: 1px solid ${C.line}; padding: 18px 14px 0; }
+          .sidebar { border-right: 1px solid ${C.line}; }
         }
+        .pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 14px 0; }
+        @media (min-width: 700px) {
+          .pane-list { padding-top: 62px; }
+          .pane-main { padding-top: 68px; }
+        }
+        @media (min-width: 900px) {
+          .pane-list { padding-top: 66px; }
+        }
+        .sidebar-footer { flex-shrink: 0; padding: 12px 14px; border-top: 1px solid ${C.line}; }
         .pane-main { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 14px 90px; }
         @media (min-width: 900px) {
-          .pane-main { padding: 28px 24px 60px; }
+          .pane-main { padding-left: 24px; padding-right: 24px; padding-bottom: 60px; padding-top: 76px; }
         }
         .tabs { display: flex; gap: 4px; background: ${C.panel2}; border-radius: 9px; padding: 4px; margin-bottom: 14px; }
         .tab-btn { flex: 1; padding: 8px 0; border-radius: 6px; border: none; cursor: pointer; font-family: ${FONT_MONO}; font-size: 12px; font-weight: 600; letter-spacing: 0.4px; }
@@ -933,13 +1075,33 @@ export default function App() {
         </div>
         {online ? <Wifi size={15} color={C.sage} /> : <WifiOff size={15} color={C.brick} />}
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
+        {isGestor && (
+          <IconButton onClick={() => setShowAccounts(true)} title="Contas da equipe">
+            <ShieldCheck size={17} />
+          </IconButton>
+        )}
         <IconButton onClick={() => setShowAccount(true)} title="Minha conta">
           <KeyRound size={17} />
         </IconButton>
-        <IconButton onClick={() => supabase.auth.signOut()} title="Sair">
+        <IconButton onClick={() => setConfirmLogout(true)} title="Sair">
           <LogOut size={17} />
         </IconButton>
       </div>
+
+      {showAccounts && (
+        <AccountsPanel onClose={() => setShowAccounts(false)} myUserId={session.user.id} />
+      )}
+
+      {confirmLogout && (
+        <ConfirmDialog
+          title="Sair da conta?"
+          message="Você vai precisar entrar de novo com seu email e senha."
+          confirmLabel="Sair"
+          danger
+          onConfirm={() => { setConfirmLogout(false); supabase.auth.signOut(); }}
+          onCancel={() => setConfirmLogout(false)}
+        />
+      )}
 
       {showAccount && (
         <AccountPanel email={session.user?.email} onClose={() => setShowAccount(false)} />
@@ -953,51 +1115,84 @@ export default function App() {
 
       <div className="body">
         {showList && (
-          <div className="pane-list">
-            {!fieldMode && (
-              <div className="tabs">
+          <div className="sidebar">
+            <div className="pane-list">
+              {!fieldMode && (
+                <div className="tabs">
+                  <button
+                    className="tab-btn"
+                    onClick={() => setActiveTab("producoes")}
+                    style={{ background: activeTab === "producoes" ? C.amberDim : "transparent", color: activeTab === "producoes" ? C.amber : C.muted }}
+                  >
+                    PRODUÇÕES
+                  </button>
+                  <button
+                    className="tab-btn"
+                    onClick={() => setActiveTab("clientes")}
+                    style={{ background: activeTab === "clientes" ? C.amberDim : "transparent", color: activeTab === "clientes" ? C.amber : C.muted }}
+                  >
+                    CLIENTES
+                  </button>
+                </div>
+              )}
+              {!fieldMode && (
                 <button
-                  className="tab-btn"
-                  onClick={() => setActiveTab("producoes")}
-                  style={{ background: activeTab === "producoes" ? C.amberDim : "transparent", color: activeTab === "producoes" ? C.amber : C.muted }}
+                  onClick={() => setActiveTab("proximas")}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, width: "100%", marginBottom: 14,
+                    background: activeTab === "proximas" ? C.amberDim : "transparent",
+                    border: `1px solid ${activeTab === "proximas" ? C.amber : C.line}`,
+                    borderRadius: 8, padding: "8px 12px", cursor: "pointer",
+                    color: activeTab === "proximas" ? C.amber : C.muted, fontSize: 12.5, fontWeight: 600,
+                  }}
                 >
-                  PRODUÇÕES
+                  <CalendarClock size={14} /> Próximas produções
                 </button>
-                <button
-                  className="tab-btn"
-                  onClick={() => setActiveTab("clientes")}
-                  style={{ background: activeTab === "clientes" ? C.amberDim : "transparent", color: activeTab === "clientes" ? C.amber : C.muted }}
-                >
-                  CLIENTES
-                </button>
-              </div>
-            )}
+              )}
 
-            {activeTab === "producoes" || fieldMode ? (
-              <ProductionsListPane
-                order={order}
-                productions={productions}
-                clients={clients}
-                currentId={currentId}
-                onOpen={setCurrentId}
-                onDelete={deleteProduction}
-                onAdd={addProduction}
-              />
-            ) : (
-              <ClientsList
-                clients={clientList}
-                currentClientId={currentClientId}
-                onOpen={setCurrentClientId}
-                onDelete={deleteClient}
-                onAdd={() => setCurrentClientId(addClient())}
-              />
-            )}
+              {activeTab === "clientes" && !fieldMode ? (
+                <ClientsList
+                  clients={clientList}
+                  currentClientId={currentClientId}
+                  onOpen={setCurrentClientId}
+                  onDelete={deleteClient}
+                />
+              ) : activeTab === "proximas" && !fieldMode ? (
+                <UpcomingProductionsPane
+                  order={order}
+                  productions={productions}
+                  currentId={currentId}
+                  onOpen={setCurrentId}
+                  onDelete={deleteProduction}
+                />
+              ) : (
+                <ProductionsListPane
+                  order={order}
+                  productions={productions}
+                  clients={clients}
+                  currentId={currentId}
+                  onOpen={setCurrentId}
+                  onDelete={deleteProduction}
+                />
+              )}
+            </div>
+            <div className="sidebar-footer">
+              {showingProductions ? (
+                <button onClick={addProduction} style={addButtonStyle}>
+                  <Plus size={16} /> Nova produção
+                </button>
+              ) : (
+                <button onClick={() => setCurrentClientId(addClient())} style={addButtonStyle}>
+                  <Plus size={16} /> Novo cliente
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {showMain && (
           <div className="pane-main">
-            {activeTab === "producoes" || fieldMode ? (
+            {showingProductions ? (
               current ? (
                 <ProductionDetail
                   production={current}
@@ -1011,6 +1206,10 @@ export default function App() {
                   onSelectClient={(sel) => handleSelectClient(current, sel)}
                   onOpenClient={openClientFromProduction}
                   showBack={!isWide}
+                  isGestor={isGestor}
+                  finance={financeMap[current.id]}
+                  onFinanceChange={(next) => updateFinance(current.id, next)}
+                  onFinanceSaveNow={() => saveFinanceNow(current.id)}
                 />
               ) : (
                 <EmptyMainState label="Selecione uma produção à esquerda, ou crie uma nova." />
@@ -1024,7 +1223,10 @@ export default function App() {
                 onDelete={deleteClient}
                 productions={order.map((id) => productions[id]).filter((p) => p && p.clienteId === currentClient.id)}
                 onOpenProduction={openProductionFromClient}
+                onAddProduction={() => addProductionForClient(currentClient)}
                 showBack={!isWide}
+                isGestor={isGestor}
+                financeMap={financeMap}
               />
             ) : (
               <EmptyMainState label="Selecione um cliente à esquerda, ou cadastre um novo." />
@@ -1035,6 +1237,12 @@ export default function App() {
     </div>
   );
 }
+
+const addButtonStyle = {
+  width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+  background: C.amber, border: "none", borderRadius: 24, padding: "12px 16px",
+  color: C.ink, fontSize: 14, fontWeight: 700, cursor: "pointer",
+};
 
 function EmptyMainState({ label }) {
   return (
@@ -1047,7 +1255,33 @@ function EmptyMainState({ label }) {
   );
 }
 
-function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, onAdd }) {
+function UpcomingProductionsPane({ order, productions, currentId, onOpen, onDelete }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = order
+    .map((id) => productions[id])
+    .filter((p) => p && p.data && p.data >= today)
+    .sort((a, b) => a.data.localeCompare(b.data));
+
+  return (
+    <div style={{ paddingBottom: 10 }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px" }}>
+        PRÓXIMAS ({upcoming.length})
+      </div>
+      {upcoming.length === 0 && (
+        <div style={{ color: C.faint, fontSize: 13.5, padding: "40px 4px", textAlign: "center" }}>
+          Nenhuma produção com data futura cadastrada.
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {upcoming.map((p) => (
+          <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete }) {
   const groups = [];
   const byClient = {};
   const semCliente = [];
@@ -1067,40 +1301,26 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
   if (semCliente.length) groups.push({ label: "Sem cliente", items: semCliente });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 10 }}>
-        {order.length === 0 && (
-          <div style={{ color: C.faint, fontSize: 13.5, padding: "50px 4px 30px", textAlign: "center" }}>
-            <ShotlistMark size={26} lit={false} amber={C.line} dim={C.line} style={{ marginBottom: 12 }} />
-            <div>Nenhuma produção ainda.</div>
-            <div>Toque em "Nova produção" abaixo pra montar cronograma, equipe e shotlist.</div>
+    <div style={{ paddingBottom: 10 }}>
+      {order.length === 0 && (
+        <div style={{ color: C.faint, fontSize: 13.5, padding: "50px 4px 30px", textAlign: "center" }}>
+          <ShotlistMark size={26} lit={false} amber={C.line} dim={C.line} style={{ marginBottom: 12 }} />
+          <div>Nenhuma produção ainda.</div>
+          <div>Toque em "Nova produção" abaixo pra montar cronograma, equipe e shotlist.</div>
+        </div>
+      )}
+      {groups.map((g) => (
+        <div key={g.label} style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px" }}>
+            {g.label.toUpperCase()} ({g.items.length})
           </div>
-        )}
-        {groups.map((g) => (
-          <div key={g.label} style={{ marginBottom: 18 }}>
-            <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px" }}>
-              {g.label.toUpperCase()} ({g.items.length})
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {g.items.map((p) => (
-                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} />
-              ))}
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {g.items.map((p) => (
+              <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} />
+            ))}
           </div>
-        ))}
-      </div>
-      <div style={{ padding: "10px 0", borderTop: `1px solid ${C.line}` }}>
-        <button
-          onClick={onAdd}
-          style={{
-            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            background: C.amber, border: "none", borderRadius: 24, padding: "12px 16px",
-            color: C.ink, fontSize: 14, fontWeight: 700, cursor: "pointer",
-          }}
-        >
-          <Plus size={16} /> Nova produção
-        </button>
-      </div>
+        </div>
+      ))}
     </div>
   );
 }

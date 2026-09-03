@@ -1,26 +1,7 @@
 import React, { useState } from "react";
 import { X, Loader2, AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
 import { supabase } from "./supabaseClient";
-
-const C = {
-  ink: "#17181A",
-  panel: "#1F2124",
-  panel2: "#26282C",
-  line: "#37393E",
-  paper: "#ECE8DF",
-  muted: "#96938B",
-  faint: "#6B6963",
-  amber: "#E2A33D",
-  amberDim: "#4A3B21",
-  sage: "#6FA07E",
-  sageDim: "#233A2A",
-  brick: "#C1613F",
-  brickDim: "#3A241C",
-};
-
-const FONT_DISPLAY = "'Oswald', 'Arial Narrow', sans-serif";
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
-const FONT_BODY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
 export default function AccountPanel({ email, onClose, forced, onDone }) {
   const [password, setPassword] = useState("");

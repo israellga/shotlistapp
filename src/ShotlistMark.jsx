@@ -12,7 +12,7 @@ const STROKE_WIDTH = 7;
 
 let seq = 0;
 
-export default function ShotlistMark({ size = 32, interactive = false, lit = true, amber = "#E2A33D", dim = "#2C2E32", style }) {
+export default function ShotlistMark({ size = 32, interactive = false, lit = true, amber = "#FDDF4B", dim = "#1B1B1B", style, glowOpacity = 0.55, glowRadius = 40 }) {
   const gradRef = useRef(null);
   const containerRef = useRef(null);
   const rafRef = useRef(null);
@@ -64,9 +64,9 @@ export default function ShotlistMark({ size = 32, interactive = false, lit = tru
     >
       {interactive && (
         <defs>
-          <radialGradient ref={gradRef} id={gid} gradientUnits="userSpaceOnUse" cx="50" cy="50" r="46">
-            <stop offset="0%" stopColor={amber} stopOpacity="1" />
-            <stop offset="45%" stopColor={amber} stopOpacity="0.75" />
+          <radialGradient ref={gradRef} id={gid} gradientUnits="userSpaceOnUse" cx="50" cy="50" r={glowRadius}>
+            <stop offset="0%" stopColor={amber} stopOpacity={glowOpacity} />
+            <stop offset="55%" stopColor={amber} stopOpacity={glowOpacity * 0.5} />
             <stop offset="100%" stopColor={amber} stopOpacity="0" />
           </radialGradient>
         </defs>

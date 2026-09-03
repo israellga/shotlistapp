@@ -1,5 +1,6 @@
 import React from "react";
-import { C, FONT_MONO, FONT_BODY } from "./theme";
+import { Check, Pencil } from "lucide-react";
+import { C, FONT_MONO, FONT_BODY, FONT_DISPLAY } from "./theme";
 import { formatDataComDiaSemana } from "./datetime";
 
 export function uid() {
@@ -109,3 +110,82 @@ export const dashedAddStyle = {
   border: `1px dashed ${C.line}`, borderRadius: 7, padding: "8px 12px",
   color: C.muted, fontSize: 13, cursor: "pointer",
 };
+
+export function ConfirmDialog({ title, message, confirmLabel = "Confirmar", cancelLabel = "Cancelar", danger, onConfirm, onCancel }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 60, display: "grid", placeItems: "center", padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 360, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 22 }}>
+        <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, color: C.paper, marginBottom: 8 }}>{title}</div>
+        {message && <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.5, marginBottom: 20 }}>{message}</div>}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onCancel}
+            style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 14px", color: C.muted, fontSize: 13.5, cursor: "pointer" }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1, background: danger ? C.brickDim : C.amberDim,
+              border: `1px solid ${danger ? C.brick : C.amber}`, borderRadius: 8, padding: "10px 14px",
+              color: danger ? C.brick : C.amber, fontSize: 13.5, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function EditableTitle({ value, onChange, placeholder, size = 22 }) {
+  const [editing, setEditing] = React.useState(!value);
+  const [draft, setDraft] = React.useState(value || "");
+
+  React.useEffect(() => {
+    if (!editing) setDraft(value || "");
+  }, [value, editing]);
+
+  function commit() {
+    onChange(draft.trim());
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+          placeholder={placeholder}
+          style={{
+            flex: 1, minWidth: 0, background: C.panel2, border: `1px solid ${C.amber}`,
+            borderRadius: 8, outline: "none", fontFamily: FONT_DISPLAY, fontWeight: 700,
+            fontSize: size, color: C.paper, padding: "7px 10px",
+          }}
+        />
+        <IconButton onClick={commit} tone="amber" title="Confirmar">
+          <Check size={19} />
+        </IconButton>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+      <div style={{
+        flex: 1, minWidth: 0, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: size,
+        color: value ? C.paper : C.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>
+        {value || placeholder}
+      </div>
+      <IconButton onClick={() => setEditing(true)} title="Editar nome">
+        <Pencil size={16} />
+      </IconButton>
+    </div>
+  );
+}

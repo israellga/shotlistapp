@@ -1,26 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Film, Loader2, AlertCircle, ExternalLink, RefreshCw, CheckCircle2, PlayCircle, Circle } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, RefreshCw, CheckCircle2, PlayCircle, Circle } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
-
-const C = {
-  ink: "#17181A",
-  panel: "#1F2124",
-  line: "#37393E",
-  lineSoft: "#2C2E32",
-  paper: "#ECE8DF",
-  muted: "#96938B",
-  faint: "#6B6963",
-  amber: "#E2A33D",
-  amberDim: "#4A3B21",
-  sage: "#6FA07E",
-  sageDim: "#233A2A",
-  brick: "#C1613F",
-  brickDim: "#3A241C",
-};
-
-const FONT_DISPLAY = "'Oswald', 'Arial Narrow', sans-serif";
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
-const FONT_BODY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+import ShotlistMark from "./ShotlistMark";
+import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
 const STATUS = {
   afazer: { label: "A fazer", color: C.muted, bg: "transparent", border: C.line },
@@ -153,6 +135,9 @@ export default function ClientView({ id }) {
           return (
             <div key={s.numero} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                {s.thumbnailUrl && (
+                  <img src={s.thumbnailUrl} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 7, border: `1px solid ${C.line}`, flexShrink: 0 }} />
+                )}
                 <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 18, color: C.faint, minWidth: 30 }}>
                   {String(s.numero).padStart(2, "0")}
                 </div>

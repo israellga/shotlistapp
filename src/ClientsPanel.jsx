@@ -4,76 +4,63 @@ import {
   Building2, Phone, Mail, FileText, User,
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
-import { Field, IconButton } from "./ui";
+import { Field, IconButton, EditableTitle } from "./ui";
+import { ClientBalanceSummary } from "./finance";
 
-export function ClientsList({ clients, onOpen, onAdd, onDelete, currentClientId }) {
+export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
   const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "0 4px 10px", flex: 1, overflowY: "auto" }}>
-        <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, margin: "10px 4px 14px" }}>
-          CLIENTES ({clients.length})
-        </div>
-        {sorted.length === 0 && (
-          <div style={{ color: C.faint, fontSize: 13.5, padding: "40px 8px", textAlign: "center" }}>
-            <Building2 size={24} color={C.line} style={{ marginBottom: 10 }} />
-            <div>Nenhum cliente ainda.</div>
-            <div>Cadastre pra organizar as produções por cliente.</div>
-          </div>
-        )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {sorted.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => onOpen(c.id)}
-              style={{
-                background: currentClientId === c.id ? C.panel2 : C.panel,
-                border: `1px solid ${currentClientId === c.id ? C.amber : C.line}`,
-                borderRadius: 10, padding: "13px 14px", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 10,
-              }}
-            >
-              <div style={{
-                width: 34, height: 34, borderRadius: 8, background: C.panel2, display: "grid",
-                placeItems: "center", flexShrink: 0, color: C.amber, fontFamily: FONT_DISPLAY, fontSize: 15, fontWeight: 600,
-              }}>
-                {(c.name || "?").trim().charAt(0).toUpperCase()}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14.5, color: C.paper, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {c.name || "Sem nome"}
-                </div>
-                {(c.phone || c.email) && (
-                  <div style={{ fontSize: 12, color: C.faint, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {c.phone || c.email}
-                  </div>
-                )}
-              </div>
-              <IconButton onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} tone="brick" size={28} title="Excluir cliente">
-                <Trash2 size={14} />
-              </IconButton>
-              <ChevronRight size={16} color={C.faint} />
-            </div>
-          ))}
-        </div>
+    <div style={{ paddingBottom: 10 }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, margin: "0 4px 14px" }}>
+        CLIENTES ({clients.length})
       </div>
-      <div style={{ padding: "10px 4px", borderTop: `1px solid ${C.line}` }}>
-        <button
-          onClick={onAdd}
-          style={{
-            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            background: C.amber, border: "none", borderRadius: 24, padding: "12px 16px",
-            color: C.ink, fontSize: 14, fontWeight: 700, cursor: "pointer",
-          }}
-        >
-          <Plus size={16} /> Novo cliente
-        </button>
+      {sorted.length === 0 && (
+        <div style={{ color: C.faint, fontSize: 13.5, padding: "40px 8px", textAlign: "center" }}>
+          <Building2 size={24} color={C.line} style={{ marginBottom: 10 }} />
+          <div>Nenhum cliente ainda.</div>
+          <div>Cadastre pra organizar as produções por cliente.</div>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {sorted.map((c) => (
+          <div
+            key={c.id}
+            onClick={() => onOpen(c.id)}
+            style={{
+              background: currentClientId === c.id ? C.panel2 : C.panel,
+              border: `1px solid ${currentClientId === c.id ? C.amber : C.line}`,
+              borderRadius: 10, padding: "13px 14px", cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 10,
+            }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: 8, background: C.panel2, display: "grid",
+              placeItems: "center", flexShrink: 0, color: C.amber, fontFamily: FONT_DISPLAY, fontSize: 15, fontWeight: 600,
+            }}>
+              {(c.name || "?").trim().charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14.5, color: C.paper, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {c.name || "Sem nome"}
+              </div>
+              {c.responsavel && (
+                <div style={{ fontSize: 12, color: C.faint, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  Responsável: {c.responsavel}
+                </div>
+              )}
+            </div>
+            <IconButton onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} tone="brick" size={28} title="Excluir cliente">
+              <Trash2 size={14} />
+            </IconButton>
+            <ChevronRight size={16} color={C.faint} />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, showBack }) {
+export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, onAddProduction, showBack, isGestor, financeMap }) {
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
 
@@ -93,12 +80,7 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
         {showBack && (
           <IconButton onClick={onBack} tone="paper" title="Voltar"><ArrowLeft size={19} /></IconButton>
         )}
-        <input
-          value={client.name}
-          onChange={(e) => patch({ name: e.target.value })}
-          placeholder="Nome do cliente"
-          style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.paper }}
-        />
+        <EditableTitle value={client.name} onChange={(v) => patch({ name: v })} placeholder="Nome do cliente" />
         <button
           onClick={handleSave}
           disabled={saving}
@@ -116,8 +98,9 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+        <Field label="Responsável" value={client.responsavel || ""} onChange={(v) => patch({ responsavel: v })} placeholder="Nome de quem responde por esse cliente" />
         <Field label="Telefone" value={client.phone || ""} onChange={(v) => patch({ phone: v })} placeholder="(11) 99999-9999" mono />
-        <Field label="Email" value={client.email || ""} onChange={(v) => patch({ email: v })} placeholder="contato@cliente.com" mono />
+        <Field label="Email" value={client.email || ""} onChange={(v) => patch({ email: v })} placeholder="contato@cliente.com" mono style={{ gridColumn: "1 / -1" }} />
       </div>
       <Field
         label="Observações"
@@ -128,8 +111,25 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
         style={{ marginBottom: 24 }}
       />
 
-      <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, marginBottom: 10 }}>
-        PRODUÇÕES ({productions.length})
+      {isGestor && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, marginBottom: 10 }}>
+            BALANCETE
+          </div>
+          <ClientBalanceSummary productions={productions} financeMap={financeMap || {}} />
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, flex: 1 }}>
+          PRODUÇÕES ({productions.length})
+        </div>
+        <button
+          onClick={onAddProduction}
+          style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "6px 10px", color: C.muted, fontSize: 11.5, cursor: "pointer" }}
+        >
+          <Plus size={12} /> Registrar produção
+        </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {productions.length === 0 && (
