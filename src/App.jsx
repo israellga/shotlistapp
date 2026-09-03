@@ -502,11 +502,8 @@ function HorarioInput({ value, onCommit }) {
   );
 }
 
-function ShareControl({ production, onChange }) {
+function CopyLinkButton({ link, big }) {
   const [copied, setCopied] = useState(false);
-  const enabled = !!production.clientShareEnabled;
-  const link = `${window.location.origin}/?client=${production.id}`;
-
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(link);
@@ -516,6 +513,26 @@ function ShareControl({ production, onChange }) {
       /* clipboard unavailable — link is still visible to select manually */
     }
   }
+  return (
+    <button
+      onClick={copyLink}
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        background: copied ? C.sageDim : C.amberDim, border: `1px solid ${copied ? C.sage : C.amber}`,
+        borderRadius: big ? 20 : 7, padding: big ? "9px 16px" : "8px 12px",
+        color: copied ? C.sage : C.amber, fontSize: big ? 13 : 12.5, fontWeight: 600,
+        cursor: "pointer", flexShrink: 0,
+      }}
+    >
+      {copied ? <Check size={big ? 15 : 13} /> : <Copy size={big ? 15 : 13} />}
+      {copied ? "Copiado" : big ? "Copiar link do cliente" : "Copiar"}
+    </button>
+  );
+}
+
+function ShareControl({ production, onChange }) {
+  const enabled = !!production.clientShareEnabled;
+  const link = `${window.location.origin}/?client=${production.id}`;
 
   return (
     <div>
@@ -539,13 +556,7 @@ function ShareControl({ production, onChange }) {
           <div style={{ flex: 1, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.muted, fontFamily: FONT_MONO, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {link}
           </div>
-          <button
-            onClick={copyLink}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: copied ? C.sageDim : C.amberDim, border: `1px solid ${copied ? C.sage : C.amber}`, borderRadius: 7, padding: "8px 12px", color: copied ? C.sage : C.amber, fontSize: 12.5, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
-          >
-            {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? "Copiado" : "Copiar"}
-          </button>
+          <CopyLinkButton link={link} />
         </div>
       )}
       <p style={{ fontSize: 11.5, color: C.faint, marginTop: 10, lineHeight: 1.5 }}>
@@ -640,6 +651,12 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           {saved ? "Salvo" : "Salvar"}
         </button>
       </div>
+
+      {fieldMode && production.clientShareEnabled && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 18, marginTop: -8 }}>
+          <CopyLinkButton link={`${window.location.origin}/?client=${production.id}`} big />
+        </div>
+      )}
 
       {!fieldMode && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 18 }}>

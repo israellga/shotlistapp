@@ -28,12 +28,13 @@ const STATUS = {
   concluido: { label: "Concluído", color: C.sage, bg: C.sageDim, border: C.sage },
 };
 
-const REFRESH_MS = 20000;
+const SAFETY_POLL_MS = 60000;
 
 export default function ClientView({ id }) {
   const [state, setState] = useState("loading"); // loading | ok | notfound | error
   const [data, setData] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
+  const [live, setLive] = useState(false);
 
   const load = useCallback(async () => {
     if (!supabaseConfigured) {
@@ -56,8 +57,23 @@ export default function ClientView({ id }) {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, REFRESH_MS);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel(`production:${id}`)
+      .on("broadcast", { event: "production_update" }, (msg) => {
+        setData(msg.payload);
+        setState("ok");
+        setLastFetch(new Date());
+      })
+      .subscribe((status) => setLive(status === "SUBSCRIBED"));
+
+    // safety net in case a broadcast is ever missed (e.g. brief disconnect)
+    const interval = setInterval(load, SAFETY_POLL_MS);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, [load]);
 
   if (state === "loading") {
@@ -171,8 +187,9 @@ export default function ClientView({ id }) {
       </div>
 
       {lastFetch && (
-        <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: C.faint, fontFamily: FONT_MONO }}>
-          Atualizado às {lastFetch.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · atualiza sozinho
+        <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: C.faint, fontFamily: FONT_MONO, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? C.sage : C.faint, display: "inline-block" }} />
+          {live ? "Ao vivo" : "Atualizado"} às {lastFetch.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
         </div>
       )}
     </Shell>
