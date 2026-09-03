@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
@@ -737,6 +737,7 @@ export default function App() {
   const [financeMap, setFinanceMap] = useState({});
   const isGestor = myRole === "gestor";
   const isWide = useMediaQuery("(min-width: 900px)");
+  const saveTimers = useRef({});
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -886,6 +887,10 @@ export default function App() {
   }, [session, loadAll, loadClients, loadFinance]);
 
   async function saveNow(id) {
+    if (saveTimers.current["p:" + id]) {
+      clearTimeout(saveTimers.current["p:" + id]);
+      delete saveTimers.current["p:" + id];
+    }
     const payload = productions[id];
     if (!payload) return;
     const { error } = await supabase.from(TABLE).upsert({ id, payload, updated_at: new Date().toISOString() });
@@ -924,6 +929,10 @@ export default function App() {
     setOrder((prev) => [p.id, ...prev]);
     setCurrentId(p.id);
     saveDraft("productions", p.id, p);
+    supabase.from(TABLE).upsert({ id: p.id, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
+      setOnline(!error);
+      if (!error) clearDraft("productions", p.id);
+    });
   }
 
   function addProductionForClient(client) {
@@ -935,11 +944,21 @@ export default function App() {
     setCurrentId(p.id);
     setActiveTab("producoes");
     saveDraft("productions", p.id, p);
+    supabase.from(TABLE).upsert({ id: p.id, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
+      setOnline(!error);
+      if (!error) clearDraft("productions", p.id);
+    });
   }
 
   function updateProduction(id, next) {
     setProductions((prev) => ({ ...prev, [id]: next }));
     saveDraft("productions", id, next);
+    if (saveTimers.current["p:" + id]) clearTimeout(saveTimers.current["p:" + id]);
+    saveTimers.current["p:" + id] = setTimeout(async () => {
+      const { error } = await supabase.from(TABLE).upsert({ id, payload: next, updated_at: new Date().toISOString() });
+      setOnline(!error);
+      if (!error) clearDraft("productions", id);
+    }, 700);
   }
 
   async function deleteProduction(id) {
@@ -956,6 +975,10 @@ export default function App() {
   }
 
   async function saveClientNow(id) {
+    if (saveTimers.current["c:" + id]) {
+      clearTimeout(saveTimers.current["c:" + id]);
+      delete saveTimers.current["c:" + id];
+    }
     const record = clients[id];
     if (!record) return;
     const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, updated_at: new Date().toISOString() });
@@ -969,12 +992,22 @@ export default function App() {
     setClients((prev) => ({ ...prev, [c.id]: c }));
     setClientOrder((prev) => [...prev, c.id]);
     saveDraft("clients", c.id, c);
+    supabase.from(TABLE_CLIENTS).upsert({ ...c, updated_at: new Date().toISOString() }).then(({ error }) => {
+      setOnline(!error);
+      if (!error) clearDraft("clients", c.id);
+    });
     return c.id;
   }
 
   function updateClient(id, next) {
     setClients((prev) => ({ ...prev, [id]: next }));
     saveDraft("clients", id, next);
+    if (saveTimers.current["c:" + id]) clearTimeout(saveTimers.current["c:" + id]);
+    saveTimers.current["c:" + id] = setTimeout(async () => {
+      const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...next, updated_at: new Date().toISOString() });
+      setOnline(!error);
+      if (!error) clearDraft("clients", id);
+    }, 700);
   }
 
   async function deleteClient(id) {

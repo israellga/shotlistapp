@@ -202,7 +202,7 @@ function Shell({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: C.ink, fontFamily: FONT_BODY, padding: "24px 16px 60px" }}>
       <div style={{ maxWidth: 560, margin: "0 auto 20px", display: "flex", alignItems: "center", gap: 10 }}>
-        <Film size={18} color={C.amber} />
+        <ShotlistMark size={18} lit />
         <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, letterSpacing: 0.5, color: C.faint }}>
           ACOMPANHAMENTO DE PRODUÇÃO
         </div>
