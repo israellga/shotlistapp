@@ -23,7 +23,7 @@ const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
 const FONT_BODY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
 export default function AuthScreen({ onAuthed }) {
-  const [mode, setMode] = useState("login"); // login | signup
+  const [mode, setMode] = useState("login"); // login | signup | forgot
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,6 +43,26 @@ export default function AuthScreen({ onAuthed }) {
         </div>
       </div>
     );
+  }
+
+  async function handleForgotSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setNotice("");
+    if (!email.trim()) {
+      setError("Digite seu email.");
+      return;
+    }
+    setLoading(true);
+    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: window.location.origin,
+    });
+    setLoading(false);
+    if (err) {
+      setError(traduzErro(err.message));
+    } else {
+      setNotice("Enviamos um link pro seu email pra você criar uma nova senha.");
+    }
   }
 
   async function handleSubmit(e) {
@@ -91,66 +111,124 @@ export default function AuthScreen({ onAuthed }) {
           </div>
         </div>
 
-        <div style={{ display: "flex", background: C.panel2, borderRadius: 9, padding: 4, marginBottom: 20 }}>
-          {["login", "signup"].map((m) => (
+        {mode !== "forgot" && (
+          <div style={{ display: "flex", background: C.panel2, borderRadius: 9, padding: 4, marginBottom: 20 }}>
+            {["login", "signup"].map((m) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setError(""); setNotice(""); }}
+                style={{
+                  flex: 1, padding: "9px 0", borderRadius: 6, border: "none", cursor: "pointer",
+                  background: mode === m ? C.amberDim : "transparent",
+                  color: mode === m ? C.amber : C.muted,
+                  fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4,
+                }}
+              >
+                {m === "login" ? "ENTRAR" : "CRIAR CONTA"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === "forgot" ? (
+          <form onSubmit={handleForgotSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.5, margin: "0 0 4px" }}>
+              Digite o email da sua conta. Vamos mandar um link pra você criar uma senha nova.
+            </p>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              autoComplete="email"
+              style={inputStyle}
+            />
+            {error && (
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 12px", color: C.brick, fontSize: 12.5, lineHeight: 1.5 }}>
+                <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
+              </div>
+            )}
+            {notice && (
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 8, padding: "10px 12px", color: C.sage, fontSize: 12.5, lineHeight: 1.5 }}>
+                <CheckCircle2 size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {notice}
+              </div>
+            )}
             <button
-              key={m}
-              onClick={() => { setMode(m); setError(""); setNotice(""); }}
+              type="submit"
+              disabled={loading}
               style={{
-                flex: 1, padding: "9px 0", borderRadius: 6, border: "none", cursor: "pointer",
-                background: mode === m ? C.amberDim : "transparent",
-                color: mode === m ? C.amber : C.muted,
-                fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8,
+                padding: "11px 14px", color: C.amber, fontSize: 14, fontWeight: 600,
+                cursor: loading ? "default" : "pointer", marginTop: 4,
               }}
             >
-              {m === "login" ? "ENTRAR" : "CRIAR CONTA"}
+              {loading && <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />}
+              Enviar link
             </button>
-          ))}
-        </div>
+            <button
+              type="button"
+              onClick={() => { setMode("login"); setError(""); setNotice(""); }}
+              style={{ background: "transparent", border: "none", color: C.muted, fontSize: 12.5, cursor: "pointer", padding: 4 }}
+            >
+              Voltar pro login
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seu@email.com"
+              autoComplete="email"
+              style={inputStyle}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Senha"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              style={inputStyle}
+            />
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
-            autoComplete="email"
-            style={inputStyle}
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Senha"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            style={inputStyle}
-          />
+            {error && (
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 12px", color: C.brick, fontSize: 12.5, lineHeight: 1.5 }}>
+                <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
+              </div>
+            )}
+            {notice && (
+              <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 8, padding: "10px 12px", color: C.sage, fontSize: 12.5, lineHeight: 1.5 }}>
+                <CheckCircle2 size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {notice}
+              </div>
+            )}
 
-          {error && (
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 12px", color: C.brick, fontSize: 12.5, lineHeight: 1.5 }}>
-              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {error}
-            </div>
-          )}
-          {notice && (
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 8, padding: "10px 12px", color: C.sage, fontSize: 12.5, lineHeight: 1.5 }}>
-              <CheckCircle2 size={15} style={{ flexShrink: 0, marginTop: 1 }} /> {notice}
-            </div>
-          )}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8,
+                padding: "11px 14px", color: C.amber, fontSize: 14, fontWeight: 600,
+                cursor: loading ? "default" : "pointer", marginTop: 4,
+              }}
+            >
+              {loading && <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />}
+              {mode === "login" ? "Entrar" : "Criar conta"}
+            </button>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8,
-              padding: "11px 14px", color: C.amber, fontSize: 14, fontWeight: 600,
-              cursor: loading ? "default" : "pointer", marginTop: 4,
-            }}
-          >
-            {loading && <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />}
-            {mode === "login" ? "Entrar" : "Criar conta"}
-          </button>
-        </form>
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={() => { setMode("forgot"); setError(""); setNotice(""); }}
+                style={{ background: "transparent", border: "none", color: C.muted, fontSize: 12.5, cursor: "pointer", padding: 4 }}
+              >
+                Esqueci minha senha
+              </button>
+            )}
+          </form>
+        )}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

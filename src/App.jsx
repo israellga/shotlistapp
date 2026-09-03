@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
-  Film, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save
+  Film, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
+import AccountPanel from "./AccountPanel";
 
 // ---------------------------------------------------------------------------
 // Design tokens — film-set / call-sheet aesthetic.
@@ -739,6 +740,8 @@ export default function App() {
   const [status, setStatus] = useState("boot"); // boot | loading | ready
   const [online, setOnline] = useState(true);
   const [roster, setRoster] = useState([]);
+  const [showAccount, setShowAccount] = useState(false);
+  const [recovery, setRecovery] = useState(false);
   const saveTimers = useRef({});
 
   useEffect(() => {
@@ -747,7 +750,10 @@ export default function App() {
       return;
     }
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -872,6 +878,16 @@ export default function App() {
     return <AuthScreen onAuthed={() => {}} />;
   }
 
+  if (recovery) {
+    return (
+      <AccountPanel
+        email={session.user?.email}
+        forced
+        onDone={() => setRecovery(false)}
+      />
+    );
+  }
+
   if (status === "boot" || status === "loading") {
     return (
       <div style={rootStyle}>
@@ -894,10 +910,17 @@ export default function App() {
         </div>
         {online ? <Wifi size={15} color={C.sage} /> : <WifiOff size={15} color={C.brick} />}
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
+        <IconButton onClick={() => setShowAccount(true)} title="Minha conta">
+          <KeyRound size={17} />
+        </IconButton>
         <IconButton onClick={() => supabase.auth.signOut()} title="Sair">
           <LogOut size={17} />
         </IconButton>
       </div>
+
+      {showAccount && (
+        <AccountPanel email={session.user?.email} onClose={() => setShowAccount(false)} />
+      )}
 
       {!online && (
         <div style={{ maxWidth: 720, margin: "0 auto 16px", display: "flex", alignItems: "center", gap: 8, background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 14px", color: C.brick, fontSize: 13 }}>
