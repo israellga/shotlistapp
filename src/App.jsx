@@ -2,38 +2,23 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
-  Film, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound
+  Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
+  Building2, Phone, Mail, FileText, Menu, X as XIcon,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
 import AccountPanel from "./AccountPanel";
-
-// ---------------------------------------------------------------------------
-// Design tokens — film-set / call-sheet aesthetic.
-// ---------------------------------------------------------------------------
-const C = {
-  ink: "#17181A",
-  panel: "#1F2124",
-  panel2: "#26282C",
-  line: "#37393E",
-  lineSoft: "#2C2E32",
-  paper: "#ECE8DF",
-  muted: "#96938B",
-  faint: "#6B6963",
-  amber: "#E2A33D",
-  amberDim: "#4A3B21",
-  teal: "#4FA9A0",
-  sage: "#6FA07E",
-  sageDim: "#233A2A",
-  brick: "#C1613F",
-  brickDim: "#3A241C",
-};
-
-const FONT_DISPLAY = "'Oswald', 'Arial Narrow', sans-serif";
-const FONT_MONO = "'IBM Plex Mono', 'Courier New', monospace";
-const FONT_BODY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+import ShotlistMark from "./ShotlistMark";
+import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
+import { formatDataComDiaSemana, formatHorario, horarioMinutos } from "./datetime";
+import {
+  uid, IconButton, Field, DateField, selectFieldStyle, selectInlineStyle,
+  inputInlineStyle, dashedAddStyle,
+} from "./ui";
+import { ClientsList, ClientDetail, ClientPickerInline } from "./ClientsPanel";
 
 const TABLE = "productions";
+const TABLE_CLIENTS = "clients";
 
 const STATUS = {
   afazer: { label: "A fazer", color: C.muted, bg: "transparent", border: C.line },
@@ -42,14 +27,11 @@ const STATUS = {
 };
 const STATUS_ORDER = ["afazer", "andamento", "concluido"];
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
 function emptyProduction() {
   return {
     id: uid(),
     cliente: "",
+    clienteId: null,
     data: "",
     responsavel: "",
     objetivoDia: "",
@@ -83,146 +65,6 @@ const FUNCOES_PADRAO = [
 const TIPOS_PRODUCAO = ["Foto", "Reels", "Curta", "Stopmotion"];
 
 const TABLE_TEAM = "team_members";
-
-// ---------------------------------------------------------------------------
-// Date & time helpers
-// ---------------------------------------------------------------------------
-
-function formatDataComDiaSemana(iso) {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  const date = new Date(y, m - 1, d);
-  if (isNaN(date.getTime())) return iso;
-  const dia = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const semana = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-  return `${dia} · ${semana}`;
-}
-
-function parseHorario(raw) {
-  if (!raw) return null;
-  const digits = String(raw).replace(/[^0-9]/g, "");
-  if (!digits) return null;
-  let h, m;
-  if (digits.length <= 2) {
-    h = parseInt(digits, 10);
-    m = 0;
-  } else if (digits.length === 3) {
-    h = parseInt(digits.slice(0, 1), 10);
-    m = parseInt(digits.slice(1), 10);
-  } else {
-    h = parseInt(digits.slice(0, digits.length - 2), 10);
-    m = parseInt(digits.slice(-2), 10);
-  }
-  if (isNaN(h) || isNaN(m) || h > 23 || m > 59) return null;
-  return { h, m };
-}
-
-function formatHorario(raw) {
-  const parsed = parseHorario(raw);
-  if (!parsed) return raw;
-  return parsed.m === 0 ? `${parsed.h}h` : `${parsed.h}h${String(parsed.m).padStart(2, "0")}`;
-}
-
-function horarioMinutos(raw) {
-  const parsed = parseHorario(raw);
-  if (!parsed) return 9999;
-  return parsed.h * 60 + parsed.m;
-}
-
-// ---------------------------------------------------------------------------
-// Small primitives
-// ---------------------------------------------------------------------------
-
-function IconButton({ onClick, title, children, tone = "muted", size = 34 }) {
-  const colors = { muted: C.muted, brick: C.brick, amber: C.amber, paper: C.paper };
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        width: size, height: size, display: "grid", placeItems: "center",
-        background: "transparent", border: "none", borderRadius: 6,
-        color: colors[tone] || C.muted, cursor: "pointer", flexShrink: 0,
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Field({ label, value, onChange, onBlur, listId, placeholder, mono, multiline, style }) {
-  const Tag = multiline ? "textarea" : "input";
-  return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6, ...style }}>
-      {label && (
-        <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>
-          {label}
-        </span>
-      )}
-      <Tag
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        list={listId}
-        placeholder={placeholder}
-        rows={multiline ? 3 : undefined}
-        style={{
-          background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
-          padding: "9px 11px", color: C.paper, fontFamily: mono ? FONT_MONO : FONT_BODY,
-          fontSize: 14, outline: "none", resize: multiline ? "vertical" : undefined,
-          width: "100%", boxSizing: "border-box",
-        }}
-        onFocus={(e) => (e.target.style.borderColor = C.amber)}
-        onBlurCapture={(e) => (e.target.style.borderColor = C.line)}
-      />
-    </label>
-  );
-}
-
-function DateField({ label, value, onChange }) {
-  return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {label && (
-        <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>{label}</span>
-      )}
-      <input
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
-          padding: "9px 11px", color: C.paper, fontFamily: FONT_MONO,
-          fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box",
-          colorScheme: "dark",
-        }}
-      />
-      {value && (
-        <span style={{ fontSize: 11.5, color: C.amber, fontFamily: FONT_MONO }}>
-          {formatDataComDiaSemana(value)}
-        </span>
-      )}
-    </label>
-  );
-}
-
-function selectFieldStyle() {
-  return {
-    background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
-    padding: "9px 11px", color: C.paper, fontFamily: FONT_BODY,
-    fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box", colorScheme: "dark",
-  };
-}
-
-function selectInlineStyle(flex) {
-  return {
-    flex, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
-    padding: "8px 10px", color: C.paper, fontFamily: FONT_BODY, fontSize: 13.5,
-    outline: "none", minWidth: 0, colorScheme: "dark",
-  };
-}
 
 function StatusPill({ status, onCycle, big }) {
   const s = STATUS[status];
@@ -409,19 +251,6 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
 // Equipe & Cronograma
 // ---------------------------------------------------------------------------
 
-const dashedAddStyle = {
-  display: "flex", alignItems: "center", gap: 6, background: "transparent",
-  border: `1px dashed ${C.line}`, borderRadius: 7, padding: "8px 12px",
-  color: C.muted, fontSize: 13, cursor: "pointer",
-};
-
-function inputInlineStyle(flex) {
-  return {
-    flex, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
-    padding: "8px 10px", color: C.paper, fontFamily: FONT_BODY, fontSize: 13.5,
-    outline: "none", minWidth: 0,
-  };
-}
 
 function EquipeSection({ equipe, onChange, onKnowPerson }) {
   function update(id, patch) { onChange(equipe.map((m) => (m.id === id ? { ...m, ...patch } : m))); }
@@ -586,7 +415,7 @@ function Section({ title, icon, children, defaultOpen, count }) {
 // Production detail
 // ---------------------------------------------------------------------------
 
-function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson }) {
+function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -619,7 +448,9 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
         {roster.map((n) => <option key={n} value={n} />)}
       </datalist>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-        <IconButton onClick={onBack} tone="paper" title="Voltar"><ArrowLeft size={19} /></IconButton>
+        {showBack && (
+          <IconButton onClick={onBack} tone="paper" title="Voltar"><ArrowLeft size={19} /></IconButton>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           {fieldMode ? (
             <>
@@ -655,6 +486,26 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
       {fieldMode && production.clientShareEnabled && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 18, marginTop: -8 }}>
           <CopyLinkButton link={`${window.location.origin}/?client=${production.id}`} big />
+        </div>
+      )}
+
+      {!fieldMode && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+          <div style={{ flex: 1 }}>
+            <ClientPickerInline
+              clients={clients}
+              valueId={production.clienteId}
+              onSelect={(sel) => onSelectClient(sel)}
+            />
+          </div>
+          {production.clienteId && (
+            <button
+              onClick={() => onOpenClient(production.clienteId)}
+              style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "9px 12px", color: C.muted, fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              Ver cliente
+            </button>
+          )}
         </div>
       )}
 
@@ -726,12 +577,12 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
 // Production list
 // ---------------------------------------------------------------------------
 
-function ProductionCard({ p, onOpen, onDelete }) {
+function ProductionCard({ p, selected, onOpen, onDelete }) {
   const totalTakes = p.shots.reduce((a, s) => a + s.takes.length, 0);
   const doneTakes = p.shots.reduce((a, s) => a + s.takes.filter((t) => t.feito).length, 0);
   const pct = totalTakes ? Math.round((doneTakes / totalTakes) * 100) : 0;
   return (
-    <div onClick={onOpen} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
+    <div onClick={onOpen} style={{ background: selected ? C.panel2 : C.panel, border: `1px solid ${selected ? C.amber : C.line}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: C.paper }}>{p.cliente || "Sem nome"}</div>
         <div style={{ fontSize: 12.5, color: C.faint, marginTop: 3, fontFamily: FONT_MONO }}>
@@ -745,6 +596,25 @@ function ProductionCard({ p, onOpen, onDelete }) {
 }
 
 // ---------------------------------------------------------------------------
+// Responsive helper
+// ---------------------------------------------------------------------------
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => (typeof window !== "undefined" ? window.matchMedia(query).matches : false));
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = (e) => setMatches(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
+}
+
+function emptyClient() {
+  return { id: uid(), name: "", phone: "", email: "", notes: "" };
+}
+
+// ---------------------------------------------------------------------------
 // App root
 // ---------------------------------------------------------------------------
 
@@ -753,6 +623,10 @@ export default function App() {
   const [productions, setProductions] = useState({});
   const [order, setOrder] = useState([]);
   const [currentId, setCurrentId] = useState(null);
+  const [clients, setClients] = useState({});
+  const [clientOrder, setClientOrder] = useState([]);
+  const [currentClientId, setCurrentClientId] = useState(null);
+  const [activeTab, setActiveTab] = useState("producoes"); // producoes | clientes
   const [fieldMode, setFieldMode] = useState(false);
   const [status, setStatus] = useState("boot"); // boot | loading | ready
   const [online, setOnline] = useState(true);
@@ -760,6 +634,7 @@ export default function App() {
   const [showAccount, setShowAccount] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const saveTimers = useRef({});
+  const isWide = useMediaQuery("(min-width: 900px)");
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -794,9 +669,23 @@ export default function App() {
     setStatus("ready");
   }, []);
 
+  const loadClients = useCallback(async () => {
+    const { data, error } = await supabase.from(TABLE_CLIENTS).select("*").order("name");
+    if (error) return;
+    const map = {};
+    const ord = [];
+    for (const row of data || []) {
+      map[row.id] = row;
+      ord.push(row.id);
+    }
+    setClients(map);
+    setClientOrder(ord);
+  }, []);
+
   useEffect(() => {
     if (!session) return;
     loadAll();
+    loadClients();
     supabase.from(TABLE_TEAM).select("name").order("name").then(({ data }) => {
       setRoster((data || []).map((r) => r.name));
     });
@@ -819,10 +708,29 @@ export default function App() {
       })
       .subscribe();
 
+    const clientsChannel = supabase
+      .channel("clients-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: TABLE_CLIENTS }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setClients((prev) => {
+            const next = { ...prev };
+            delete next[payload.old.id];
+            return next;
+          });
+          setClientOrder((prev) => prev.filter((id) => id !== payload.old.id));
+        } else {
+          const row = payload.new;
+          setClients((prev) => ({ ...prev, [row.id]: row }));
+          setClientOrder((prev) => (prev.includes(row.id) ? prev : [...prev, row.id]));
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(clientsChannel);
     };
-  }, [session, loadAll]);
+  }, [session, loadAll, loadClients]);
 
   function scheduleSave(id, payload) {
     if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
@@ -878,7 +786,80 @@ export default function App() {
     setOnline(!error);
   }
 
+  function scheduleSaveClient(id, record) {
+    const key = `client:${id}`;
+    if (saveTimers.current[key]) clearTimeout(saveTimers.current[key]);
+    saveTimers.current[key] = setTimeout(async () => {
+      const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, updated_at: new Date().toISOString() });
+      setOnline(!error);
+    }, 400);
+  }
+
+  async function saveClientNow(id) {
+    const key = `client:${id}`;
+    if (saveTimers.current[key]) {
+      clearTimeout(saveTimers.current[key]);
+      delete saveTimers.current[key];
+    }
+    const record = clients[id];
+    if (!record) return;
+    const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, updated_at: new Date().toISOString() });
+    setOnline(!error);
+  }
+
+  function addClient(prefillName) {
+    const c = emptyClient();
+    if (prefillName) c.name = prefillName;
+    setClients((prev) => ({ ...prev, [c.id]: c }));
+    setClientOrder((prev) => [...prev, c.id]);
+    scheduleSaveClient(c.id, c);
+    return c.id;
+  }
+
+  function updateClient(id, next) {
+    setClients((prev) => ({ ...prev, [id]: next }));
+    scheduleSaveClient(id, next);
+  }
+
+  async function deleteClient(id) {
+    setClients((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setClientOrder((prev) => prev.filter((o) => o !== id));
+    if (currentClientId === id) setCurrentClientId(null);
+    const { error } = await supabase.from(TABLE_CLIENTS).delete().eq("id", id);
+    setOnline(!error);
+  }
+
+  function handleSelectClient(current, sel) {
+    if (sel.createName) {
+      const newId = addClient(sel.createName);
+      updateProduction(current.id, { ...current, clienteId: newId, cliente: current.cliente || sel.createName });
+    } else {
+      const c = sel.id ? clients[sel.id] : null;
+      updateProduction(current.id, {
+        ...current,
+        clienteId: sel.id || null,
+        cliente: c ? (current.cliente || c.name) : current.cliente,
+      });
+    }
+  }
+
+  function openClientFromProduction(id) {
+    setCurrentClientId(id);
+    setActiveTab("clientes");
+  }
+
+  function openProductionFromClient(id) {
+    setCurrentId(id);
+    setActiveTab("producoes");
+  }
+
   const current = currentId ? productions[currentId] : null;
+  const currentClient = currentClientId ? clients[currentClientId] : null;
+  const clientList = clientOrder.map((id) => clients[id]).filter(Boolean);
 
   if (session === undefined) {
     return (
@@ -916,14 +897,39 @@ export default function App() {
     );
   }
 
-  return (
-    <div style={rootStyle}>
-      <style>{`* { box-sizing: border-box; } input::placeholder, textarea::placeholder { color: ${C.faint}; }`}</style>
+  const showList = isWide || (activeTab === "producoes" ? !current : !currentClient);
+  const showMain = isWide || (activeTab === "producoes" ? !!current : !!currentClient);
 
-      <div style={{ maxWidth: 720, margin: "0 auto 20px", display: "flex", alignItems: "center", gap: 10, padding: "0 4px" }}>
-        <Film size={20} color={C.amber} />
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15, letterSpacing: 0.5, color: C.paper, flex: 1 }}>
-          PRODUÇÃO — ROTEIRO &amp; CAPTAÇÃO
+  return (
+    <div className="shell">
+      <style>{`
+        * { box-sizing: border-box; }
+        input::placeholder, textarea::placeholder { color: ${C.faint}; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .shell { min-height: 100vh; min-height: 100dvh; background: ${C.ink}; font-family: ${FONT_BODY}; display: flex; flex-direction: column; }
+        .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid ${C.line}; flex-shrink: 0; }
+        .body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        @media (min-width: 900px) {
+          .body { display: grid; grid-template-columns: 340px 1fr; }
+        }
+        .pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 14px 0; }
+        @media (min-width: 900px) {
+          .pane-list { border-right: 1px solid ${C.line}; padding: 18px 14px 0; }
+        }
+        .pane-main { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 14px 90px; }
+        @media (min-width: 900px) {
+          .pane-main { padding: 28px 24px 60px; }
+        }
+        .tabs { display: flex; gap: 4px; background: ${C.panel2}; border-radius: 9px; padding: 4px; margin-bottom: 14px; }
+        .tab-btn { flex: 1; padding: 8px 0; border-radius: 6px; border: none; cursor: pointer; font-family: ${FONT_MONO}; font-size: 12px; font-weight: 600; letter-spacing: 0.4px; }
+        .fm-label { display: none; }
+        @media (min-width: 640px) { .fm-label { display: inline; } }
+      `}</style>
+
+      <div className="topbar">
+        <ShotlistMark size={22} lit />
+        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, letterSpacing: 1, color: C.paper, flex: 1 }}>
+          SHOTLIST
         </div>
         {online ? <Wifi size={15} color={C.sage} /> : <WifiOff size={15} color={C.brick} />}
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
@@ -940,55 +946,161 @@ export default function App() {
       )}
 
       {!online && (
-        <div style={{ maxWidth: 720, margin: "0 auto 16px", display: "flex", alignItems: "center", gap: 8, background: C.brickDim, border: `1px solid ${C.brick}`, borderRadius: 8, padding: "10px 14px", color: C.brick, fontSize: 13 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.brickDim, borderBottom: `1px solid ${C.brick}`, padding: "10px 16px", color: C.brick, fontSize: 13, flexShrink: 0 }}>
           <AlertCircle size={15} /> Sem conexão com o banco agora. Suas últimas alterações podem não ter sido salvas.
         </div>
       )}
 
-      {!current ? (
-        <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 4px 90px" }}>
-          <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
-            <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, flex: 1 }}>PRODUÇÕES ({order.length})</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {order.length === 0 && (
-              <div style={{ color: C.faint, fontSize: 13.5, padding: "50px 4px 30px", textAlign: "center" }}>
-                <Film size={26} color={C.line} style={{ marginBottom: 12 }} />
-                <div>Nenhuma produção ainda.</div>
-                <div>Toque em "Nova produção" abaixo pra montar cronograma, equipe e shotlist.</div>
+      <div className="body">
+        {showList && (
+          <div className="pane-list">
+            {!fieldMode && (
+              <div className="tabs">
+                <button
+                  className="tab-btn"
+                  onClick={() => setActiveTab("producoes")}
+                  style={{ background: activeTab === "producoes" ? C.amberDim : "transparent", color: activeTab === "producoes" ? C.amber : C.muted }}
+                >
+                  PRODUÇÕES
+                </button>
+                <button
+                  className="tab-btn"
+                  onClick={() => setActiveTab("clientes")}
+                  style={{ background: activeTab === "clientes" ? C.amberDim : "transparent", color: activeTab === "clientes" ? C.amber : C.muted }}
+                >
+                  CLIENTES
+                </button>
               </div>
             )}
-            {order.map((id) => {
-              const p = productions[id];
-              if (!p) return null;
-              return <ProductionCard key={id} p={p} onOpen={() => setCurrentId(id)} onDelete={() => deleteProduction(id)} />;
-            })}
+
+            {activeTab === "producoes" || fieldMode ? (
+              <ProductionsListPane
+                order={order}
+                productions={productions}
+                clients={clients}
+                currentId={currentId}
+                onOpen={setCurrentId}
+                onDelete={deleteProduction}
+                onAdd={addProduction}
+              />
+            ) : (
+              <ClientsList
+                clients={clientList}
+                currentClientId={currentClientId}
+                onOpen={setCurrentClientId}
+                onDelete={deleteClient}
+                onAdd={() => setCurrentClientId(addClient())}
+              />
+            )}
           </div>
-          <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 10 }}>
-            <button
-              onClick={addProduction}
-              style={{
-                display: "flex", alignItems: "center", gap: 8, background: C.amber,
-                border: "none", borderRadius: 30, padding: "13px 22px", color: C.ink,
-                fontSize: 14.5, fontWeight: 600, cursor: "pointer",
-                boxShadow: "0 6px 20px rgba(0,0,0,0.45)",
-              }}
-            >
-              <Plus size={17} /> Nova produção
-            </button>
+        )}
+
+        {showMain && (
+          <div className="pane-main">
+            {activeTab === "producoes" || fieldMode ? (
+              current ? (
+                <ProductionDetail
+                  production={current}
+                  fieldMode={fieldMode}
+                  onChange={(next) => updateProduction(current.id, next)}
+                  onSaveNow={() => saveNow(current.id)}
+                  onBack={() => setCurrentId(null)}
+                  roster={roster}
+                  onKnowPerson={knowPerson}
+                  clients={clientList}
+                  onSelectClient={(sel) => handleSelectClient(current, sel)}
+                  onOpenClient={openClientFromProduction}
+                  showBack={!isWide}
+                />
+              ) : (
+                <EmptyMainState label="Selecione uma produção à esquerda, ou crie uma nova." />
+              )
+            ) : currentClient ? (
+              <ClientDetail
+                client={currentClient}
+                onChange={(next) => updateClient(currentClient.id, next)}
+                onSaveNow={() => saveClientNow(currentClient.id)}
+                onBack={() => setCurrentClientId(null)}
+                onDelete={deleteClient}
+                productions={order.map((id) => productions[id]).filter((p) => p && p.clienteId === currentClient.id)}
+                onOpenProduction={openProductionFromClient}
+                showBack={!isWide}
+              />
+            ) : (
+              <EmptyMainState label="Selecione um cliente à esquerda, ou cadastre um novo." />
+            )}
           </div>
-        </div>
-      ) : (
-        <ProductionDetail
-          production={current}
-          fieldMode={fieldMode}
-          onChange={(next) => updateProduction(current.id, next)}
-          onSaveNow={() => saveNow(current.id)}
-          onBack={() => setCurrentId(null)}
-          roster={roster}
-          onKnowPerson={knowPerson}
-        />
-      )}
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyMainState({ label }) {
+  return (
+    <div style={{ height: "100%", display: "grid", placeItems: "center", color: C.faint, fontSize: 13.5, textAlign: "center", padding: 40 }}>
+      <div>
+        <ShotlistMark size={30} lit={false} amber={C.line} dim={C.line} />
+        <div style={{ marginTop: 14 }}>{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, onAdd }) {
+  const groups = [];
+  const byClient = {};
+  const semCliente = [];
+
+  for (const id of order) {
+    const p = productions[id];
+    if (!p) continue;
+    if (p.clienteId && clients[p.clienteId]) {
+      if (!byClient[p.clienteId]) byClient[p.clienteId] = [];
+      byClient[p.clienteId].push(p);
+    } else {
+      semCliente.push(p);
+    }
+  }
+  const clientIds = Object.keys(byClient).sort((a, b) => (clients[a]?.name || "").localeCompare(clients[b]?.name || "", "pt-BR"));
+  for (const cid of clientIds) groups.push({ label: clients[cid].name, items: byClient[cid] });
+  if (semCliente.length) groups.push({ label: "Sem cliente", items: semCliente });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 10 }}>
+        {order.length === 0 && (
+          <div style={{ color: C.faint, fontSize: 13.5, padding: "50px 4px 30px", textAlign: "center" }}>
+            <ShotlistMark size={26} lit={false} amber={C.line} dim={C.line} style={{ marginBottom: 12 }} />
+            <div>Nenhuma produção ainda.</div>
+            <div>Toque em "Nova produção" abaixo pra montar cronograma, equipe e shotlist.</div>
+          </div>
+        )}
+        {groups.map((g) => (
+          <div key={g.label} style={{ marginBottom: 18 }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px" }}>
+              {g.label.toUpperCase()} ({g.items.length})
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {g.items.map((p) => (
+                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: "10px 0", borderTop: `1px solid ${C.line}` }}>
+        <button
+          onClick={onAdd}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            background: C.amber, border: "none", borderRadius: 24, padding: "12px 16px",
+            color: C.ink, fontSize: 14, fontWeight: 700, cursor: "pointer",
+          }}
+        >
+          <Plus size={16} /> Nova produção
+        </button>
+      </div>
     </div>
   );
 }
@@ -1003,7 +1115,7 @@ function FieldModeToggle({ value, onChange }) {
       <div style={{ width: 30, height: 18, borderRadius: 10, background: value ? C.amber : C.line, position: "relative", transition: "background 0.15s" }}>
         <div style={{ width: 14, height: 14, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: value ? 14 : 2, transition: "left 0.15s" }} />
       </div>
-      <span style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: value ? C.amber : C.muted, letterSpacing: 0.3 }}>MODO CAMPO</span>
+      <span style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: value ? C.amber : C.muted, letterSpacing: 0.3 }} className="fm-label">MODO CAMPO</span>
     </button>
   );
 }

@@ -12,7 +12,7 @@ const STROKE_WIDTH = 7;
 
 let seq = 0;
 
-export default function ShotlistMark({ size = 32, interactive = false, lit = true, amber = "#E2A33D", dim = "#2C2E32" }) {
+export default function ShotlistMark({ size = 32, interactive = false, lit = true, amber = "#E2A33D", dim = "#2C2E32", style }) {
   const gradRef = useRef(null);
   const containerRef = useRef(null);
   const rafRef = useRef(null);
@@ -60,7 +60,7 @@ export default function ShotlistMark({ size = 32, interactive = false, lit = tru
       width={size}
       height={size}
       onPointerMove={handlePointerMove}
-      style={{ display: "block", flexShrink: 0 }}
+      style={{ display: "block", flexShrink: 0, ...style }}
     >
       {interactive && (
         <defs>

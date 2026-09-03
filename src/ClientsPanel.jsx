@@ -1,0 +1,208 @@
+import React from "react";
+import {
+  Plus, Trash2, ArrowLeft, ChevronRight, Save, Check, Loader2,
+  Building2, Phone, Mail, FileText, User,
+} from "lucide-react";
+import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
+import { Field, IconButton } from "./ui";
+
+export function ClientsList({ clients, onOpen, onAdd, onDelete, currentClientId }) {
+  const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ padding: "0 4px 10px", flex: 1, overflowY: "auto" }}>
+        <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, margin: "10px 4px 14px" }}>
+          CLIENTES ({clients.length})
+        </div>
+        {sorted.length === 0 && (
+          <div style={{ color: C.faint, fontSize: 13.5, padding: "40px 8px", textAlign: "center" }}>
+            <Building2 size={24} color={C.line} style={{ marginBottom: 10 }} />
+            <div>Nenhum cliente ainda.</div>
+            <div>Cadastre pra organizar as produções por cliente.</div>
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => onOpen(c.id)}
+              style={{
+                background: currentClientId === c.id ? C.panel2 : C.panel,
+                border: `1px solid ${currentClientId === c.id ? C.amber : C.line}`,
+                borderRadius: 10, padding: "13px 14px", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 10,
+              }}
+            >
+              <div style={{
+                width: 34, height: 34, borderRadius: 8, background: C.panel2, display: "grid",
+                placeItems: "center", flexShrink: 0, color: C.amber, fontFamily: FONT_DISPLAY, fontSize: 15, fontWeight: 600,
+              }}>
+                {(c.name || "?").trim().charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14.5, color: C.paper, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {c.name || "Sem nome"}
+                </div>
+                {(c.phone || c.email) && (
+                  <div style={{ fontSize: 12, color: C.faint, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {c.phone || c.email}
+                  </div>
+                )}
+              </div>
+              <IconButton onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} tone="brick" size={28} title="Excluir cliente">
+                <Trash2 size={14} />
+              </IconButton>
+              <ChevronRight size={16} color={C.faint} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: "10px 4px", borderTop: `1px solid ${C.line}` }}>
+        <button
+          onClick={onAdd}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            background: C.amber, border: "none", borderRadius: 24, padding: "12px 16px",
+            color: C.ink, fontSize: 14, fontWeight: 700, cursor: "pointer",
+          }}
+        >
+          <Plus size={16} /> Novo cliente
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, showBack }) {
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+
+  function patch(fields) { onChange({ ...client, ...fields }); }
+
+  async function handleSave() {
+    setSaving(true);
+    await onSaveNow();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  }
+
+  return (
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 4px 60px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
+        {showBack && (
+          <IconButton onClick={onBack} tone="paper" title="Voltar"><ArrowLeft size={19} /></IconButton>
+        )}
+        <input
+          value={client.name}
+          onChange={(e) => patch({ name: e.target.value })}
+          placeholder="Nome do cliente"
+          style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.paper }}
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+            background: saved ? C.sageDim : C.panel2, border: `1px solid ${saved ? C.sage : C.line}`,
+            borderRadius: 8, padding: "8px 12px", color: saved ? C.sage : C.muted,
+            fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer",
+          }}
+        >
+          {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : saved ? <Check size={14} /> : <Save size={14} />}
+          {saved ? "Salvo" : "Salvar"}
+        </button>
+        <IconButton onClick={() => onDelete(client.id)} tone="brick" title="Excluir cliente"><Trash2 size={17} /></IconButton>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+        <Field label="Telefone" value={client.phone || ""} onChange={(v) => patch({ phone: v })} placeholder="(11) 99999-9999" mono />
+        <Field label="Email" value={client.email || ""} onChange={(v) => patch({ email: v })} placeholder="contato@cliente.com" mono />
+      </div>
+      <Field
+        label="Observações"
+        value={client.notes || ""}
+        onChange={(v) => patch({ notes: v })}
+        placeholder="Preferências, histórico, combinados gerais..."
+        multiline
+        style={{ marginBottom: 24 }}
+      />
+
+      <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, marginBottom: 10 }}>
+        PRODUÇÕES ({productions.length})
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {productions.length === 0 && (
+          <div style={{ color: C.faint, fontSize: 13.5, padding: "16px 4px" }}>
+            Nenhuma produção vinculada a este cliente ainda.
+          </div>
+        )}
+        {productions.map((p) => (
+          <div
+            key={p.id}
+            onClick={() => onOpenProduction(p.id)}
+            style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "11px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}
+          >
+            <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.paper }}>{p.cliente || "Sem nome"}</div>
+            <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO }}>{p.data || "sem data"}</div>
+            <ChevronRight size={15} color={C.faint} />
+          </div>
+        ))}
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+export function ClientPickerInline({ clients, valueId, onSelect }) {
+  const [creating, setCreating] = React.useState(false);
+  const [newName, setNewName] = React.useState("");
+  const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+  if (creating) {
+    return (
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          autoFocus
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="Nome do novo cliente"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && newName.trim()) {
+              onSelect({ createName: newName.trim() });
+              setCreating(false);
+              setNewName("");
+            }
+            if (e.key === "Escape") setCreating(false);
+          }}
+          style={{ flex: 1, background: C.panel2, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontSize: 13.5, outline: "none" }}
+        />
+        <button
+          onClick={() => { if (newName.trim()) { onSelect({ createName: newName.trim() }); setCreating(false); setNewName(""); } }}
+          style={{ background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 12px", color: C.amber, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+        >
+          Criar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={valueId || ""}
+      onChange={(e) => {
+        if (e.target.value === "__new__") setCreating(true);
+        else onSelect({ id: e.target.value || null });
+      }}
+      style={{
+        background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
+        padding: "9px 11px", color: C.paper, fontSize: 14, outline: "none",
+        width: "100%", boxSizing: "border-box", colorScheme: "dark",
+      }}
+    >
+      <option value="">Sem cliente vinculado</option>
+      {sorted.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      <option value="__new__">+ Novo cliente...</option>
+    </select>
+  );
+}
