@@ -733,6 +733,7 @@ export default function App() {
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [recovery, setRecovery] = useState(false);
   const [myRole, setMyRole] = useState(null); // null until known: 'regular' | 'gestor'
+  const [myStatus, setMyStatus] = useState(null); // 'pending' | 'approved' | 'rejected'
   const [showAccounts, setShowAccounts] = useState(false);
   const [financeMap, setFinanceMap] = useState({});
   const isGestor = myRole === "gestor";
@@ -755,10 +756,12 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setMyRole(null);
+      setMyStatus(null);
       return;
     }
-    supabase.from("profiles").select("role").eq("id", session.user.id).single().then(({ data }) => {
+    supabase.from("profiles").select("role, status").eq("id", session.user.id).single().then(({ data }) => {
       setMyRole(data?.role || "regular");
+      setMyStatus(data?.status || "pending");
     });
   }, [session]);
 
@@ -1073,6 +1076,41 @@ export default function App() {
         forced
         onDone={() => setRecovery(false)}
       />
+    );
+  }
+
+  if (myStatus === null) {
+    return (
+      <div style={rootStyle}>
+        <div style={{ display: "grid", placeItems: "center", height: 300, color: C.faint }}>
+          <Loader2 size={22} style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (myStatus !== "approved" && myRole !== "gestor") {
+    return (
+      <div style={{ minHeight: "100vh", background: C.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
+        <div style={{ maxWidth: 360, textAlign: "center" }}>
+          <ShotlistMark size={30} lit={false} amber={C.line} dim={C.line} style={{ margin: "0 auto 18px" }} />
+          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, color: C.paper, marginBottom: 10 }}>
+            {myStatus === "rejected" ? "Acesso não liberado" : "Aguardando aprovação"}
+          </div>
+          <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.6, marginBottom: 22 }}>
+            {myStatus === "rejected"
+              ? "Sua conta não foi aprovada pra usar o Shotlist. Fale com quem administra a equipe."
+              : "Sua conta foi criada e já está esperando um gestor liberar o acesso. Assim que aprovarem, é só entrar de novo."}
+          </div>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 18px", color: C.muted, fontSize: 13, cursor: "pointer" }}
+          >
+            Sair
+          </button>
+        </div>
+      </div>
     );
   }
 

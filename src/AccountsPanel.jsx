@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { X, Loader2, ShieldCheck, User, Check } from "lucide-react";
+import { X, Loader2, ShieldCheck, User, Check, XCircle } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
-const ROLE_LABEL = { regular: "Regular", gestor: "Gestor" };
+const STATUS_LABEL = { pending: "Pendente", approved: "Aprovado", rejected: "Recusado" };
+const STATUS_COLOR = { pending: C.amber, approved: C.sage, rejected: C.brick };
 
 export default function AccountsPanel({ onClose, myUserId }) {
   const [profiles, setProfiles] = useState([]);
@@ -11,7 +12,7 @@ export default function AccountsPanel({ onClose, myUserId }) {
   const [savingId, setSavingId] = useState(null);
 
   useEffect(() => {
-    supabase.from("profiles").select("*").order("email").then(({ data, error }) => {
+    supabase.from("profiles").select("*").order("status").order("email").then(({ data, error }) => {
       if (!error) setProfiles(data || []);
       setStatus("ready");
     });
@@ -25,6 +26,18 @@ export default function AccountsPanel({ onClose, myUserId }) {
     }
     setSavingId(null);
   }
+
+  async function changeStatus(id, newStatus) {
+    setSavingId(id);
+    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", id);
+    if (!error) {
+      setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p)));
+    }
+    setSavingId(null);
+  }
+
+  const pending = profiles.filter((p) => p.status === "pending");
+  const others = profiles.filter((p) => p.status !== "pending");
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 55, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
@@ -43,37 +56,83 @@ export default function AccountsPanel({ onClose, myUserId }) {
               <Loader2 size={20} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {profiles.map((p) => (
-                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "11px 12px" }}>
-                  <User size={15} color={C.faint} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {p.email}{p.id === myUserId && <span style={{ color: C.faint }}> (você)</span>}
-                    </div>
+            <>
+              {pending.length > 0 && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.amber, letterSpacing: 0.5, marginBottom: 8 }}>
+                    AGUARDANDO APROVAÇÃO ({pending.length})
                   </div>
-                  {savingId === p.id ? (
-                    <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
-                  ) : (
-                    <select
-                      value={p.role}
-                      onChange={(e) => changeRole(p.id, e.target.value)}
-                      disabled={p.id === myUserId}
-                      style={{
-                        background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px",
-                        color: C.paper, fontSize: 12.5, outline: "none", colorScheme: "dark",
-                      }}
-                    >
-                      <option value="regular">Regular</option>
-                      <option value="gestor">Gestor</option>
-                    </select>
-                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {pending.map((p) => (
+                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 9, padding: "11px 12px" }}>
+                        <User size={15} color={C.amber} />
+                        <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {p.email}
+                        </div>
+                        {savingId === p.id ? (
+                          <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => changeStatus(p.id, "approved")}
+                              title="Aprovar"
+                              style={{ display: "flex", alignItems: "center", gap: 5, background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 6, padding: "6px 10px", color: C.sage, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                            >
+                              <Check size={13} /> Aprovar
+                            </button>
+                            <button
+                              onClick={() => changeStatus(p.id, "rejected")}
+                              title="Recusar"
+                              style={{ display: "flex", alignItems: "center", background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px", color: C.faint, cursor: "pointer" }}
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              {profiles.length === 0 && (
-                <div style={{ color: C.faint, fontSize: 13, textAlign: "center", padding: 30 }}>Nenhuma conta encontrada.</div>
               )}
-            </div>
+
+              <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.muted, letterSpacing: 0.5, marginBottom: 8 }}>
+                CONTAS ({others.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {others.map((p) => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "11px 12px" }}>
+                    <User size={15} color={C.faint} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.email}{p.id === myUserId && <span style={{ color: C.faint }}> (você)</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: STATUS_COLOR[p.status], fontFamily: FONT_MONO, marginTop: 1 }}>
+                        {STATUS_LABEL[p.status] || p.status}
+                      </div>
+                    </div>
+                    {savingId === p.id ? (
+                      <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
+                    ) : (
+                      <select
+                        value={p.role}
+                        onChange={(e) => changeRole(p.id, e.target.value)}
+                        disabled={p.id === myUserId}
+                        style={{
+                          background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px",
+                          color: C.paper, fontSize: 12.5, fontFamily: FONT_BODY, outline: "none", colorScheme: "dark",
+                        }}
+                      >
+                        <option value="regular">Regular</option>
+                        <option value="gestor">Gestor</option>
+                      </select>
+                    )}
+                  </div>
+                ))}
+                {profiles.length === 0 && (
+                  <div style={{ color: C.faint, fontSize: 13, textAlign: "center", padding: 30 }}>Nenhuma conta encontrada.</div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
