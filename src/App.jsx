@@ -20,6 +20,7 @@ import { fetchThumbnail } from "./thumbnail";
 import { exportProductionPDF } from "./pdfExport";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
+import { saveDraft, loadDraft, clearDraft, getDraftIndex } from "./draftStorage";
 
 const TABLE = "productions";
 const TABLE_CLIENTS = "clients";
@@ -783,6 +784,14 @@ export default function App() {
       map[row.id] = row.payload;
       ord.push(row.id);
     }
+    // restore any local, not-yet-saved drafts (survives page reloads without touching the shared db)
+    for (const id of getDraftIndex("productions")) {
+      const draft = loadDraft("productions", id);
+      if (draft) {
+        map[id] = draft;
+        if (!ord.includes(id)) ord.unshift(id);
+      }
+    }
     setProductions(map);
     setOrder(ord);
     setStatus("ready");
@@ -796,6 +805,13 @@ export default function App() {
     for (const row of data || []) {
       map[row.id] = row;
       ord.push(row.id);
+    }
+    for (const id of getDraftIndex("clients")) {
+      const draft = loadDraft("clients", id);
+      if (draft) {
+        map[id] = draft;
+        if (!ord.includes(id)) ord.push(id);
+      }
     }
     setClients(map);
     setClientOrder(ord);
@@ -874,6 +890,7 @@ export default function App() {
     if (!payload) return;
     const { error } = await supabase.from(TABLE).upsert({ id, payload, updated_at: new Date().toISOString() });
     setOnline(!error);
+    if (!error) clearDraft("productions", id);
   }
 
   async function saveFinanceNow(productionId) {
@@ -906,6 +923,7 @@ export default function App() {
     setProductions((prev) => ({ ...prev, [p.id]: p }));
     setOrder((prev) => [p.id, ...prev]);
     setCurrentId(p.id);
+    saveDraft("productions", p.id, p);
   }
 
   function addProductionForClient(client) {
@@ -916,10 +934,12 @@ export default function App() {
     setOrder((prev) => [p.id, ...prev]);
     setCurrentId(p.id);
     setActiveTab("producoes");
+    saveDraft("productions", p.id, p);
   }
 
   function updateProduction(id, next) {
     setProductions((prev) => ({ ...prev, [id]: next }));
+    saveDraft("productions", id, next);
   }
 
   async function deleteProduction(id) {
@@ -930,6 +950,7 @@ export default function App() {
     });
     setOrder((prev) => prev.filter((o) => o !== id));
     if (currentId === id) setCurrentId(null);
+    clearDraft("productions", id);
     const { error } = await supabase.from(TABLE).delete().eq("id", id);
     setOnline(!error);
   }
@@ -939,6 +960,7 @@ export default function App() {
     if (!record) return;
     const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, updated_at: new Date().toISOString() });
     setOnline(!error);
+    if (!error) clearDraft("clients", id);
   }
 
   function addClient(prefillName) {
@@ -946,11 +968,13 @@ export default function App() {
     if (prefillName) c.name = prefillName;
     setClients((prev) => ({ ...prev, [c.id]: c }));
     setClientOrder((prev) => [...prev, c.id]);
+    saveDraft("clients", c.id, c);
     return c.id;
   }
 
   function updateClient(id, next) {
     setClients((prev) => ({ ...prev, [id]: next }));
+    saveDraft("clients", id, next);
   }
 
   async function deleteClient(id) {
@@ -961,6 +985,7 @@ export default function App() {
     });
     setClientOrder((prev) => prev.filter((o) => o !== id));
     if (currentClientId === id) setCurrentClientId(null);
+    clearDraft("clients", id);
     const { error } = await supabase.from(TABLE_CLIENTS).delete().eq("id", id);
     setOnline(!error);
   }

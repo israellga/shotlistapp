@@ -18,23 +18,35 @@ export default function ClientView({ id }) {
   const [lastFetch, setLastFetch] = useState(null);
   const [live, setLive] = useState(false);
 
+  const [errorDetail, setErrorDetail] = useState("");
+
   const load = useCallback(async () => {
     if (!supabaseConfigured) {
       setState("error");
+      setErrorDetail("Site não conectado ao banco de dados.");
       return;
     }
-    const { data: result, error } = await supabase.rpc("get_shared_production", { pid: id });
-    if (error) {
+    try {
+      const { data: result, error } = await Promise.race([
+        supabase.rpc("get_shared_production", { pid: id }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Tempo esgotado ao buscar os dados.")), 10000)),
+      ]);
+      if (error) {
+        setState("error");
+        setErrorDetail(error.message || String(error));
+        return;
+      }
+      if (!result) {
+        setState("notfound");
+        return;
+      }
+      setData(result);
+      setState("ok");
+      setLastFetch(new Date());
+    } catch (e) {
       setState("error");
-      return;
+      setErrorDetail(e?.message || String(e));
     }
-    if (!result) {
-      setState("notfound");
-      return;
-    }
-    setData(result);
-    setState("ok");
-    setLastFetch(new Date());
   }, [id]);
 
   useEffect(() => {
@@ -78,6 +90,11 @@ export default function ClientView({ id }) {
               ? "Esse link não está mais disponível ou o acompanhamento foi desativado."
               : "Não consegui carregar essa produção agora. Tente atualizar a página em instantes."}
           </div>
+          {state === "error" && errorDetail && (
+            <div style={{ fontSize: 11, color: C.faint, fontFamily: "monospace", maxWidth: 320, wordBreak: "break-word", marginTop: -4 }}>
+              {errorDetail}
+            </div>
+          )}
         </div>
       </Shell>
     );
