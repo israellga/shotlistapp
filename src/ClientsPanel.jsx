@@ -3,7 +3,7 @@ import {
   Plus, Trash2, ArrowLeft, ChevronRight, Save, Check, Loader2,
   Building2, Phone, Mail, FileText, User,
 } from "lucide-react";
-import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
+import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { Field, IconButton, EditableTitle } from "./ui";
 import { ClientBalanceSummary } from "./finance";
 
@@ -88,7 +88,7 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
             display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
             background: saved ? C.sageDim : C.panel2, border: `1px solid ${saved ? C.sage : C.line}`,
             borderRadius: 8, padding: "8px 12px", color: saved ? C.sage : C.muted,
-            fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer",
+            fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: saving ? "default" : "pointer",
           }}
         >
           {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : saved ? <Check size={14} /> : <Save size={14} />}
@@ -126,7 +126,7 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
         </div>
         <button
           onClick={onAddProduction}
-          style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "6px 10px", color: C.muted, fontSize: 11.5, cursor: "pointer" }}
+          style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "6px 10px", color: C.muted, fontSize: 11.5, fontFamily: FONT_BODY, cursor: "pointer" }}
         >
           <Plus size={12} /> Registrar produção
         </button>
@@ -175,11 +175,11 @@ export function ClientPickerInline({ clients, valueId, onSelect }) {
             }
             if (e.key === "Escape") setCreating(false);
           }}
-          style={{ flex: 1, background: C.panel2, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontSize: 13.5, outline: "none" }}
+          style={{ flex: 1, background: C.panel2, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontSize: 13.5, fontFamily: FONT_BODY, outline: "none" }}
         />
         <button
           onClick={() => { if (newName.trim()) { onSelect({ createName: newName.trim() }); setCreating(false); setNewName(""); } }}
-          style={{ background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 12px", color: C.amber, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          style={{ background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 12px", color: C.amber, fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}
         >
           Criar
         </button>
@@ -196,7 +196,7 @@ export function ClientPickerInline({ clients, valueId, onSelect }) {
       }}
       style={{
         background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
-        padding: "9px 11px", color: C.paper, fontSize: 14, outline: "none",
+        padding: "9px 11px", color: C.paper, fontSize: 14, fontFamily: FONT_BODY, outline: "none",
         width: "100%", boxSizing: "border-box", colorScheme: "dark",
       }}
     >
