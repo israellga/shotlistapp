@@ -738,27 +738,41 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
 function SaveFinanceButton({ onSave }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   async function handle() {
     setSaving(true);
-    await onSave();
+    setErrorMsg("");
+    const error = await onSave();
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    if (error) {
+      setErrorMsg(error.message || String(error));
+    } else {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    }
   }
   return (
-    <button
-      onClick={handle}
-      disabled={saving}
-      style={{
-        display: "flex", alignItems: "center", gap: 6, marginTop: 14,
-        background: saved ? C.sageDim : C.panel2, border: `1px solid ${saved ? C.sage : C.line}`,
-        borderRadius: 8, padding: "8px 14px", color: saved ? C.sage : C.muted,
-        fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer",
-      }}
-    >
-      {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : saved ? <Check size={13} /> : <Save size={13} />}
-      {saved ? "Salvo" : "Salvar financeiro"}
-    </button>
+    <div>
+      <button
+        onClick={handle}
+        disabled={saving}
+        style={{
+          display: "flex", alignItems: "center", gap: 6, marginTop: 14,
+          background: saved ? C.sageDim : errorMsg ? C.brickDim : C.panel2,
+          border: `1px solid ${saved ? C.sage : errorMsg ? C.brick : C.line}`,
+          borderRadius: 8, padding: "8px 14px", color: saved ? C.sage : errorMsg ? C.brick : C.muted,
+          fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer",
+        }}
+      >
+        {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : saved ? <Check size={13} /> : <Save size={13} />}
+        {saved ? "Salvo" : errorMsg ? "Erro ao salvar" : "Salvar financeiro"}
+      </button>
+      {errorMsg && (
+        <div style={{ marginTop: 8, fontSize: 11, color: C.brick, fontFamily: "monospace", wordBreak: "break-word" }}>
+          {errorMsg}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -830,6 +844,8 @@ export default function App() {
   const [myStatus, setMyStatus] = useState(null); // 'pending' | 'approved' | 'rejected'
   const [showAccounts, setShowAccounts] = useState(false);
   const [financeMap, setFinanceMap] = useState({});
+  const [financeRecords, setFinanceRecords] = useState({});
+  const [financeRecordOrder, setFinanceRecordOrder] = useState([]);
   const isGestor = myRole === "gestor";
   const isWide = useMediaQuery("(min-width: 900px)");
   const saveTimers = useRef({});
@@ -865,6 +881,19 @@ export default function App() {
     const map = {};
     for (const row of data || []) map[row.production_id] = { orcamento: row.orcamento, custos: row.custos || [] };
     setFinanceMap(map);
+  }, []);
+
+  const loadFinanceRecords = useCallback(async () => {
+    const { data, error } = await supabase.from("client_financial_records").select("*").order("data", { ascending: false });
+    if (error) return; // regular users: RLS blocks this, that's expected
+    const map = {};
+    const ord = [];
+    for (const row of data || []) {
+      map[row.id] = row;
+      ord.push(row.id);
+    }
+    setFinanceRecords(map);
+    setFinanceRecordOrder(ord);
   }, []);
 
   const loadAll = useCallback(async () => {
@@ -920,6 +949,7 @@ export default function App() {
     loadAll();
     loadClients();
     loadFinance();
+    loadFinanceRecords();
     supabase.from(TABLE_TEAM).select("name").order("name").then(({ data }) => {
       setRoster((data || []).map((r) => r.name));
     });
@@ -976,12 +1006,31 @@ export default function App() {
       })
       .subscribe();
 
+    const financeRecordsChannel = supabase
+      .channel("finance-records-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "client_financial_records" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setFinanceRecords((prev) => {
+            const next = { ...prev };
+            delete next[payload.old.id];
+            return next;
+          });
+          setFinanceRecordOrder((prev) => prev.filter((id) => id !== payload.old.id));
+        } else {
+          const row = payload.new;
+          setFinanceRecords((prev) => ({ ...prev, [row.id]: row }));
+          setFinanceRecordOrder((prev) => (prev.includes(row.id) ? prev : [row.id, ...prev]));
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(clientsChannel);
       supabase.removeChannel(financeChannel);
+      supabase.removeChannel(financeRecordsChannel);
     };
-  }, [session, loadAll, loadClients, loadFinance]);
+  }, [session, loadAll, loadClients, loadFinance, loadFinanceRecords]);
 
   async function saveNow(id) {
     if (saveTimers.current["p:" + id]) {
@@ -1003,6 +1052,41 @@ export default function App() {
       custos: f.custos || [],
       updated_at: new Date().toISOString(),
     });
+    setOnline(!error);
+    return error;
+  }
+
+  function addFinanceRecord(clientId) {
+    const rec = { id: uid(), client_id: clientId, label: "", data: "", orcamento: "", custos: [] };
+    setFinanceRecords((prev) => ({ ...prev, [rec.id]: rec }));
+    setFinanceRecordOrder((prev) => [rec.id, ...prev]);
+    return rec.id;
+  }
+
+  function updateFinanceRecord(id, next) {
+    setFinanceRecords((prev) => ({ ...prev, [id]: next }));
+  }
+
+  async function saveFinanceRecordNow(id) {
+    const rec = financeRecords[id];
+    if (!rec) return;
+    const { error } = await supabase.from("client_financial_records").upsert({
+      ...rec,
+      orcamento: rec.orcamento === "" ? null : Number(rec.orcamento),
+      updated_at: new Date().toISOString(),
+    });
+    setOnline(!error);
+    return error;
+  }
+
+  async function deleteFinanceRecord(id) {
+    setFinanceRecords((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setFinanceRecordOrder((prev) => prev.filter((x) => x !== id));
+    const { error } = await supabase.from("client_financial_records").delete().eq("id", id);
     setOnline(!error);
   }
 
@@ -1424,6 +1508,11 @@ export default function App() {
                 showBack={!isWide}
                 isGestor={isGestor}
                 financeMap={financeMap}
+                financeRecords={financeRecordOrder.map((id) => financeRecords[id]).filter((r) => r && r.client_id === currentClient.id)}
+                onAddFinanceRecord={() => addFinanceRecord(currentClient.id)}
+                onChangeFinanceRecord={updateFinanceRecord}
+                onSaveFinanceRecord={saveFinanceRecordNow}
+                onDeleteFinanceRecord={deleteFinanceRecord}
               />
             ) : (
               <EmptyMainState label="Selecione um cliente à esquerda, ou cadastre um novo." />

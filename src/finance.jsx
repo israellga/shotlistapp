@@ -82,13 +82,19 @@ export function FinanceSection({ finance, onChange }) {
   );
 }
 
-export function ClientBalanceSummary({ productions, financeMap }) {
-  const rows = productions.map((p) => {
+export function ClientBalanceSummary({ productions, financeMap, financeRecords = [] }) {
+  const fromProductions = productions.map((p) => {
     const f = financeMap[p.id];
     const orc = Number(f?.orcamento) || 0;
     const custo = totalCustos(f);
     return { id: p.id, nome: p.cliente || "Sem nome", data: p.data, orcamento: orc, custo, saldo: orc - custo };
-  }).filter((r) => r.orcamento > 0 || r.custo > 0);
+  });
+  const fromRecords = financeRecords.map((r) => {
+    const orc = Number(r.orcamento) || 0;
+    const custo = totalCustos(r);
+    return { id: r.id, nome: r.label || "Registro financeiro", data: r.data, orcamento: orc, custo, saldo: orc - custo };
+  });
+  const rows = [...fromProductions, ...fromRecords].filter((r) => r.orcamento > 0 || r.custo > 0);
 
   const totalOrc = rows.reduce((a, r) => a + r.orcamento, 0);
   const totalCusto = rows.reduce((a, r) => a + r.custo, 0);

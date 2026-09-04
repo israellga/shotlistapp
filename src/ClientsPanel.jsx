@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { Field, IconButton, EditableTitle } from "./ui";
-import { ClientBalanceSummary } from "./finance";
+import { ClientBalanceSummary, FinanceSection } from "./finance";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
 export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
@@ -61,7 +61,10 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
   );
 }
 
-export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, onAddProduction, showBack, isGestor, financeMap }) {
+export function ClientDetail({
+  client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, onAddProduction, showBack, isGestor, financeMap,
+  financeRecords, onAddFinanceRecord, onChangeFinanceRecord, onSaveFinanceRecord, onDeleteFinanceRecord,
+}) {
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [lookingUpCep, setLookingUpCep] = React.useState(false);
@@ -157,7 +160,40 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
           <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, marginBottom: 10 }}>
             BALANCETE
           </div>
-          <ClientBalanceSummary productions={productions} financeMap={financeMap || {}} />
+          <ClientBalanceSummary productions={productions} financeMap={financeMap || {}} financeRecords={financeRecords || []} />
+        </div>
+      )}
+
+      {isGestor && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, flex: 1 }}>
+              REGISTROS FINANCEIROS ({(financeRecords || []).length})
+            </div>
+            <button
+              onClick={onAddFinanceRecord}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "6px 10px", color: C.amber, fontSize: 11.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}
+            >
+              <Plus size={12} /> Registro financeiro
+            </button>
+          </div>
+          <p style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.5, marginTop: -4, marginBottom: 10 }}>
+            Pra lançar valores de trabalhos passados sem precisar criar uma produção com shotlist.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {(financeRecords || []).length === 0 && (
+              <div style={{ color: C.faint, fontSize: 13, padding: "10px 4px" }}>Nenhum registro financeiro ainda.</div>
+            )}
+            {(financeRecords || []).map((rec) => (
+              <FinanceRecordRow
+                key={rec.id}
+                record={rec}
+                onChange={(next) => onChangeFinanceRecord(rec.id, next)}
+                onSave={() => onSaveFinanceRecord(rec.id)}
+                onDelete={() => onDeleteFinanceRecord(rec.id)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -169,7 +205,7 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
           onClick={onAddProduction}
           style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "6px 10px", color: C.muted, fontSize: 11.5, fontFamily: FONT_BODY, cursor: "pointer" }}
         >
-          <Plus size={12} /> Registrar produção
+          <Plus size={12} /> Nova produção
         </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -191,6 +227,77 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
         ))}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function FinanceRecordRow({ record, onChange, onSave, onDelete }) {
+  const [expanded, setExpanded] = React.useState(!record.label);
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+
+  function patch(fields) { onChange({ ...record, ...fields }); }
+
+  async function handleSave() {
+    setSaving(true);
+    await onSave();
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }
+
+  return (
+    <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "12px 14px" }}>
+      <div onClick={() => setExpanded((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+        <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {record.label || "Sem descrição"}
+        </div>
+        <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO }}>{record.data || "sem data"}</div>
+        {expanded ? <ChevronDown size={15} color={C.faint} /> : <ChevronRight size={15} color={C.faint} />}
+      </div>
+
+      {expanded && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.lineSoft}` }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8, marginBottom: 10 }}>
+            <input
+              value={record.label}
+              onChange={(e) => patch({ label: e.target.value })}
+              placeholder="Descrição (ex: Sessão de fotos - Agosto)"
+              style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontFamily: FONT_BODY, fontSize: 13, outline: "none" }}
+            />
+            <input
+              type="date"
+              value={record.data}
+              onChange={(e) => patch({ data: e.target.value })}
+              style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontFamily: FONT_BODY, fontSize: 13, outline: "none", colorScheme: "dark" }}
+            />
+          </div>
+
+          <FinanceSection finance={record} onChange={(next) => onChange({ ...record, ...next })} />
+
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: saved ? C.sageDim : C.panel2, border: `1px solid ${saved ? C.sage : C.line}`,
+                borderRadius: 8, padding: "8px 14px", color: saved ? C.sage : C.muted,
+                fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: saving ? "default" : "pointer",
+              }}
+            >
+              {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : saved ? <Check size={13} /> : <Save size={13} />}
+              {saved ? "Salvo" : "Salvar"}
+            </button>
+            <button
+              onClick={onDelete}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 14px", color: C.brick, fontSize: 12.5, fontFamily: FONT_BODY, cursor: "pointer" }}
+            >
+              <Trash2 size={13} /> Excluir
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
