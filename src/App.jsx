@@ -21,6 +21,7 @@ import { exportProductionPDF } from "./pdfExport";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
+import { PaymentPlansSection, emptyPaymentPlan } from "./payments";
 import { saveDraft, loadDraft, clearDraft, getDraftIndex } from "./draftStorage";
 
 const TABLE = "productions";
@@ -847,6 +848,8 @@ export default function App() {
   const [financeMap, setFinanceMap] = useState({});
   const [financeRecords, setFinanceRecords] = useState({});
   const [financeRecordOrder, setFinanceRecordOrder] = useState([]);
+  const [paymentPlans, setPaymentPlans] = useState({});
+  const [paymentPlanOrder, setPaymentPlanOrder] = useState([]);
   const isGestor = myRole === "gestor";
   const isWide = useMediaQuery("(min-width: 900px)");
   const saveTimers = useRef({});
@@ -895,6 +898,19 @@ export default function App() {
     }
     setFinanceRecords(map);
     setFinanceRecordOrder(ord);
+  }, []);
+
+  const loadPaymentPlans = useCallback(async () => {
+    const { data, error } = await supabase.from("payment_plans").select("*");
+    if (error) return; // regular users: RLS blocks this, that's expected
+    const map = {};
+    const ord = [];
+    for (const row of data || []) {
+      map[row.id] = row;
+      ord.push(row.id);
+    }
+    setPaymentPlans(map);
+    setPaymentPlanOrder(ord);
   }, []);
 
   const loadAll = useCallback(async () => {
@@ -951,6 +967,7 @@ export default function App() {
     loadClients();
     loadFinance();
     loadFinanceRecords();
+    loadPaymentPlans();
     supabase.from(TABLE_TEAM).select("name").order("name").then(({ data }) => {
       setRoster((data || []).map((r) => r.name));
     });
@@ -1025,13 +1042,32 @@ export default function App() {
       })
       .subscribe();
 
+    const paymentPlansChannel = supabase
+      .channel("payment-plans-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_plans" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setPaymentPlans((prev) => {
+            const next = { ...prev };
+            delete next[payload.old.id];
+            return next;
+          });
+          setPaymentPlanOrder((prev) => prev.filter((id) => id !== payload.old.id));
+        } else {
+          const row = payload.new;
+          setPaymentPlans((prev) => ({ ...prev, [row.id]: row }));
+          setPaymentPlanOrder((prev) => (prev.includes(row.id) ? prev : [row.id, ...prev]));
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(clientsChannel);
       supabase.removeChannel(financeChannel);
       supabase.removeChannel(financeRecordsChannel);
+      supabase.removeChannel(paymentPlansChannel);
     };
-  }, [session, loadAll, loadClients, loadFinance, loadFinanceRecords]);
+  }, [session, loadAll, loadClients, loadFinance, loadFinanceRecords, loadPaymentPlans]);
 
   async function saveNow(id) {
     if (saveTimers.current["p:" + id]) {
@@ -1088,6 +1124,40 @@ export default function App() {
     });
     setFinanceRecordOrder((prev) => prev.filter((x) => x !== id));
     const { error } = await supabase.from("client_financial_records").delete().eq("id", id);
+    setOnline(!error);
+  }
+
+  function addPaymentPlan(clientId) {
+    const plan = emptyPaymentPlan(clientId);
+    setPaymentPlans((prev) => ({ ...prev, [plan.id]: plan }));
+    setPaymentPlanOrder((prev) => [plan.id, ...prev]);
+    return plan.id;
+  }
+
+  function updatePaymentPlan(id, next) {
+    setPaymentPlans((prev) => ({ ...prev, [id]: next }));
+  }
+
+  async function savePaymentPlanNow(id) {
+    const plan = paymentPlans[id];
+    if (!plan) return;
+    const { error } = await supabase.from("payment_plans").upsert({
+      ...plan,
+      valor_total: plan.valor_total === "" ? null : Number(plan.valor_total),
+      updated_at: new Date().toISOString(),
+    });
+    setOnline(!error);
+    return error;
+  }
+
+  async function deletePaymentPlan(id) {
+    setPaymentPlans((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setPaymentPlanOrder((prev) => prev.filter((x) => x !== id));
+    const { error } = await supabase.from("payment_plans").delete().eq("id", id);
     setOnline(!error);
   }
 
@@ -1492,6 +1562,11 @@ export default function App() {
                 onChangeFinanceRecord={updateFinanceRecord}
                 onSaveFinanceRecord={saveFinanceRecordNow}
                 onDeleteFinanceRecord={deleteFinanceRecord}
+                paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter((p) => p && p.client_id === currentClient.id)}
+                onAddPaymentPlan={() => addPaymentPlan(currentClient.id)}
+                onChangePaymentPlan={updatePaymentPlan}
+                onSavePaymentPlan={savePaymentPlanNow}
+                onDeletePaymentPlan={deletePaymentPlan}
               />
             ) : isGestor ? (
               <ClientsDashboard

@@ -6,6 +6,7 @@ import {
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { Field, IconButton, EditableTitle } from "./ui";
 import { ClientBalanceSummary, FinanceSection } from "./finance";
+import { PaymentPlansSection } from "./payments";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
 export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
@@ -64,6 +65,7 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
 export function ClientDetail({
   client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, onAddProduction, showBack, isGestor, financeMap,
   financeRecords, onAddFinanceRecord, onChangeFinanceRecord, onSaveFinanceRecord, onDeleteFinanceRecord,
+  paymentPlans, onAddPaymentPlan, onChangePaymentPlan, onSavePaymentPlan, onDeletePaymentPlan,
 }) {
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
@@ -194,6 +196,18 @@ export function ClientDetail({
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {isGestor && (
+        <div style={{ marginBottom: 24 }}>
+          <PaymentPlansSection
+            plans={paymentPlans || []}
+            onAdd={onAddPaymentPlan}
+            onChange={onChangePaymentPlan}
+            onSave={onSavePaymentPlan}
+            onDelete={onDeletePaymentPlan}
+          />
         </div>
       )}
 
