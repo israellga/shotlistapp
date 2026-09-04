@@ -6,6 +6,7 @@ import {
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { Field, IconButton, EditableTitle } from "./ui";
 import { ClientBalanceSummary } from "./finance";
+import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
 export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
   const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
@@ -63,8 +64,18 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
 export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, onAddProduction, showBack, isGestor, financeMap }) {
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [lookingUpCep, setLookingUpCep] = React.useState(false);
 
   function patch(fields) { onChange({ ...client, ...fields }); }
+
+  async function handleCepBlur() {
+    const digits = (client.cep || "").replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    setLookingUpCep(true);
+    const addr = await lookupCEP(client.cep);
+    setLookingUpCep(false);
+    if (addr) patch(addr);
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -99,8 +110,38 @@ export function ClientDetail({ client, onChange, onSaveNow, onBack, onDelete, pr
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         <Field label="Responsável" value={client.responsavel || ""} onChange={(v) => patch({ responsavel: v })} placeholder="Nome de quem responde por esse cliente" />
-        <Field label="Telefone" value={client.phone || ""} onChange={(v) => patch({ phone: v })} placeholder="(11) 99999-9999" mono />
-        <Field label="Email" value={client.email || ""} onChange={(v) => patch({ email: v })} placeholder="contato@cliente.com" mono style={{ gridColumn: "1 / -1" }} />
+        <Field label="Telefone" value={client.phone || ""} onChange={(v) => patch({ phone: maskPhone(v) })} placeholder="(11) 99999-9999" mono />
+        <Field label="Email" value={client.email || ""} onChange={(v) => patch({ email: v })} placeholder="contato@cliente.com" mono />
+        <Field label="CNPJ" value={client.cnpj || ""} onChange={(v) => patch({ cnpj: maskCNPJ(v) })} placeholder="00.000.000/0000-00" mono />
+      </div>
+
+      <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.faint, letterSpacing: 0.3, marginBottom: 8, marginTop: 4 }}>
+        ENDEREÇO
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6, position: "relative" }}>
+          <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>CEP</span>
+          <input
+            value={client.cep || ""}
+            onChange={(e) => patch({ cep: maskCEP(e.target.value) })}
+            onBlur={handleCepBlur}
+            placeholder="00000-000"
+            style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "9px 11px", color: C.paper, fontFamily: FONT_MONO, fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box" }}
+          />
+          {lookingUpCep && (
+            <Loader2 size={13} color={C.faint} style={{ position: "absolute", right: 10, top: 34, animation: "spin 1s linear infinite" }} />
+          )}
+        </label>
+        <Field label="Cidade" value={client.cidade || ""} onChange={(v) => patch({ cidade: v })} placeholder="Cidade" style={{ gridColumn: "span 2" }} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+        <Field label="Logradouro" value={client.logradouro || ""} onChange={(v) => patch({ logradouro: v })} placeholder="Rua, avenida..." />
+        <Field label="Número" value={client.numero || ""} onChange={(v) => patch({ numero: v })} placeholder="123" />
+        <Field label="Estado" value={client.estado || ""} onChange={(v) => patch({ estado: v.toUpperCase().slice(0, 2) })} placeholder="UF" mono />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+        <Field label="Bairro" value={client.bairro || ""} onChange={(v) => patch({ bairro: v })} placeholder="Bairro" />
+        <Field label="Complemento" value={client.complemento || ""} onChange={(v) => patch({ complemento: v })} placeholder="Sala, andar, referência..." />
       </div>
       <Field
         label="Observações"

@@ -191,13 +191,18 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
     onChange({ ...shot, takes: shot.takes.filter((t) => t.id !== id).map((t, i) => ({ ...t, numero: i + 1 })) });
   }
 
-  async function handleReferenciaBlur() {
-    const url = (shot.referencia || "").trim();
-    if (!url || url === shot.thumbnailSourceUrl) return;
+  async function attemptFetchThumbnail(url) {
+    if (!url) return;
     setThumbLoading(true);
     const thumb = await fetchThumbnail(url);
     setThumbLoading(false);
-    if (thumb) onChange({ ...shot, thumbnailUrl: thumb, thumbnailSourceUrl: url });
+    onChange({ ...shot, thumbnailUrl: thumb || shot.thumbnailUrl, thumbnailSourceUrl: url, thumbnailFailed: !thumb });
+  }
+
+  async function handleReferenciaBlur() {
+    const url = (shot.referencia || "").trim();
+    if (!url || url === shot.thumbnailSourceUrl) return;
+    attemptFetchThumbnail(url);
   }
 
   return (
@@ -247,16 +252,32 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
                 mono
                 style={{ gridColumn: "1 / -1" }}
               />
-              {(thumbLoading || shot.thumbnailUrl) && (
+              {(thumbLoading || shot.thumbnailUrl || (shot.referencia && shot.thumbnailFailed)) && (
                 <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 10 }}>
                   {thumbLoading ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.faint, fontSize: 12 }}>
                       <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Buscando miniatura...
                     </div>
-                  ) : (
+                  ) : shot.thumbnailUrl ? (
                     <>
                       <img src={shot.thumbnailUrl} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
                       <span style={{ fontSize: 11.5, color: C.faint }}>Miniatura da referência</span>
+                      <button
+                        onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
+                        style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "5px 9px", color: C.muted, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}
+                      >
+                        Atualizar
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 11.5, color: C.faint }}>Não consegui buscar a miniatura dessa referência.</span>
+                      <button
+                        onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
+                        style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "5px 9px", color: C.amber, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}
+                      >
+                        Tentar de novo
+                      </button>
                     </>
                   )}
                 </div>
@@ -709,7 +730,10 @@ function useMediaQuery(query) {
 }
 
 function emptyClient() {
-  return { id: uid(), name: "", responsavel: "", phone: "", email: "", notes: "" };
+  return {
+    id: uid(), name: "", responsavel: "", phone: "", email: "", notes: "",
+    cnpj: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
+  };
 }
 
 // ---------------------------------------------------------------------------
