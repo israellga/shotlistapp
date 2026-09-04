@@ -1194,9 +1194,16 @@ export default function App() {
   }, [session]);
 
   const loadMyWorkspace = useCallback(async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const myId = userData?.user?.id;
+    if (!myId) {
+      setWorkspaceId(null);
+      return;
+    }
     const { data, error } = await supabase
       .from("workspace_members")
       .select("workspace_id, role, status")
+      .eq("user_id", myId)
       .limit(1)
       .maybeSingle();
     if (error || !data) {
@@ -1212,7 +1219,6 @@ export default function App() {
       }
       return;
     }
-    console.log("[Shotlist] workspace_members encontrado:", data);
     setWorkspaceId(data.workspace_id);
     setMyRole(data.role);
     setMyStatus(data.status);
