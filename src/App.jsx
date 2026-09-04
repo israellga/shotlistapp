@@ -2067,6 +2067,15 @@ function EmptyMainState({ label }) {
 }
 
 function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, sharedOrder, sharedProductions }) {
+  function sortByDate(items) {
+    return [...items].sort((a, b) => {
+      if (!a.data && !b.data) return 0;
+      if (!a.data) return 1;
+      if (!b.data) return -1;
+      return a.data.localeCompare(b.data);
+    });
+  }
+
   const groups = [];
   const byClient = {};
   const semCliente = [];
@@ -2082,10 +2091,10 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
     }
   }
   const clientIds = Object.keys(byClient).sort((a, b) => (clients[a]?.name || "").localeCompare(clients[b]?.name || "", "pt-BR"));
-  for (const cid of clientIds) groups.push({ label: clients[cid].name, items: byClient[cid] });
-  if (semCliente.length) groups.push({ label: "Sem cliente", items: semCliente });
+  for (const cid of clientIds) groups.push({ label: clients[cid].name, items: sortByDate(byClient[cid]) });
+  if (semCliente.length) groups.push({ label: "Sem cliente", items: sortByDate(semCliente) });
 
-  const sharedItems = (sharedOrder || []).map((id) => sharedProductions[id]).filter(Boolean);
+  const sharedItems = sortByDate((sharedOrder || []).map((id) => sharedProductions[id]).filter(Boolean));
   if (sharedItems.length) groups.push({ label: "Compartilhado comigo", items: sharedItems, shared: true });
 
   return (
