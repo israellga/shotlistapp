@@ -137,16 +137,24 @@ export default function AuthScreen({ onAuthed }) {
             </div>
 
             {mode !== "forgot" && (
-              <div style={{ display: "flex", background: C.panel2, borderRadius: 9, padding: 4, marginBottom: 22 }}>
+              <div style={{ position: "relative", display: "flex", background: C.panel2, borderRadius: 9, padding: 4, marginBottom: 22 }}>
+                <div style={{
+                  position: "absolute", top: 4, bottom: 4, left: 4,
+                  width: "calc(50% - 4px)", borderRadius: 6, background: C.amberDim,
+                  transform: mode === "signup" ? "translateX(100%)" : "translateX(0%)",
+                  transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                }} />
                 {["login", "signup"].map((m) => (
                   <button
                     key={m}
                     onClick={() => { setMode(m); setError(""); setNotice(""); }}
                     style={{
+                      position: "relative", zIndex: 1,
                       flex: 1, padding: "9px 0", borderRadius: 6, border: "none", cursor: "pointer",
-                      background: mode === m ? C.amberDim : "transparent",
+                      background: "transparent",
                       color: mode === m ? C.amber : C.muted,
                       fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4,
+                      transition: "color 0.2s",
                     }}
                   >
                     {m === "login" ? "ENTRAR" : "CRIAR CONTA"}

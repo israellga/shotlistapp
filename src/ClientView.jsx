@@ -159,7 +159,7 @@ export default function ClientView({ id }) {
                   {String(s.numero).padStart(2, "0")}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, color: C.paper, fontWeight: 500 }}>{s.nome || "Sem nome"}</div>
+                  <div style={{ fontSize: 15, color: C.paper, fontWeight: 600 }}>{s.nome || "Sem nome"}</div>
                   {s.contexto && <div style={{ fontSize: 12.5, color: C.faint, marginTop: 2 }}>{s.contexto}</div>}
                 </div>
                 <span style={{

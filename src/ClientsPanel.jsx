@@ -40,7 +40,7 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
               {(c.name || "?").trim().charAt(0).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14.5, color: C.paper, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 14.5, color: C.paper, fontWeight: 600, fontFamily: FONT_BODY, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {c.name || "Sem nome"}
               </div>
               {c.responsavel && (

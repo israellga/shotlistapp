@@ -207,7 +207,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
           {String(shot.numero).padStart(2, "0")}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15.5, color: C.paper, fontWeight: 500 }}>{shot.nome || "Sem nome"}</div>
+          <div style={{ fontSize: 15.5, color: C.paper, fontWeight: 600 }}>{shot.nome || "Sem nome"}</div>
           <div style={{ fontSize: 12.5, color: C.faint, marginTop: 2 }}>
             {shot.tipo && <span style={{ color: C.teal }}>{shot.tipo} · </span>}
             {shot.contexto || "Sem contexto"}
@@ -1215,24 +1215,30 @@ export default function App() {
           <div className="sidebar">
             <div className="pane-list">
               {!fieldMode && (
-                <div className="tabs">
+                <div className="tabs" style={{ position: "relative" }}>
+                  <div style={{
+                    position: "absolute", top: 4, bottom: 4, left: 4,
+                    width: "calc(50% - 4px)", borderRadius: 6, background: C.amberDim,
+                    transform: activeTab === "clientes" ? "translateX(100%)" : "translateX(0%)",
+                    transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }} />
                   <button
                     className="tab-btn"
                     onClick={() => setActiveTab("producoes")}
-                    style={{ background: activeTab === "producoes" ? C.amberDim : "transparent", color: activeTab === "producoes" ? C.amber : C.muted }}
+                    style={{ position: "relative", zIndex: 1, background: "transparent", color: activeTab !== "clientes" ? C.amber : C.muted, transition: "color 0.2s" }}
                   >
                     PRODUÇÕES
                   </button>
                   <button
                     className="tab-btn"
                     onClick={() => setActiveTab("clientes")}
-                    style={{ background: activeTab === "clientes" ? C.amberDim : "transparent", color: activeTab === "clientes" ? C.amber : C.muted }}
+                    style={{ position: "relative", zIndex: 1, background: "transparent", color: activeTab === "clientes" ? C.amber : C.muted, transition: "color 0.2s" }}
                   >
                     CLIENTES
                   </button>
                 </div>
               )}
-              {!fieldMode && (
+              {!fieldMode && activeTab !== "clientes" && (
                 <button
                   onClick={() => setActiveTab("proximas")}
                   style={{
