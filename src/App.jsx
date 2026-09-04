@@ -1196,10 +1196,11 @@ export default function App() {
   const loadMyWorkspace = useCallback(async () => {
     const { data, error } = await supabase
       .from("workspace_members")
-      .select("workspace_id, role, status, workspaces ( name )")
+      .select("workspace_id, role, status")
       .limit(1)
       .maybeSingle();
     if (error || !data) {
+      if (error) console.error("[Shotlist] loadMyWorkspace:", error);
       setWorkspaceId(null);
       setMyRole(null);
       setMyStatus(null);
@@ -1214,7 +1215,8 @@ export default function App() {
     setWorkspaceId(data.workspace_id);
     setMyRole(data.role);
     setMyStatus(data.status);
-    setWorkspaceName(data.workspaces?.name || "");
+    const { data: ws } = await supabase.from("workspaces").select("name").eq("id", data.workspace_id).maybeSingle();
+    setWorkspaceName(ws?.name || "");
     setPendingInvites([]);
   }, []);
 
@@ -1338,18 +1340,33 @@ export default function App() {
 
     const channel = supabase
       .channel("productions-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: TABLE, filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: TABLE }, (payload) => {
         if (payload.eventType === "DELETE") {
+          const oldId = payload.old.id;
           setProductions((prev) => {
+            if (!(oldId in prev)) return prev;
             const next = { ...prev };
-            delete next[payload.old.id];
+            delete next[oldId];
             return next;
           });
-          setOrder((prev) => prev.filter((id) => id !== payload.old.id));
+          setOrder((prev) => prev.filter((id) => id !== oldId));
+          setSharedProductions((prev) => {
+            if (!(oldId in prev)) return prev;
+            const next = { ...prev };
+            delete next[oldId];
+            return next;
+          });
+          setSharedOrder((prev) => prev.filter((id) => id !== oldId));
         } else {
           const row = payload.new;
-          setProductions((prev) => ({ ...prev, [row.id]: row.payload }));
-          setOrder((prev) => (prev.includes(row.id) ? prev : [row.id, ...prev]));
+          if (row.workspace_id === workspaceId) {
+            setProductions((prev) => ({ ...prev, [row.id]: row.payload }));
+            setOrder((prev) => (prev.includes(row.id) ? prev : [row.id, ...prev]));
+          } else {
+            // RLS only delivers this if it's shared with me — safe to trust.
+            setSharedProductions((prev) => ({ ...prev, [row.id]: { ...row.payload, __shared: true } }));
+            setSharedOrder((prev) => (prev.includes(row.id) ? prev : [...prev, row.id]));
+          }
         }
       })
       .subscribe();
@@ -1424,12 +1441,34 @@ export default function App() {
       })
       .subscribe();
 
+    const sharesChannel = session?.user?.email
+      ? supabase
+          .channel("production-shares-changes")
+          .on("postgres_changes", { event: "*", schema: "public", table: "production_shares", filter: `shared_with_email=eq.${session.user.email}` }, (payload) => {
+            if (payload.eventType === "DELETE") {
+              const prodId = payload.old.production_id;
+              setSharedProductions((prev) => {
+                if (!(prodId in prev)) return prev;
+                const next = { ...prev };
+                delete next[prodId];
+                return next;
+              });
+              setSharedOrder((prev) => prev.filter((id) => id !== prodId));
+            } else {
+              // a production was just shared with me — fetch its data
+              loadSharedProductions();
+            }
+          })
+          .subscribe()
+      : null;
+
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(clientsChannel);
       supabase.removeChannel(financeChannel);
       supabase.removeChannel(financeRecordsChannel);
       supabase.removeChannel(paymentPlansChannel);
+      if (sharesChannel) supabase.removeChannel(sharesChannel);
     };
   }, [session, workspaceId, loadAll, loadClients, loadFinance, loadFinanceRecords, loadPaymentPlans, loadSharedProductions]);
 
