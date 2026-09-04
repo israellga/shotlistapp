@@ -16,6 +16,10 @@ function isInstagramUrl(url) {
   return /instagram\.com\/(p|reel|reels|tv)\//i.test(url || "");
 }
 
+function isDirectVideoUrl(url) {
+  return /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url || "");
+}
+
 function InstagramEmbed({ url }) {
   useEffect(() => {
     function process() {
@@ -39,12 +43,22 @@ function InstagramEmbed({ url }) {
   }, [url]);
 
   return (
-    <blockquote
-      className="instagram-media"
-      data-instgrm-permalink={url}
-      data-instgrm-version="14"
-      style={{ background: "#000", border: 0, borderRadius: 8, margin: "10px 0 0", maxWidth: 540, minWidth: 236, width: "100%" }}
-    />
+    <div style={{ width: "100%", maxWidth: 400, overflow: "hidden", borderRadius: 10 }}>
+      <style>{`
+        .instagram-media, .instagram-media iframe {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+      `}</style>
+      <blockquote
+        className="instagram-media"
+        data-instgrm-permalink={url}
+        data-instgrm-version="14"
+        data-instgrm-theme="dark"
+        style={{ background: "#000", border: 0, borderRadius: 10, margin: 0, width: "100%", maxWidth: "100%", minWidth: 0 }}
+      />
+    </div>
   );
 }
 
@@ -54,6 +68,7 @@ function ShotRow({ s }) {
   const total = Number(s.totalTakes) || 0;
   const done = Number(s.doneTakes) || 0;
   const canEmbed = isInstagramUrl(s.referencia);
+  const isVideo = isDirectVideoUrl(s.referencia);
 
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px" }}>
@@ -85,7 +100,7 @@ function ShotRow({ s }) {
               <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.muted }}>{done}/{total} takes</span>
             ) : <span />}
             {s.referencia && (
-              canEmbed ? (
+              canEmbed || isVideo ? (
                 <button
                   onClick={() => setRefOpen((v) => !v)}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: C.amber, fontSize: 12, fontFamily: FONT_BODY, cursor: "pointer", padding: 0 }}
@@ -100,8 +115,13 @@ function ShotRow({ s }) {
             )}
           </div>
           {canEmbed && refOpen && (
-            <div style={{ display: "flex", justifyContent: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center", overflow: "hidden", marginTop: 10 }}>
               <InstagramEmbed url={s.referencia} />
+            </div>
+          )}
+          {isVideo && refOpen && (
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
+              <video src={s.referencia} controls playsInline style={{ width: "100%", maxWidth: 400, borderRadius: 10, background: "#000" }} />
             </div>
           )}
         </div>

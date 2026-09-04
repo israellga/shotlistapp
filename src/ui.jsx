@@ -71,7 +71,7 @@ export function Field({ label, value, onChange, onBlur, listId, placeholder, mon
 
 export function DateField({ label, value, onChange }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       {label && (
         <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>{label}</span>
       )}
@@ -81,13 +81,15 @@ export function DateField({ label, value, onChange }) {
         onChange={(e) => onChange(e.target.value)}
         style={{
           background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
-          padding: "9px 11px", color: C.paper, fontFamily: FONT_MONO,
-          fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box",
-          colorScheme: "dark",
+          padding: "0 11px", color: C.paper, fontFamily: FONT_MONO,
+          fontSize: 15, outline: "none", width: "100%", boxSizing: "border-box",
+          colorScheme: "dark", height: 40, lineHeight: "38px",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          WebkitAppearance: "none", appearance: "none", display: "block",
         }}
       />
       {value && (
-        <span style={{ fontSize: 11.5, color: C.amber, fontFamily: FONT_MONO }}>
+        <span style={{ fontSize: 11.5, color: C.amber, fontFamily: FONT_MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {formatDataComDiaSemana(value)}
         </span>
       )}

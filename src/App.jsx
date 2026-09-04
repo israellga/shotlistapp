@@ -3,7 +3,7 @@ import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
   Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
-  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film,
+  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
@@ -17,6 +17,7 @@ import {
 } from "./ui";
 import { ClientsList, ClientDetail, ClientPickerInline } from "./ClientsPanel";
 import { fetchThumbnail } from "./thumbnail";
+import { analyzeReferenceFrames } from "./aiAnalysis";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
@@ -222,6 +223,9 @@ function EquipmentPicker({ value, outro, onChange, onChangeOutro }) {
 function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
   const doneCount = shot.takes.filter((t) => t.feito).length;
   const [thumbLoading, setThumbLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [suggestion, setSuggestion] = useState(null);
 
   function updateTake(id, next) {
     const nextTakes = shot.takes.map((t) => (t.id === id ? next : t));
@@ -249,6 +253,32 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
     const url = (shot.referencia || "").trim();
     if (!url || url === shot.thumbnailSourceUrl) return;
     attemptFetchThumbnail(url);
+  }
+
+  async function handleExtractRoteiro() {
+    setAnalysisError("");
+    setAnalyzing(true);
+    try {
+      const result = await analyzeReferenceFrames(shot.thumbnailUrl);
+      setSuggestion(result);
+    } catch (e) {
+      setAnalysisError(e?.message || "Não consegui analisar essa referência.");
+    }
+    setAnalyzing(false);
+  }
+
+  function applySuggestion() {
+    if (!suggestion) return;
+    onChange({
+      ...shot,
+      tipo: suggestion.tipo && TIPOS_PRODUCAO.includes(suggestion.tipo) ? suggestion.tipo : shot.tipo,
+      equipamentos: Array.isArray(suggestion.equipamentos) && suggestion.equipamentos.length ? suggestion.equipamentos : shot.equipamentos,
+      objetivo: suggestion.roteiro || shot.objetivo,
+      takes: Array.isArray(suggestion.takes) && suggestion.takes.length
+        ? suggestion.takes.map((t, i) => ({ id: uid(), numero: i + 1, acao: t.acao || "", transicao: t.transicao || "", tempo: "", feito: false }))
+        : shot.takes,
+    });
+    setSuggestion(null);
   }
 
   return (
@@ -299,45 +329,104 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
                 />
               </label>
               <Field label="Roteiro" value={shot.objetivo} onChange={(v) => onChange({ ...shot, objetivo: v })} placeholder="Como a cena se desenrola, passo a passo" multiline style={{ gridColumn: "1 / -1" }} />
-              <Field
-                label="Referência (link)"
-                value={shot.referencia}
-                onChange={(v) => onChange({ ...shot, referencia: v })}
-                onBlur={handleReferenciaBlur}
-                placeholder="https://instagram.com/..."
-                mono
-                style={{ gridColumn: "1 / -1" }}
-              />
-              {(thumbLoading || shot.thumbnailUrl || (shot.referencia && shot.thumbnailFailed)) && (
-                <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 10 }}>
-                  {thumbLoading ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.faint, fontSize: 12 }}>
-                      <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Buscando miniatura...
-                    </div>
-                  ) : shot.thumbnailUrl ? (
-                    <>
-                      <img src={shot.thumbnailUrl} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
-                      <span style={{ fontSize: 11.5, color: C.faint }}>Miniatura da referência</span>
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3, display: "block", marginBottom: 8 }}>REFERÊNCIA</span>
+                <input
+                  value={shot.referencia}
+                  onChange={(e) => onChange({ ...shot, referencia: e.target.value })}
+                  onBlur={handleReferenciaBlur}
+                  placeholder="https://instagram.com/..."
+                  style={{ ...inputInlineStyle(1), width: "100%", fontFamily: FONT_MONO }}
+                />
+
+                {(thumbLoading || shot.thumbnailUrl || (shot.referencia && shot.thumbnailFailed)) && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                    {thumbLoading ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, color: C.faint, fontSize: 12 }}>
+                        <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Buscando miniatura...
+                      </div>
+                    ) : shot.thumbnailUrl ? (
+                      <>
+                        <img src={shot.thumbnailUrl} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
+                        <span style={{ fontSize: 11.5, color: C.faint }}>Miniatura da referência</span>
+                        <button
+                          onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
+                          style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "5px 9px", color: C.muted, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}
+                        >
+                          Atualizar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 11.5, color: C.faint }}>Não consegui buscar a miniatura dessa referência.</span>
+                        <button
+                          onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
+                          style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "5px 9px", color: C.amber, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}
+                        >
+                          Tentar de novo
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {shot.thumbnailUrl && !thumbLoading && (
+                  <div style={{ marginTop: 12 }}>
+                    {!suggestion && (
                       <button
-                        onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
-                        style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "5px 9px", color: C.muted, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}
+                        onClick={handleExtractRoteiro}
+                        disabled={analyzing}
+                        style={{ display: "flex", alignItems: "center", gap: 7, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8, padding: "8px 13px", color: C.amber, fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: analyzing ? "default" : "pointer" }}
                       >
-                        Atualizar
+                        {analyzing ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={14} />}
+                        {analyzing ? "Analisando..." : "Extrair roteiro dessa referência"}
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ fontSize: 11.5, color: C.faint }}>Não consegui buscar a miniatura dessa referência.</span>
-                      <button
-                        onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
-                        style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "5px 9px", color: C.amber, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}
-                      >
-                        Tentar de novo
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+                    )}
+                    {analysisError && (
+                      <div style={{ color: C.brick, fontSize: 11.5, marginTop: 8 }}>{analysisError}</div>
+                    )}
+                    {suggestion && (
+                      <div style={{ background: C.panel2, border: `1px solid ${C.amber}`, borderRadius: 9, padding: 14, marginTop: 4 }}>
+                        <div style={{ fontSize: 12, color: C.amber, fontWeight: 600, marginBottom: 10 }}>Sugestão da análise</div>
+                        {suggestion.tipo && (
+                          <div style={{ fontSize: 12.5, color: C.paper, marginBottom: 6 }}><strong>Tipo:</strong> {suggestion.tipo}</div>
+                        )}
+                        {Array.isArray(suggestion.equipamentos) && suggestion.equipamentos.length > 0 && (
+                          <div style={{ fontSize: 12.5, color: C.paper, marginBottom: 6 }}><strong>Equipamento:</strong> {suggestion.equipamentos.join(", ")}</div>
+                        )}
+                        {suggestion.roteiro && (
+                          <div style={{ fontSize: 12.5, color: C.paper, marginBottom: 6 }}><strong>Roteiro:</strong> {suggestion.roteiro}</div>
+                        )}
+                        {Array.isArray(suggestion.takes) && suggestion.takes.length > 0 && (
+                          <div style={{ fontSize: 12.5, color: C.paper, marginBottom: 10 }}>
+                            <strong>Takes ({suggestion.takes.length}):</strong>
+                            <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+                              {suggestion.takes.map((t, i) => (
+                                <li key={i} style={{ marginBottom: 3 }}>{t.acao}{t.transicao ? ` → ${t.transicao}` : ""}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                          <button
+                            onClick={applySuggestion}
+                            style={{ background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 7, padding: "7px 13px", color: C.sage, fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}
+                          >
+                            Aplicar sugestões
+                          </button>
+                          <button
+                            onClick={() => setSuggestion(null)}
+                            style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "7px 13px", color: C.muted, fontSize: 12.5, fontFamily: FONT_BODY, cursor: "pointer" }}
+                          >
+                            Descartar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
