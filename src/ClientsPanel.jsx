@@ -4,7 +4,7 @@ import {
   Building2, Phone, Mail, FileText, User,
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
-import { Field, IconButton, EditableTitle } from "./ui";
+import { Field, IconButton, EditableTitle, ConfirmIconButton, ConfirmDialog } from "./ui";
 import { ClientBalanceSummary, FinanceSection } from "./finance";
 import { PaymentPlansSection } from "./payments";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
@@ -51,9 +51,9 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
                 </div>
               )}
             </div>
-            <IconButton onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} tone="brick" size={28} title="Excluir cliente">
+            <ConfirmIconButton onConfirm={() => onDelete(c.id)} title="Excluir cliente" confirmTitle="Excluir cliente?" confirmMessage={`"${c.name || "Este cliente"}" será removido. As produções vinculadas continuam existindo, só perdem o vínculo.`} size={28} stopPropagation>
               <Trash2 size={14} />
-            </IconButton>
+            </ConfirmIconButton>
             <ChevronRight size={16} color={C.faint} />
           </div>
         ))}
@@ -110,7 +110,9 @@ export function ClientDetail({
           {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : saved ? <Check size={14} /> : <Save size={14} />}
           {saved ? "Salvo" : "Salvar"}
         </button>
-        <IconButton onClick={() => onDelete(client.id)} tone="brick" title="Excluir cliente"><Trash2 size={17} /></IconButton>
+        <ConfirmIconButton onConfirm={() => onDelete(client.id)} title="Excluir cliente" confirmTitle="Excluir cliente?" confirmMessage={`"${client.name || "Este cliente"}" será removido. As produções vinculadas continuam existindo, só perdem o vínculo.`}>
+          <Trash2 size={17} />
+        </ConfirmIconButton>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
@@ -162,7 +164,7 @@ export function ClientDetail({
           <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, marginBottom: 10 }}>
             BALANCETE
           </div>
-          <ClientBalanceSummary productions={productions} financeMap={financeMap || {}} financeRecords={financeRecords || []} />
+          <ClientBalanceSummary productions={productions} financeMap={financeMap || {}} financeRecords={financeRecords || []} paymentPlans={paymentPlans || []} />
         </div>
       )}
 
@@ -249,6 +251,7 @@ function FinanceRecordRow({ record, onChange, onSave, onDelete }) {
   const [expanded, setExpanded] = React.useState(!record.label);
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 
   function patch(fields) { onChange({ ...record, ...fields }); }
 
@@ -304,13 +307,23 @@ function FinanceRecordRow({ record, onChange, onSave, onDelete }) {
               {saved ? "Salvo" : "Salvar"}
             </button>
             <button
-              onClick={onDelete}
+              onClick={() => setConfirmingDelete(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 14px", color: C.brick, fontSize: 12.5, fontFamily: FONT_BODY, cursor: "pointer" }}
             >
               <Trash2 size={13} /> Excluir
             </button>
           </div>
         </div>
+      )}
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Excluir registro financeiro?"
+          message={`"${record.label || "Este registro"}" será apagado.`}
+          confirmLabel="Excluir"
+          danger
+          onConfirm={() => { setConfirmingDelete(false); onDelete(); }}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       )}
     </div>
   );

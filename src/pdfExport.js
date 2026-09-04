@@ -39,8 +39,9 @@ export function exportProductionPDF(production) {
   doc.setTextColor(90);
   const metaLine = [
     formatDataComDiaSemana(production.data) || "sem data",
+    (production.horaInicio || production.horaFim) && `Horário: ${production.horaInicio || "?"}–${production.horaFim || "?"}`,
     production.responsavel && `Responsável: ${production.responsavel}`,
-    production.objetivoDia && `Objetivo do dia: ${production.objetivoDia}`,
+    production.objetivoDia && `Demanda: ${production.objetivoDia}`,
   ].filter(Boolean).join("   ·   ");
   const metaWrapped = doc.splitTextToSize(metaLine, pageWidth - marginX * 2);
   doc.text(metaWrapped, marginX, y);

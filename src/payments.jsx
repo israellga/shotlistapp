@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Plus, Trash2, Check, Copy, ChevronDown, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
-import { IconButton } from "./ui";
+import { IconButton, ConfirmDialog } from "./ui";
 import { formatBRL } from "./finance";
 
 function uid() {
@@ -55,6 +55,7 @@ function CopyLinkButton({ link }) {
 
 export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
   const [expanded, setExpanded] = useState(!plan.titulo);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [genCount, setGenCount] = useState(3);
@@ -218,13 +219,23 @@ export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
               {saved ? "Salvo" : "Salvar"}
             </button>
             <button
-              onClick={onDelete}
+              onClick={() => setConfirmingDelete(true)}
               style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 14px", color: C.brick, fontSize: 12.5, fontFamily: FONT_BODY, cursor: "pointer" }}
             >
               <Trash2 size={13} /> Excluir
             </button>
           </div>
         </div>
+      )}
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Excluir plano de pagamento?"
+          message={`"${plan.titulo || "Este plano"}" e todas as parcelas vão ser apagados. Se o link estiver ativo, ele para de funcionar.`}
+          confirmLabel="Excluir"
+          danger
+          onConfirm={() => { setConfirmingDelete(false); onDelete(); }}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       )}
     </div>
   );

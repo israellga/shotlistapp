@@ -13,11 +13,10 @@ import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { formatDataComDiaSemana, formatHorario, horarioMinutos } from "./datetime";
 import {
   uid, IconButton, Field, DateField, selectFieldStyle, selectInlineStyle,
-  inputInlineStyle, dashedAddStyle, ConfirmDialog, EditableTitle,
+  inputInlineStyle, dashedAddStyle, ConfirmDialog, EditableTitle, ConfirmIconButton,
 } from "./ui";
 import { ClientsList, ClientDetail, ClientPickerInline } from "./ClientsPanel";
 import { fetchThumbnail } from "./thumbnail";
-import { exportProductionPDF } from "./pdfExport";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
@@ -268,9 +267,9 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
         </div>
         <StatusPill status={shot.status} onCycle={(e) => { e.stopPropagation(); onChange({ ...shot, status: cycleStatus(shot.status) }); }} />
         {!fieldMode && (
-          <IconButton onClick={(e) => { e.stopPropagation(); onDelete(); }} tone="brick" title="Excluir shot">
+          <ConfirmIconButton onConfirm={onDelete} title="Excluir shot" confirmTitle="Excluir shot?" confirmMessage={`"${shot.nome || "Este shot"}" e todos os seus takes vão ser apagados.`} stopPropagation>
             <Trash2 size={16} />
-          </IconButton>
+          </ConfirmIconButton>
         )}
         {expanded ? <ChevronDown size={18} color={C.faint} /> : <ChevronRight size={18} color={C.faint} />}
       </div>
@@ -592,6 +591,17 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  async function handleExportPdf() {
+    setExportingPdf(true);
+    try {
+      const { exportProductionPDF } = await import("./pdfExport");
+      exportProductionPDF(production);
+    } finally {
+      setExportingPdf(false);
+    }
+  }
 
   function patch(fields) { onChange({ ...production, ...fields }); }
   function updateShot(id, next) { patch({ shots: production.shots.map((s) => (s.id === id ? next : s)) }); }
@@ -599,13 +609,17 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
     const s = emptyShot(production.shots.length + 1);
     const novoHorario = nextAutoHorario(production.cronograma, production.horaInicio);
     const novaOrdem = novoHorario
-      ? [...production.cronograma, { id: uid(), horario: novoHorario, local: "", equipe: "", elenco: "", observacao: "" }]
+      ? [...production.cronograma, { id: uid(), horario: novoHorario, local: "", equipe: "", elenco: "", observacao: "", shotId: s.id }]
       : production.cronograma;
     onChange({ ...production, shots: [...production.shots, s], cronograma: novaOrdem });
     setExpandedShot(s.id);
   }
   function deleteShot(id) {
-    patch({ shots: production.shots.filter((s) => s.id !== id).map((s, i) => ({ ...s, numero: i + 1 })) });
+    onChange({
+      ...production,
+      shots: production.shots.filter((s) => s.id !== id).map((s, i) => ({ ...s, numero: i + 1 })),
+      cronograma: production.cronograma.filter((c) => c.shotId !== id),
+    });
   }
 
   async function handleSave() {
@@ -650,15 +664,16 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
         </div>
         {!fieldMode && (
           <button
-            onClick={() => exportProductionPDF(production)}
+            onClick={handleExportPdf}
+            disabled={exportingPdf}
             title="Exportar PDF"
             style={{
               display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
               background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8,
-              padding: "8px 12px", color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              padding: "8px 12px", color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: exportingPdf ? "default" : "pointer",
             }}
           >
-            <FileDown size={14} /> PDF
+            {exportingPdf ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <FileDown size={14} />} PDF
           </button>
         )}
         <button
@@ -865,7 +880,9 @@ function ProductionCard({ p, selected, onOpen, onDelete }) {
           {formatDataComDiaSemana(p.data) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalTakes > 0 && ` · ${pct}% concluído`}
         </div>
       </div>
-      <IconButton onClick={(e) => { e.stopPropagation(); onDelete(); }} tone="brick" title="Excluir produção"><Trash2 size={16} /></IconButton>
+      <ConfirmIconButton onConfirm={onDelete} title="Excluir produção" confirmTitle="Excluir produção?" confirmMessage={`"${p.cliente || "Esta produção"}" e toda a shotlist vão ser apagadas.`} stopPropagation>
+        <Trash2 size={16} />
+      </ConfirmIconButton>
       <ChevronRight size={18} color={C.faint} />
     </div>
   );
@@ -1645,6 +1662,7 @@ export default function App() {
                 productions={order.map((id) => productions[id]).filter(Boolean)}
                 financeMap={financeMap}
                 financeRecords={financeRecordOrder.map((id) => financeRecords[id]).filter(Boolean)}
+                paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean)}
               />
             ) : (
               <EmptyMainState label="Selecione um cliente à esquerda, ou cadastre um novo." />

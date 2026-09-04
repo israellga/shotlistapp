@@ -92,7 +92,7 @@ export function ProductionsDashboard({ order, productions }) {
   );
 }
 
-export function ClientsDashboard({ clients, productions, financeMap, financeRecords }) {
+export function ClientsDashboard({ clients, productions, financeMap, financeRecords, paymentPlans = [] }) {
   const productionRows = productions.map((p) => ({
     clientId: p.clienteId,
     orcamento: Number(financeMap[p.id]?.orcamento) || 0,
@@ -103,7 +103,12 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
     orcamento: Number(r.orcamento) || 0,
     custos: r.custos || [],
   }));
-  const rows = [...productionRows, ...recordRows];
+  const paymentRows = paymentPlans.map((plan) => ({
+    clientId: plan.client_id,
+    orcamento: Number(plan.valor_total) || (plan.parcelas || []).reduce((a, p) => a + (Number(p.valor) || 0), 0),
+    custos: [],
+  }));
+  const rows = [...productionRows, ...recordRows, ...paymentRows];
 
   const totalFaturamento = rows.reduce((a, r) => a + r.orcamento, 0);
   const totalCusto = rows.reduce((a, r) => a + totalCustos({ custos: r.custos }), 0);

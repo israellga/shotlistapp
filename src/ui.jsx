@@ -203,3 +203,29 @@ export function EditableTitle({ value, onChange, placeholder, size = 22 }) {
     </div>
   );
 }
+
+export function ConfirmIconButton({ onConfirm, title, confirmTitle, confirmMessage, tone = "brick", size = 34, stopPropagation, children }) {
+  const [confirming, setConfirming] = React.useState(false);
+  return (
+    <>
+      <IconButton
+        onClick={(e) => { if (stopPropagation) e.stopPropagation(); setConfirming(true); }}
+        tone={tone}
+        size={size}
+        title={title}
+      >
+        {children}
+      </IconButton>
+      {confirming && (
+        <ConfirmDialog
+          title={confirmTitle || "Excluir?"}
+          message={confirmMessage}
+          confirmLabel="Excluir"
+          danger
+          onConfirm={() => { setConfirming(false); onConfirm(); }}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+    </>
+  );
+}
