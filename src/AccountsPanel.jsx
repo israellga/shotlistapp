@@ -6,45 +6,49 @@ import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 const STATUS_LABEL = { pending: "Pendente", approved: "Aprovado", rejected: "Recusado" };
 const STATUS_COLOR = { pending: C.amber, approved: C.sage, rejected: C.brick };
 
-export default function AccountsPanel({ onClose, myUserId }) {
-  const [profiles, setProfiles] = useState([]);
+export default function AccountsPanel({ onClose, myUserId, workspaceId, workspaceName }) {
+  const [members, setMembers] = useState([]);
   const [status, setStatus] = useState("loading");
   const [savingId, setSavingId] = useState(null);
 
   useEffect(() => {
-    supabase.from("profiles").select("*").order("status").order("email").then(({ data, error }) => {
-      if (!error) setProfiles(data || []);
+    if (!workspaceId) return;
+    supabase.from("workspace_members").select("*").eq("workspace_id", workspaceId).order("status").order("email").then(({ data, error }) => {
+      if (!error) setMembers(data || []);
       setStatus("ready");
     });
-  }, []);
+  }, [workspaceId]);
 
-  async function changeRole(id, role) {
-    setSavingId(id);
-    const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
+  async function changeRole(userId, role) {
+    setSavingId(userId);
+    const { error } = await supabase.from("workspace_members").update({ role }).eq("workspace_id", workspaceId).eq("user_id", userId);
     if (!error) {
-      setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, role } : p)));
+      setMembers((prev) => prev.map((m) => (m.user_id === userId ? { ...m, role } : m)));
     }
     setSavingId(null);
   }
 
-  async function changeStatus(id, newStatus) {
-    setSavingId(id);
-    const { error } = await supabase.from("profiles").update({ status: newStatus }).eq("id", id);
+  async function changeStatus(userId, newStatus) {
+    setSavingId(userId);
+    const { error } = await supabase.from("workspace_members").update({ status: newStatus }).eq("workspace_id", workspaceId).eq("user_id", userId);
     if (!error) {
-      setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p)));
+      setMembers((prev) => prev.map((m) => (m.user_id === userId ? { ...m, status: newStatus } : m)));
     }
     setSavingId(null);
   }
 
-  const pending = profiles.filter((p) => p.status === "pending");
-  const others = profiles.filter((p) => p.status !== "pending");
+  const pending = members.filter((m) => m.status === "pending");
+  const others = members.filter((m) => m.status !== "pending");
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 55, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
       <div style={{ width: "100%", maxWidth: 480, maxHeight: "80vh", display: "flex", flexDirection: "column", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 18px", borderBottom: `1px solid ${C.line}` }}>
           <ShieldCheck size={17} color={C.amber} />
-          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, color: C.paper, flex: 1 }}>CONTAS DA EQUIPE</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, color: C.paper }}>CONTAS DA EQUIPE</div>
+            {workspaceName && <div style={{ fontSize: 11, color: C.faint, marginTop: 1 }}>{workspaceName}</div>}
+          </div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer" }}>
             <X size={18} />
           </button>
@@ -63,25 +67,25 @@ export default function AccountsPanel({ onClose, myUserId }) {
                     AGUARDANDO APROVAÇÃO ({pending.length})
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {pending.map((p) => (
-                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 9, padding: "11px 12px" }}>
+                    {pending.map((m) => (
+                      <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 9, padding: "11px 12px" }}>
                         <User size={15} color={C.amber} />
                         <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {p.email}
+                          {m.email}
                         </div>
-                        {savingId === p.id ? (
+                        {savingId === m.user_id ? (
                           <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
                         ) : (
                           <>
                             <button
-                              onClick={() => changeStatus(p.id, "approved")}
+                              onClick={() => changeStatus(m.user_id, "approved")}
                               title="Aprovar"
                               style={{ display: "flex", alignItems: "center", gap: 5, background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 6, padding: "6px 10px", color: C.sage, fontSize: 12, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}
                             >
                               <Check size={13} /> Aprovar
                             </button>
                             <button
-                              onClick={() => changeStatus(p.id, "rejected")}
+                              onClick={() => changeStatus(m.user_id, "rejected")}
                               title="Recusar"
                               style={{ display: "flex", alignItems: "center", background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px", color: C.faint, fontFamily: FONT_BODY, cursor: "pointer" }}
                             >
@@ -99,24 +103,24 @@ export default function AccountsPanel({ onClose, myUserId }) {
                 CONTAS ({others.length})
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {others.map((p) => (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "11px 12px" }}>
+                {others.map((m) => (
+                  <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "11px 12px" }}>
                     <User size={15} color={C.faint} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.email}{p.id === myUserId && <span style={{ color: C.faint }}> (você)</span>}
+                        {m.email}{m.user_id === myUserId && <span style={{ color: C.faint }}> (você)</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: STATUS_COLOR[p.status], fontFamily: FONT_MONO, marginTop: 1 }}>
-                        {STATUS_LABEL[p.status] || p.status}
+                      <div style={{ fontSize: 11, color: STATUS_COLOR[m.status], fontFamily: FONT_MONO, marginTop: 1 }}>
+                        {STATUS_LABEL[m.status] || m.status}
                       </div>
                     </div>
-                    {savingId === p.id ? (
+                    {savingId === m.user_id ? (
                       <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
                     ) : (
                       <select
-                        value={p.role}
-                        onChange={(e) => changeRole(p.id, e.target.value)}
-                        disabled={p.id === myUserId}
+                        value={m.role}
+                        onChange={(e) => changeRole(m.user_id, e.target.value)}
+                        disabled={m.user_id === myUserId}
                         style={{
                           background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px",
                           color: C.paper, fontSize: 12.5, fontFamily: FONT_BODY, outline: "none", colorScheme: "dark",
@@ -128,9 +132,13 @@ export default function AccountsPanel({ onClose, myUserId }) {
                     )}
                   </div>
                 ))}
-                {profiles.length === 0 && (
+                {members.length === 0 && (
                   <div style={{ color: C.faint, fontSize: 13, textAlign: "center", padding: 30 }}>Nenhuma conta encontrada.</div>
                 )}
+              </div>
+
+              <div style={{ marginTop: 18, fontSize: 11.5, color: C.faint, lineHeight: 1.5, textAlign: "center" }}>
+                Convidar alguém de fora pro seu espaço chega numa próxima atualização.
               </div>
             </>
           )}

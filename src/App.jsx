@@ -22,6 +22,7 @@ import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
 import { PaymentPlansSection, emptyPaymentPlan } from "./payments";
+import WorkspaceOnboarding from "./WorkspaceOnboarding";
 import { saveDraft, loadDraft, clearDraft, getDraftIndex } from "./draftStorage";
 
 const TABLE = "productions";
@@ -1056,6 +1057,8 @@ export default function App() {
   const [myRole, setMyRole] = useState(null); // null until known: 'regular' | 'gestor'
   const [myStatus, setMyStatus] = useState(null); // 'pending' | 'approved' | 'rejected'
   const [myName, setMyName] = useState("");
+  const [workspaceId, setWorkspaceId] = useState(undefined); // undefined = checking, null = none yet
+  const [workspaceName, setWorkspaceName] = useState("");
   const [showAccounts, setShowAccounts] = useState(false);
   const [financeMap, setFinanceMap] = useState({});
   const [financeRecords, setFinanceRecords] = useState({});
@@ -1084,25 +1087,46 @@ export default function App() {
       setMyRole(null);
       setMyStatus(null);
       setMyName("");
+      setWorkspaceId(undefined);
+      setWorkspaceName("");
       return;
     }
-    supabase.from("profiles").select("role, status, name").eq("id", session.user.id).single().then(({ data }) => {
-      setMyRole(data?.role || "regular");
-      setMyStatus(data?.status || "pending");
+    supabase.from("profiles").select("name").eq("id", session.user.id).single().then(({ data }) => {
       setMyName(data?.name || "");
     });
+    loadMyWorkspace();
   }, [session]);
 
+  const loadMyWorkspace = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("workspace_members")
+      .select("workspace_id, role, status, workspaces ( name )")
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) {
+      setWorkspaceId(null);
+      setMyRole(null);
+      setMyStatus(null);
+      return;
+    }
+    setWorkspaceId(data.workspace_id);
+    setMyRole(data.role);
+    setMyStatus(data.status);
+    setWorkspaceName(data.workspaces?.name || "");
+  }, []);
+
   const loadFinance = useCallback(async () => {
-    const { data, error } = await supabase.from("production_finance").select("*");
+    if (!workspaceId) return;
+    const { data, error } = await supabase.from("production_finance").select("*").eq("workspace_id", workspaceId);
     if (error) return; // regular users: RLS blocks this, that's expected
     const map = {};
     for (const row of data || []) map[row.production_id] = { orcamento: row.orcamento, custos: row.custos || [] };
     setFinanceMap(map);
-  }, []);
+  }, [workspaceId]);
 
   const loadFinanceRecords = useCallback(async () => {
-    const { data, error } = await supabase.from("client_financial_records").select("*").order("data", { ascending: false });
+    if (!workspaceId) return;
+    const { data, error } = await supabase.from("client_financial_records").select("*").eq("workspace_id", workspaceId).order("data", { ascending: false });
     if (error) return; // regular users: RLS blocks this, that's expected
     const map = {};
     const ord = [];
@@ -1112,10 +1136,11 @@ export default function App() {
     }
     setFinanceRecords(map);
     setFinanceRecordOrder(ord);
-  }, []);
+  }, [workspaceId]);
 
   const loadPaymentPlans = useCallback(async () => {
-    const { data, error } = await supabase.from("payment_plans").select("*");
+    if (!workspaceId) return;
+    const { data, error } = await supabase.from("payment_plans").select("*").eq("workspace_id", workspaceId);
     if (error) return; // regular users: RLS blocks this, that's expected
     const map = {};
     const ord = [];
@@ -1125,11 +1150,12 @@ export default function App() {
     }
     setPaymentPlans(map);
     setPaymentPlanOrder(ord);
-  }, []);
+  }, [workspaceId]);
 
   const loadAll = useCallback(async () => {
+    if (!workspaceId) return;
     setStatus("loading");
-    const { data, error } = await supabase.from(TABLE).select("id, payload, updated_at").order("updated_at", { ascending: false });
+    const { data, error } = await supabase.from(TABLE).select("id, payload, updated_at").eq("workspace_id", workspaceId).order("updated_at", { ascending: false });
     if (error) {
       setOnline(false);
       setStatus("ready");
@@ -1153,10 +1179,11 @@ export default function App() {
     setProductions(map);
     setOrder(ord);
     setStatus("ready");
-  }, []);
+  }, [workspaceId]);
 
   const loadClients = useCallback(async () => {
-    const { data, error } = await supabase.from(TABLE_CLIENTS).select("*").order("name");
+    if (!workspaceId) return;
+    const { data, error } = await supabase.from(TABLE_CLIENTS).select("*").eq("workspace_id", workspaceId).order("name");
     if (error) return;
     const map = {};
     const ord = [];
@@ -1173,22 +1200,22 @@ export default function App() {
     }
     setClients(map);
     setClientOrder(ord);
-  }, []);
+  }, [workspaceId]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !workspaceId) return;
     loadAll();
     loadClients();
     loadFinance();
     loadFinanceRecords();
     loadPaymentPlans();
-    supabase.from(TABLE_TEAM).select("name").order("name").then(({ data }) => {
+    supabase.from(TABLE_TEAM).select("name").eq("workspace_id", workspaceId).order("name").then(({ data }) => {
       setRoster((data || []).map((r) => r.name));
     });
 
     const channel = supabase
       .channel("productions-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: TABLE }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: TABLE, filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
         if (payload.eventType === "DELETE") {
           setProductions((prev) => {
             const next = { ...prev };
@@ -1206,7 +1233,7 @@ export default function App() {
 
     const clientsChannel = supabase
       .channel("clients-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: TABLE_CLIENTS }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: TABLE_CLIENTS, filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
         if (payload.eventType === "DELETE") {
           setClients((prev) => {
             const next = { ...prev };
@@ -1224,7 +1251,7 @@ export default function App() {
 
     const financeChannel = supabase
       .channel("finance-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "production_finance" }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "production_finance", filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
         if (payload.eventType === "DELETE") {
           setFinanceMap((prev) => {
             const next = { ...prev };
@@ -1240,7 +1267,7 @@ export default function App() {
 
     const financeRecordsChannel = supabase
       .channel("finance-records-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "client_financial_records" }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "client_financial_records", filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
         if (payload.eventType === "DELETE") {
           setFinanceRecords((prev) => {
             const next = { ...prev };
@@ -1258,7 +1285,7 @@ export default function App() {
 
     const paymentPlansChannel = supabase
       .channel("payment-plans-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "payment_plans" }, (payload) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "payment_plans", filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
         if (payload.eventType === "DELETE") {
           setPaymentPlans((prev) => {
             const next = { ...prev };
@@ -1281,7 +1308,7 @@ export default function App() {
       supabase.removeChannel(financeRecordsChannel);
       supabase.removeChannel(paymentPlansChannel);
     };
-  }, [session, loadAll, loadClients, loadFinance, loadFinanceRecords, loadPaymentPlans]);
+  }, [session, workspaceId, loadAll, loadClients, loadFinance, loadFinanceRecords, loadPaymentPlans]);
 
   async function saveNow(id) {
     if (saveTimers.current["p:" + id]) {
@@ -1290,7 +1317,7 @@ export default function App() {
     }
     const payload = productions[id];
     if (!payload) return;
-    const { error } = await supabase.from(TABLE).upsert({ id, payload, updated_at: new Date().toISOString() });
+    const { error } = await supabase.from(TABLE).upsert({ id, workspace_id: workspaceId, payload, updated_at: new Date().toISOString() });
     setOnline(!error);
     if (!error) clearDraft("productions", id);
   }
@@ -1299,6 +1326,7 @@ export default function App() {
     const f = financeMap[productionId] || { orcamento: "", custos: [] };
     const { error } = await supabase.from("production_finance").upsert({
       production_id: productionId,
+      workspace_id: workspaceId,
       orcamento: f.orcamento === "" ? null : Number(f.orcamento),
       custos: f.custos || [],
       updated_at: new Date().toISOString(),
@@ -1323,6 +1351,7 @@ export default function App() {
     if (!rec) return;
     const { error } = await supabase.from("client_financial_records").upsert({
       ...rec,
+      workspace_id: workspaceId,
       orcamento: rec.orcamento === "" ? null : Number(rec.orcamento),
       updated_at: new Date().toISOString(),
     });
@@ -1357,6 +1386,7 @@ export default function App() {
     if (!plan) return;
     const { error } = await supabase.from("payment_plans").upsert({
       ...plan,
+      workspace_id: workspaceId,
       valor_total: plan.valor_total === "" ? null : Number(plan.valor_total),
       updated_at: new Date().toISOString(),
     });
@@ -1384,7 +1414,7 @@ export default function App() {
     if (!trimmed) return;
     setRoster((prev) => {
       if (prev.some((n) => n.toLowerCase() === trimmed.toLowerCase())) return prev;
-      supabase.from(TABLE_TEAM).upsert({ name: trimmed }).then(() => {});
+      supabase.from(TABLE_TEAM).upsert({ name: trimmed, workspace_id: workspaceId }).then(() => {});
       return [...prev, trimmed].sort((a, b) => a.localeCompare(b, "pt-BR"));
     });
   }
@@ -1395,7 +1425,7 @@ export default function App() {
     setOrder((prev) => [p.id, ...prev]);
     setCurrentId(p.id);
     saveDraft("productions", p.id, p);
-    supabase.from(TABLE).upsert({ id: p.id, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
+    supabase.from(TABLE).upsert({ id: p.id, workspace_id: workspaceId, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
       setOnline(!error);
       if (!error) clearDraft("productions", p.id);
     });
@@ -1410,7 +1440,7 @@ export default function App() {
     setCurrentId(p.id);
     setActiveTab("producoes");
     saveDraft("productions", p.id, p);
-    supabase.from(TABLE).upsert({ id: p.id, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
+    supabase.from(TABLE).upsert({ id: p.id, workspace_id: workspaceId, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
       setOnline(!error);
       if (!error) clearDraft("productions", p.id);
     });
@@ -1421,7 +1451,7 @@ export default function App() {
     saveDraft("productions", id, next);
     if (saveTimers.current["p:" + id]) clearTimeout(saveTimers.current["p:" + id]);
     saveTimers.current["p:" + id] = setTimeout(async () => {
-      const { error } = await supabase.from(TABLE).upsert({ id, payload: next, updated_at: new Date().toISOString() });
+      const { error } = await supabase.from(TABLE).upsert({ id, workspace_id: workspaceId, payload: next, updated_at: new Date().toISOString() });
       setOnline(!error);
       if (!error) clearDraft("productions", id);
     }, 700);
@@ -1447,7 +1477,7 @@ export default function App() {
     }
     const record = clients[id];
     if (!record) return;
-    const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, updated_at: new Date().toISOString() });
+    const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...record, workspace_id: workspaceId, updated_at: new Date().toISOString() });
     setOnline(!error);
     if (!error) clearDraft("clients", id);
   }
@@ -1458,7 +1488,7 @@ export default function App() {
     setClients((prev) => ({ ...prev, [c.id]: c }));
     setClientOrder((prev) => [...prev, c.id]);
     saveDraft("clients", c.id, c);
-    supabase.from(TABLE_CLIENTS).upsert({ ...c, updated_at: new Date().toISOString() }).then(({ error }) => {
+    supabase.from(TABLE_CLIENTS).upsert({ ...c, workspace_id: workspaceId, updated_at: new Date().toISOString() }).then(({ error }) => {
       setOnline(!error);
       if (!error) clearDraft("clients", c.id);
     });
@@ -1470,7 +1500,7 @@ export default function App() {
     saveDraft("clients", id, next);
     if (saveTimers.current["c:" + id]) clearTimeout(saveTimers.current["c:" + id]);
     saveTimers.current["c:" + id] = setTimeout(async () => {
-      const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...next, updated_at: new Date().toISOString() });
+      const { error } = await supabase.from(TABLE_CLIENTS).upsert({ ...next, workspace_id: workspaceId, updated_at: new Date().toISOString() });
       setOnline(!error);
       if (!error) clearDraft("clients", id);
     }, 700);
@@ -1538,6 +1568,27 @@ export default function App() {
         email={session.user?.email}
         forced
         onDone={() => setRecovery(false)}
+      />
+    );
+  }
+
+  if (workspaceId === undefined) {
+    return (
+      <div style={rootStyle}>
+        <div style={{ display: "grid", placeItems: "center", height: 300, color: C.faint }}>
+          <Loader2 size={22} style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (workspaceId === null) {
+    return (
+      <WorkspaceOnboarding
+        userEmail={session.user?.email}
+        onSignOut={() => supabase.auth.signOut()}
+        onCreated={() => loadMyWorkspace()}
       />
     );
   }
@@ -1630,8 +1681,15 @@ export default function App() {
 
       <div className="topbar">
         <ShotlistMark size={22} lit />
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, letterSpacing: 1, color: C.paper, flex: 1 }}>
-          SHOTLIST
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, letterSpacing: 1, color: C.paper }}>
+            SHOTLIST
+          </div>
+          {workspaceName && (
+            <div style={{ fontSize: 10.5, color: C.faint, fontFamily: FONT_MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {workspaceName}
+            </div>
+          )}
         </div>
         {online ? <Wifi size={15} color={C.sage} /> : <WifiOff size={15} color={C.brick} />}
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
@@ -1649,7 +1707,7 @@ export default function App() {
       </div>
 
       {showAccounts && (
-        <AccountsPanel onClose={() => setShowAccounts(false)} myUserId={session.user.id} />
+        <AccountsPanel onClose={() => setShowAccounts(false)} myUserId={session.user.id} workspaceId={workspaceId} workspaceName={workspaceName} />
       )}
 
       {confirmLogout && (
