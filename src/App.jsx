@@ -1212,6 +1212,7 @@ export default function App() {
       }
       return;
     }
+    console.log("[Shotlist] workspace_members encontrado:", data);
     setWorkspaceId(data.workspace_id);
     setMyRole(data.role);
     setMyStatus(data.status);
