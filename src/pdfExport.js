@@ -69,10 +69,11 @@ export function exportProductionPDF(production) {
     autoTable(doc, {
       startY: y,
       margin: { left: marginX, right: marginX },
-      head: [["Horário", "Local", "Equipe", "Elenco", "Observação"]],
-      body: sorted.map((c) => [
-        c.horario || "", c.local || "", c.equipe || "", c.elenco || "", c.observacao || "",
-      ]),
+      head: [["Horário", "Nome", "Local", "Elenco", "Observação"]],
+      body: sorted.map((c) => {
+        const linkedShot = c.shotId ? (production.shots || []).find((s) => s.id === c.shotId) : null;
+        return [c.horario || "", (linkedShot ? linkedShot.nome : c.nome) || "", c.local || "", c.elenco || "", c.observacao || ""];
+      }),
       styles: { fontSize: 8, cellPadding: 4 },
       headStyles: { fillColor: [30, 30, 30] },
     });

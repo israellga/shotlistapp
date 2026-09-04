@@ -420,27 +420,39 @@ function EquipeSection({ equipe, onChange, onKnowPerson }) {
   );
 }
 
-function CronogramaSection({ cronograma, onChange }) {
+function CronogramaSection({ cronograma, onChange, shots }) {
   function update(id, patch) { onChange(cronograma.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
-  function add() { onChange([...cronograma, { id: uid(), horario: "", local: "", equipe: "", elenco: "", observacao: "" }]); }
+  function add() { onChange([...cronograma, { id: uid(), horario: "", nome: "", local: "", elenco: "", observacao: "" }]); }
   function remove(id) { onChange(cronograma.filter((c) => c.id !== id)); }
   const sorted = [...cronograma].sort((a, b) => horarioMinutos(a.horario) - horarioMinutos(b.horario));
   return (
     <div>
-      {sorted.map((c) => (
-        <div key={c.id} style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: 12, marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <HorarioInput value={c.horario} onCommit={(v) => update(c.id, { horario: v })} />
-            <input value={c.local} onChange={(e) => update(c.id, { local: e.target.value })} placeholder="Local" style={inputInlineStyle(2)} />
-            <IconButton onClick={() => remove(c.id)} tone="brick" size={28}><Trash2 size={13} /></IconButton>
+      {sorted.map((c) => {
+        const linkedShot = c.shotId ? (shots || []).find((s) => s.id === c.shotId) : null;
+        return (
+          <div key={c.id} style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: 12, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <HorarioInput value={c.horario} onCommit={(v) => update(c.id, { horario: v })} />
+              {linkedShot ? (
+                <div
+                  title="Nome vem do shot vinculado"
+                  style={{ flex: 2, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.muted, fontFamily: FONT_BODY, fontSize: 13.5, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                >
+                  {linkedShot.nome || "Sem nome"}
+                </div>
+              ) : (
+                <input value={c.nome} onChange={(e) => update(c.id, { nome: e.target.value })} placeholder="Nome" style={inputInlineStyle(2)} />
+              )}
+              <input value={c.local} onChange={(e) => update(c.id, { local: e.target.value })} placeholder="Local" style={inputInlineStyle(1)} />
+              <IconButton onClick={() => remove(c.id)} tone="brick" size={28}><Trash2 size={13} /></IconButton>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <input value={c.elenco} onChange={(e) => update(c.id, { elenco: e.target.value })} placeholder="Elenco" style={inputInlineStyle(1)} />
+              <input value={c.observacao} onChange={(e) => update(c.id, { observacao: e.target.value })} placeholder="Observação" style={inputInlineStyle(1)} />
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-            <input value={c.equipe} onChange={(e) => update(c.id, { equipe: e.target.value })} placeholder="Equipe" style={inputInlineStyle(1)} />
-            <input value={c.elenco} onChange={(e) => update(c.id, { elenco: e.target.value })} placeholder="Elenco" style={inputInlineStyle(1)} />
-          </div>
-          <input value={c.observacao} onChange={(e) => update(c.id, { observacao: e.target.value })} placeholder="Observação" style={{ ...inputInlineStyle(1), width: "100%" }} />
-        </div>
-      ))}
+        );
+      })}
       <button onClick={add} style={dashedAddStyle}><Plus size={14} /> Adicionar horário</button>
     </div>
   );
@@ -609,7 +621,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
     const s = emptyShot(production.shots.length + 1);
     const novoHorario = nextAutoHorario(production.cronograma, production.horaInicio);
     const novaOrdem = novoHorario
-      ? [...production.cronograma, { id: uid(), horario: novoHorario, local: "", equipe: "", elenco: "", observacao: "", shotId: s.id }]
+      ? [...production.cronograma, { id: uid(), horario: novoHorario, nome: "", local: "", elenco: "", observacao: "", shotId: s.id }]
       : production.cronograma;
     onChange({ ...production, shots: [...production.shots, s], cronograma: novaOrdem });
     setExpandedShot(s.id);
@@ -797,7 +809,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
       {!fieldMode && (
         <div style={{ marginBottom: 12 }}>
           <Section title="Ordem do dia" icon={<Clock size={15} color={C.faint} />} count={production.cronograma.length}>
-            <CronogramaSection cronograma={production.cronograma} onChange={(cronograma) => patch({ cronograma })} />
+            <CronogramaSection cronograma={production.cronograma} onChange={(cronograma) => patch({ cronograma })} shots={production.shots} />
           </Section>
         </div>
       )}
