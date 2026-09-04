@@ -1,7 +1,7 @@
 import React from "react";
 import { CalendarClock, AlertTriangle, Award, PieChart } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
-import { formatDataComDiaSemana } from "./datetime";
+import { formatDataComDiaSemana, formatIntervaloDatas } from "./datetime";
 import { formatBRL, totalCustos } from "./finance";
 
 function getProductionIssues(p) {
@@ -26,7 +26,9 @@ function StatCard({ label, value, tone }) {
 export function ProductionsDashboard({ order, productions, userName }) {
   const today = new Date().toISOString().slice(0, 10);
   const all = order.map((id) => productions[id]).filter(Boolean);
-  const upcoming = all.filter((p) => p.data && p.data >= today).sort((a, b) => a.data.localeCompare(b.data));
+  const upcoming = all
+    .filter((p) => { const endRef = p.dataFim || p.data; return endRef && endRef >= today; })
+    .sort((a, b) => (a.data || "").localeCompare(b.data || ""));
   const incomplete = all
     .map((p) => ({ p, issues: getProductionIssues(p) }))
     .filter((x) => x.issues.length > 0);
@@ -58,7 +60,7 @@ export function ProductionsDashboard({ order, productions, userName }) {
           {upcoming.slice(0, 6).map((p) => (
             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px" }}>
               <span style={{ flex: 1, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
-              <span style={{ fontSize: 12, color: C.amber, fontFamily: FONT_MONO }}>{formatDataComDiaSemana(p.data)}</span>
+              <span style={{ fontSize: 12, color: C.amber, fontFamily: FONT_MONO }}>{formatIntervaloDatas(p.data, p.dataFim)}</span>
             </div>
           ))}
           {upcoming.length > 6 && (

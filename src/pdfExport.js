@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatDataComDiaSemana } from "./datetime";
+import { formatIntervaloDatas } from "./datetime";
 
 const STATUS_LABEL = { afazer: "A fazer", andamento: "Em andamento", concluido: "Concluído" };
 
@@ -38,7 +38,7 @@ export function exportProductionPDF(production) {
   doc.setFontSize(10);
   doc.setTextColor(90);
   const metaLine = [
-    formatDataComDiaSemana(production.data) || "sem data",
+    formatIntervaloDatas(production.data, production.dataFim) || "sem data",
     (production.horaInicio || production.horaFim) && `Horário: ${production.horaInicio || "?"}–${production.horaFim || "?"}`,
     production.responsavel && `Responsável: ${production.responsavel}`,
     production.objetivoDia && `Demanda: ${production.objetivoDia}`,

@@ -3,6 +3,7 @@ import { Loader2, AlertCircle, ExternalLink, RefreshCw, CheckCircle2, PlayCircle
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import ShotlistMark from "./ShotlistMark";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
+import { formatIntervaloDatas } from "./datetime";
 
 const STATUS = {
   afazer: { label: "A fazer", color: C.muted, bg: "transparent", border: C.line },
@@ -232,7 +233,7 @@ export default function ClientView({ id }) {
             {data.cliente || "Produção"}
           </div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.faint, marginTop: 4 }}>
-            {data.data}
+            {formatIntervaloDatas(data.data, data.dataFim)}
             {data.objetivoDia && <span> · {data.objetivoDia}</span>}
           </div>
         </div>

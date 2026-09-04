@@ -10,7 +10,7 @@ import AuthScreen from "./AuthScreen";
 import AccountPanel from "./AccountPanel";
 import ShotlistMark from "./ShotlistMark";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
-import { formatDataComDiaSemana, formatHorario, horarioMinutos } from "./datetime";
+import { formatDataComDiaSemana, formatIntervaloDatas, formatHorario, horarioMinutos } from "./datetime";
 import {
   uid, IconButton, Field, DateField, selectFieldStyle, selectInlineStyle,
   inputInlineStyle, dashedAddStyle, ConfirmDialog, EditableTitle, ConfirmIconButton,
@@ -40,6 +40,7 @@ function emptyProduction() {
     cliente: "",
     clienteId: null,
     data: "",
+    dataFim: "",
     responsavel: "",
     horaInicio: "",
     horaFim: "",
@@ -748,7 +749,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
             <>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.paper }}>{production.cliente || "Produção sem nome"}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint }}>
-                {formatDataComDiaSemana(production.data) || "sem data"}
+                {formatIntervaloDatas(production.data, production.dataFim) || "sem data"}
                 {(production.horaInicio || production.horaFim) && (
                   <span> · {production.horaInicio || "?"}–{production.horaFim || "?"}</span>
                 )}
@@ -819,8 +820,8 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
       )}
 
       {!fieldMode && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-          <DateField label="Data" value={production.data} onChange={(v) => patch({ data: v })} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: production.dataFim ? 10 : 6 }}>
+          <DateField label={production.dataFim ? "Data de início" : "Data"} value={production.data} onChange={(v) => patch({ data: v })} />
           <Field
             label="Responsável"
             value={production.responsavel}
@@ -830,6 +831,27 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
             placeholder="Israel"
           />
         </div>
+      )}
+
+      {!fieldMode && (
+        production.dataFim ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginBottom: 10, alignItems: "end" }}>
+            <DateField label="Data de fim" value={production.dataFim} onChange={(v) => patch({ dataFim: v })} />
+            <button
+              onClick={() => patch({ dataFim: "" })}
+              style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "0 12px", height: 40, color: C.muted, fontSize: 12, fontFamily: FONT_BODY, cursor: "pointer" }}
+            >
+              Remover
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => patch({ dataFim: production.data || "" })}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 7, padding: "7px 11px", color: C.muted, fontSize: 12, fontFamily: FONT_BODY, cursor: "pointer", marginBottom: 10 }}
+          >
+            <Plus size={13} /> Mais de uma diária (adicionar data de fim)
+          </button>
+        )
       )}
 
       {!fieldMode && (
@@ -978,7 +1000,7 @@ function ProductionCard({ p, selected, onOpen, onDelete }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: C.paper }}>{p.cliente || "Sem nome"}</div>
         <div style={{ fontSize: 12.5, color: C.faint, marginTop: 3, fontFamily: FONT_MONO }}>
-          {formatDataComDiaSemana(p.data) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalTakes > 0 && ` · ${pct}% concluído`}
+          {formatIntervaloDatas(p.data, p.dataFim) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalTakes > 0 && ` · ${pct}% concluído`}
         </div>
       </div>
       <ConfirmIconButton onConfirm={onDelete} title="Excluir produção" confirmTitle="Excluir produção?" confirmMessage={`"${p.cliente || "Esta produção"}" e toda a shotlist vão ser apagadas.`} stopPropagation>

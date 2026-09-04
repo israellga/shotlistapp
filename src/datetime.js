@@ -9,6 +9,12 @@ export function formatDataComDiaSemana(iso) {
   return `${dia} · ${semana}`;
 }
 
+export function formatIntervaloDatas(inicio, fim) {
+  if (!inicio) return "";
+  if (!fim || fim === inicio) return formatDataComDiaSemana(inicio);
+  return `${formatDataComDiaSemana(inicio)} → ${formatDataComDiaSemana(fim)}`;
+}
+
 export function parseHorario(raw) {
   if (!raw) return null;
   const digits = String(raw).replace(/[^0-9]/g, "");
