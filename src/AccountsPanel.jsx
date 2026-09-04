@@ -76,14 +76,14 @@ export default function AccountsPanel({ onClose, myUserId }) {
                             <button
                               onClick={() => changeStatus(p.id, "approved")}
                               title="Aprovar"
-                              style={{ display: "flex", alignItems: "center", gap: 5, background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 6, padding: "6px 10px", color: C.sage, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                              style={{ display: "flex", alignItems: "center", gap: 5, background: C.sageDim, border: `1px solid ${C.sage}`, borderRadius: 6, padding: "6px 10px", color: C.sage, fontSize: 12, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}
                             >
                               <Check size={13} /> Aprovar
                             </button>
                             <button
                               onClick={() => changeStatus(p.id, "rejected")}
                               title="Recusar"
-                              style={{ display: "flex", alignItems: "center", background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px", color: C.faint, cursor: "pointer" }}
+                              style={{ display: "flex", alignItems: "center", background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px", color: C.faint, fontFamily: FONT_BODY, cursor: "pointer" }}
                             >
                               <XCircle size={14} />
                             </button>

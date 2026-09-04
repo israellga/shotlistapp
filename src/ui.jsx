@@ -108,7 +108,7 @@ export function inputInlineStyle(flex) {
 export const dashedAddStyle = {
   display: "flex", alignItems: "center", gap: 6, background: "transparent",
   border: `1px dashed ${C.line}`, borderRadius: 7, padding: "8px 12px",
-  color: C.muted, fontSize: 13, cursor: "pointer",
+  color: C.muted, fontSize: 13, fontFamily: FONT_BODY, cursor: "pointer",
 };
 
 export function ConfirmDialog({ title, message, confirmLabel = "Confirmar", cancelLabel = "Cancelar", danger, onConfirm, onCancel }) {
@@ -120,7 +120,7 @@ export function ConfirmDialog({ title, message, confirmLabel = "Confirmar", canc
         <div style={{ display: "flex", gap: 10 }}>
           <button
             onClick={onCancel}
-            style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 14px", color: C.muted, fontSize: 13.5, cursor: "pointer" }}
+            style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 14px", color: C.muted, fontSize: 13.5, fontFamily: FONT_BODY, cursor: "pointer" }}
           >
             {cancelLabel}
           </button>
@@ -129,7 +129,7 @@ export function ConfirmDialog({ title, message, confirmLabel = "Confirmar", canc
             style={{
               flex: 1, background: danger ? C.brickDim : C.amberDim,
               border: `1px solid ${danger ? C.brick : C.amber}`, borderRadius: 8, padding: "10px 14px",
-              color: danger ? C.brick : C.amber, fontSize: 13.5, fontWeight: 600, cursor: "pointer",
+              color: danger ? C.brick : C.amber, fontSize: 13.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer",
             }}
           >
             {confirmLabel}

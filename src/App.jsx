@@ -1134,9 +1134,10 @@ export default function App() {
       <style>{`
         * { box-sizing: border-box; }
         input::placeholder, textarea::placeholder { color: ${C.faint}; }
+        button, input, select, textarea { font-family: inherit; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .shell { height: 100vh; height: 100dvh; background: ${C.ink}; font-family: ${FONT_BODY}; display: flex; flex-direction: column; overflow: hidden; }
-        .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid ${C.line}; flex-shrink: 0; }
+        .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); border-bottom: 1px solid ${C.line}; flex-shrink: 0; }
         .body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
         @media (min-width: 900px) {
           .body { display: grid; grid-template-columns: 340px 1fr; }
@@ -1153,7 +1154,7 @@ export default function App() {
         @media (min-width: 900px) {
           .pane-list { padding-top: 66px; }
         }
-        .sidebar-footer { flex-shrink: 0; padding: 12px 14px; border-top: 1px solid ${C.line}; }
+        .sidebar-footer { flex-shrink: 0; padding: 12px 14px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid ${C.line}; }
         .pane-main { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 14px 90px; }
         @media (min-width: 900px) {
           .pane-main { padding-left: 24px; padding-right: 24px; padding-bottom: 60px; padding-top: 76px; }

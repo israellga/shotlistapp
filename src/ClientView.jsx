@@ -200,7 +200,7 @@ export default function ClientView({ id }) {
 
 function Shell({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: C.ink, fontFamily: FONT_BODY, padding: "24px 16px 60px" }}>
+    <div style={{ minHeight: "100vh", background: C.ink, fontFamily: FONT_BODY, padding: "24px 16px 60px", paddingTop: "max(24px, env(safe-area-inset-top))", paddingBottom: "max(60px, env(safe-area-inset-bottom))" }}>
       <div style={{ maxWidth: 560, margin: "0 auto 20px", display: "flex", alignItems: "center", gap: 10 }}>
         <ShotlistMark size={18} lit />
         <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, letterSpacing: 0.5, color: C.faint }}>
@@ -208,7 +208,7 @@ function Shell({ children }) {
         </div>
       </div>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>{children}</div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } button { font-family: inherit; }`}</style>
     </div>
   );
 }

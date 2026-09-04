@@ -76,6 +76,10 @@ export default function AuthScreen({ onAuthed }) {
         setError(traduzErro(err.message));
       } else if (data.session) {
         onAuthed();
+      } else if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        // Supabase's documented signal for "email already registered" without
+        // leaking that fact via a distinguishable error (anti-enumeration).
+        setError("Esse email já tem conta. Tente entrar ou use \"Esqueci minha senha\".");
       } else {
         setNotice("Conta criada! Verifique seu email para confirmar antes de entrar.");
         setMode("login");
@@ -106,15 +110,18 @@ export default function AuthScreen({ onAuthed }) {
         .auth-formpanel {
           display: flex; align-items: center; justify-content: center;
           padding: 40px 22px;
+          padding-top: max(40px, env(safe-area-inset-top));
         }
         @media (min-width: 760px) {
-          .auth-formpanel { padding: 40px; border-left: 1px solid ${C.line}; }
+          .auth-formpanel { padding: 40px; padding-top: max(40px, env(safe-area-inset-top)); border-left: 1px solid ${C.line}; }
         }
         .auth-footer {
           padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;
+          padding-bottom: max(16px, env(safe-area-inset-bottom));
           border-top: 1px solid ${C.line};
         }
         input::placeholder { color: ${C.faint}; }
+        button, input, select, textarea { font-family: inherit; }
         @keyframes auth-spin { to { transform: rotate(360deg); } }
       `}</style>
 
