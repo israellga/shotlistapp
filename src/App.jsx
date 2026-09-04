@@ -3,7 +3,7 @@ import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
   Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
-  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, CalendarClock, ShieldCheck, DollarSign,
+  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
@@ -20,6 +20,7 @@ import { fetchThumbnail } from "./thumbnail";
 import { exportProductionPDF } from "./pdfExport";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
+import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
 import { saveDraft, loadDraft, clearDraft, getDraftIndex } from "./draftStorage";
 
 const TABLE = "productions";
@@ -1303,7 +1304,7 @@ export default function App() {
     );
   }
 
-  const showingProductions = activeTab === "producoes" || activeTab === "proximas" || fieldMode;
+  const showingProductions = activeTab === "producoes" || fieldMode;
   const showList = isWide || (showingProductions ? !current : !currentClient);
   const showMain = isWide || (showingProductions ? !!current : !!currentClient);
 
@@ -1405,7 +1406,7 @@ export default function App() {
                     onClick={() => setActiveTab("producoes")}
                     style={{ position: "relative", zIndex: 1, background: "transparent", color: activeTab !== "clientes" ? C.amber : C.muted, transition: "color 0.2s" }}
                   >
-                    PRODUÇÕES
+                    PRÓXIMAS PRODUÇÕES
                   </button>
                   <button
                     className="tab-btn"
@@ -1416,20 +1417,6 @@ export default function App() {
                   </button>
                 </div>
               )}
-              {!fieldMode && activeTab !== "clientes" && (
-                <button
-                  onClick={() => setActiveTab("proximas")}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6, width: "100%", marginBottom: 14,
-                    background: activeTab === "proximas" ? C.amberDim : "transparent",
-                    border: `1px solid ${activeTab === "proximas" ? C.amber : C.line}`,
-                    borderRadius: 8, padding: "8px 12px", cursor: "pointer",
-                    color: activeTab === "proximas" ? C.amber : C.muted, fontSize: 12.5, fontWeight: 600,
-                  }}
-                >
-                  <CalendarClock size={14} /> Próximas produções
-                </button>
-              )}
 
               {activeTab === "clientes" && !fieldMode ? (
                 <ClientsList
@@ -1437,14 +1424,6 @@ export default function App() {
                   currentClientId={currentClientId}
                   onOpen={setCurrentClientId}
                   onDelete={deleteClient}
-                />
-              ) : activeTab === "proximas" && !fieldMode ? (
-                <UpcomingProductionsPane
-                  order={order}
-                  productions={productions}
-                  currentId={currentId}
-                  onOpen={setCurrentId}
-                  onDelete={deleteProduction}
                 />
               ) : (
                 <ProductionsListPane
@@ -1493,7 +1472,7 @@ export default function App() {
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}
                 />
               ) : (
-                <EmptyMainState label="Selecione uma produção à esquerda, ou crie uma nova." />
+                <ProductionsDashboard order={order} productions={productions} />
               )
             ) : currentClient ? (
               <ClientDetail
@@ -1513,6 +1492,13 @@ export default function App() {
                 onChangeFinanceRecord={updateFinanceRecord}
                 onSaveFinanceRecord={saveFinanceRecordNow}
                 onDeleteFinanceRecord={deleteFinanceRecord}
+              />
+            ) : isGestor ? (
+              <ClientsDashboard
+                clients={clients}
+                productions={order.map((id) => productions[id]).filter(Boolean)}
+                financeMap={financeMap}
+                financeRecords={financeRecordOrder.map((id) => financeRecords[id]).filter(Boolean)}
               />
             ) : (
               <EmptyMainState label="Selecione um cliente à esquerda, ou cadastre um novo." />
@@ -1536,32 +1522,6 @@ function EmptyMainState({ label }) {
       <div>
         <ShotlistMark size={30} lit={false} amber={C.line} dim={C.line} />
         <div style={{ marginTop: 14 }}>{label}</div>
-      </div>
-    </div>
-  );
-}
-
-function UpcomingProductionsPane({ order, productions, currentId, onOpen, onDelete }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = order
-    .map((id) => productions[id])
-    .filter((p) => p && p.data && p.data >= today)
-    .sort((a, b) => a.data.localeCompare(b.data));
-
-  return (
-    <div style={{ paddingBottom: 10 }}>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px" }}>
-        PRÓXIMAS ({upcoming.length})
-      </div>
-      {upcoming.length === 0 && (
-        <div style={{ color: C.faint, fontSize: 13.5, padding: "40px 4px", textAlign: "center" }}>
-          Nenhuma produção com data futura cadastrada.
-        </div>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {upcoming.map((p) => (
-          <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} />
-        ))}
       </div>
     </div>
   );
