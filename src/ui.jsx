@@ -26,8 +26,20 @@ export function IconButton({ onClick, title, children, tone = "muted", size = 34
   );
 }
 
-export function Field({ label, value, onChange, onBlur, listId, placeholder, mono, multiline, style }) {
+export function Field({ label, value, onChange, onBlur, listId, placeholder, mono, multiline, autoGrow, style }) {
   const Tag = multiline ? "textarea" : "input";
+  const taRef = React.useRef(null);
+
+  function resize(el) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+
+  React.useEffect(() => {
+    if (multiline && autoGrow) resize(taRef.current);
+  }, [value, multiline, autoGrow]);
+
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6, ...style }}>
       {label && (
@@ -36,16 +48,18 @@ export function Field({ label, value, onChange, onBlur, listId, placeholder, mon
         </span>
       )}
       <Tag
+        ref={multiline && autoGrow ? taRef : undefined}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => { onChange(e.target.value); if (autoGrow) resize(e.target); }}
         onBlur={onBlur}
         list={listId}
         placeholder={placeholder}
-        rows={multiline ? 3 : undefined}
+        rows={multiline ? (autoGrow ? 1 : 3) : undefined}
         style={{
           background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
           padding: "9px 11px", color: C.paper, fontFamily: mono ? FONT_MONO : FONT_BODY,
-          fontSize: 14, outline: "none", resize: multiline ? "vertical" : undefined,
+          fontSize: 14, outline: "none", resize: multiline ? (autoGrow ? "none" : "vertical") : undefined,
+          overflow: autoGrow ? "hidden" : undefined,
           width: "100%", boxSizing: "border-box",
         }}
         onFocus={(e) => (e.target.style.borderColor = C.amber)}

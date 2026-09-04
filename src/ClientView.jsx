@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, AlertCircle, ExternalLink, RefreshCw, CheckCircle2, PlayCircle, Circle } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import ShotlistMark from "./ShotlistMark";
@@ -11,6 +11,104 @@ const STATUS = {
 };
 
 const SAFETY_POLL_MS = 60000;
+
+function isInstagramUrl(url) {
+  return /instagram\.com\/(p|reel|reels|tv)\//i.test(url || "");
+}
+
+function InstagramEmbed({ url }) {
+  useEffect(() => {
+    function process() {
+      if (window.instgrm) window.instgrm.Embeds.process();
+    }
+    if (window.instgrm) {
+      process();
+      return;
+    }
+    const existing = document.getElementById("instagram-embed-script");
+    if (existing) {
+      existing.addEventListener("load", process);
+      return () => existing.removeEventListener("load", process);
+    }
+    const script = document.createElement("script");
+    script.id = "instagram-embed-script";
+    script.src = "https://www.instagram.com/embed.js";
+    script.async = true;
+    script.onload = process;
+    document.body.appendChild(script);
+  }, [url]);
+
+  return (
+    <blockquote
+      className="instagram-media"
+      data-instgrm-permalink={url}
+      data-instgrm-version="14"
+      style={{ background: "#000", border: 0, borderRadius: 8, margin: "10px 0 0", maxWidth: 540, minWidth: 236, width: "100%" }}
+    />
+  );
+}
+
+function ShotRow({ s }) {
+  const [refOpen, setRefOpen] = useState(false);
+  const st = STATUS[s.status] || STATUS.afazer;
+  const total = Number(s.totalTakes) || 0;
+  const done = Number(s.doneTakes) || 0;
+  const canEmbed = isInstagramUrl(s.referencia);
+
+  return (
+    <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {s.thumbnailUrl && (
+          <img src={s.thumbnailUrl} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 7, border: `1px solid ${C.line}`, flexShrink: 0 }} />
+        )}
+        <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 18, color: C.faint, minWidth: 30 }}>
+          {String(s.numero).padStart(2, "0")}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, color: C.paper, fontWeight: 600 }}>{s.nome || "Sem nome"}</div>
+          {s.contexto && <div style={{ fontSize: 12.5, color: C.faint, marginTop: 2 }}>{s.contexto}</div>}
+        </div>
+        <span style={{
+          display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 20,
+          border: `1px solid ${st.border}`, background: st.bg, color: st.color,
+          fontFamily: FONT_MONO, fontSize: 11.5, fontWeight: 600, whiteSpace: "nowrap",
+        }}>
+          {s.status === "concluido" ? <CheckCircle2 size={13} /> : s.status === "andamento" ? <PlayCircle size={13} /> : <Circle size={13} />}
+          {st.label}
+        </span>
+      </div>
+
+      {(total > 0 || s.referencia) && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.lineSoft}` }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            {total > 0 ? (
+              <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.muted }}>{done}/{total} takes</span>
+            ) : <span />}
+            {s.referencia && (
+              canEmbed ? (
+                <button
+                  onClick={() => setRefOpen((v) => !v)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: C.amber, fontSize: 12, fontFamily: FONT_BODY, cursor: "pointer", padding: 0 }}
+                >
+                  <PlayCircle size={13} /> {refOpen ? "Ocultar referência" : "Assistir referência"}
+                </button>
+              ) : (
+                <a href={s.referencia} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: C.amber, textDecoration: "none" }}>
+                  Referência <ExternalLink size={11} />
+                </a>
+              )
+            )}
+          </div>
+          {canEmbed && refOpen && (
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <InstagramEmbed url={s.referencia} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ClientView({ id }) {
   const [state, setState] = useState("loading"); // loading | ok | notfound | error
@@ -145,47 +243,7 @@ export default function ClientView({ id }) {
             Nenhum shot cadastrado ainda.
           </div>
         )}
-        {shots.map((s) => {
-          const st = STATUS[s.status] || STATUS.afazer;
-          const total = Number(s.totalTakes) || 0;
-          const done = Number(s.doneTakes) || 0;
-          return (
-            <div key={s.numero} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {s.thumbnailUrl && (
-                  <img src={s.thumbnailUrl} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 7, border: `1px solid ${C.line}`, flexShrink: 0 }} />
-                )}
-                <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 18, color: C.faint, minWidth: 30 }}>
-                  {String(s.numero).padStart(2, "0")}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, color: C.paper, fontWeight: 600 }}>{s.nome || "Sem nome"}</div>
-                  {s.contexto && <div style={{ fontSize: 12.5, color: C.faint, marginTop: 2 }}>{s.contexto}</div>}
-                </div>
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 10px", borderRadius: 20,
-                  border: `1px solid ${st.border}`, background: st.bg, color: st.color,
-                  fontFamily: FONT_MONO, fontSize: 11.5, fontWeight: 600, whiteSpace: "nowrap",
-                }}>
-                  {s.status === "concluido" ? <CheckCircle2 size={13} /> : s.status === "andamento" ? <PlayCircle size={13} /> : <Circle size={13} />}
-                  {st.label}
-                </span>
-              </div>
-              {(total > 0 || s.referencia) && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.lineSoft}` }}>
-                  {total > 0 ? (
-                    <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.muted }}>{done}/{total} takes</span>
-                  ) : <span />}
-                  {s.referencia && (
-                    <a href={s.referencia} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: C.amber, textDecoration: "none" }}>
-                      Referência <ExternalLink size={11} />
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {shots.map((s) => <ShotRow key={s.numero} s={s} />)}
       </div>
 
       {lastFetch && (

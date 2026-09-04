@@ -50,7 +50,8 @@ function emptyProduction() {
 function emptyShot(n) {
   return {
     id: uid(), numero: n, nome: "", contexto: "", tipo: "",
-    objetivo: "", equipamento: "", referencia: "", status: "afazer", takes: [],
+    objetivo: "", equipamentos: [], equipamentoOutro: "", plano: "", lente: "",
+    referencia: "", status: "afazer", takes: [],
   };
 }
 
@@ -69,6 +70,11 @@ const FUNCOES_PADRAO = [
 ];
 
 const TIPOS_PRODUCAO = ["Foto", "Reels", "Curta", "Stopmotion"];
+
+const EQUIPAMENTOS_PADRAO = [
+  "Câmera", "Tripé de câmera", "LED", "Tripé de luz", "Microfone",
+  "Softbox", "Panela", "Rebatedor", "Gimbal", "Slider", "Drone",
+];
 
 const TABLE_TEAM = "team_members";
 
@@ -126,7 +132,7 @@ function TakeRow({ take, fieldMode, onChange, onDelete }) {
           <div style={{ fontSize: 14.5, color: C.paper, textDecoration: take.feito ? "line-through" : "none", lineHeight: 1.4 }}>
             {take.acao || <span style={{ color: C.faint }}>(sem descrição)</span>}
           </div>
-          {take.transicao && <div style={{ fontSize: 12.5, color: C.teal, marginTop: 3 }}>→ {take.transicao}</div>}
+          {take.transicao && <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>→ {take.transicao}</div>}
         </div>
       </div>
     );
@@ -152,7 +158,7 @@ function TakeRow({ take, fieldMode, onChange, onDelete }) {
         onChange={(e) => onChange({ ...take, transicao: e.target.value })}
         placeholder="Transição / efeito..."
         rows={2}
-        style={{ background: "transparent", border: "none", color: C.teal, fontSize: 13.5, fontFamily: FONT_BODY, resize: "vertical", outline: "none", padding: "6px 4px" }}
+        style={{ background: "transparent", border: "none", color: C.paper, fontSize: 13.5, fontFamily: FONT_BODY, resize: "vertical", outline: "none", padding: "6px 4px" }}
       />
       <input
         value={take.tempo}
@@ -172,6 +178,43 @@ function TakeRow({ take, fieldMode, onChange, onDelete }) {
 // ---------------------------------------------------------------------------
 // Shot card
 // ---------------------------------------------------------------------------
+
+function EquipmentPicker({ value, outro, onChange, onChangeOutro }) {
+  const selected = value || [];
+  function toggle(item) {
+    onChange(selected.includes(item) ? selected.filter((x) => x !== item) : [...selected, item]);
+  }
+  return (
+    <div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {EQUIPAMENTOS_PADRAO.map((item) => {
+          const on = selected.includes(item);
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => toggle(item)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 20,
+                border: `1px solid ${on ? C.amber : C.line}`, background: on ? C.amberDim : C.panel2,
+                color: on ? C.amber : C.muted, fontSize: 12.5, fontFamily: FONT_BODY, cursor: "pointer",
+              }}
+            >
+              {on ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+              {item}
+            </button>
+          );
+        })}
+      </div>
+      <input
+        value={outro || ""}
+        onChange={(e) => onChangeOutro(e.target.value)}
+        placeholder="Outro equipamento..."
+        style={{ ...inputInlineStyle(1), width: "100%", marginTop: 8 }}
+      />
+    </div>
+  );
+}
 
 function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
   const doneCount = shot.takes.filter((t) => t.feito).length;
@@ -214,7 +257,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15.5, color: C.paper, fontWeight: 600 }}>{shot.nome || "Sem nome"}</div>
           <div style={{ fontSize: 12.5, color: C.faint, marginTop: 2 }}>
-            {shot.tipo && <span style={{ color: C.teal }}>{shot.tipo} · </span>}
+            {shot.tipo && <span style={{ color: C.muted }}>{shot.tipo} · </span>}
             {shot.contexto || "Sem contexto"}
             {shot.takes.length > 0 && <span style={{ color: C.muted }}> · {doneCount}/{shot.takes.length} takes</span>}
           </div>
@@ -241,8 +284,18 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
                   {TIPOS_PRODUCAO.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </label>
-              <Field label="Equipamento" value={shot.equipamento} onChange={(v) => onChange({ ...shot, equipamento: v })} placeholder="Câmera, tripé, taça..." />
-              <Field label="Objetivo" value={shot.objetivo} onChange={(v) => onChange({ ...shot, objetivo: v })} placeholder="O que essa cena precisa comunicar" multiline style={{ gridColumn: "1 / -1" }} />
+              <Field label="Plano" value={shot.plano} onChange={(v) => onChange({ ...shot, plano: v })} placeholder="Ex: Plano médio, zenital..." />
+              <Field label="Lente" value={shot.lente} onChange={(v) => onChange({ ...shot, lente: v })} placeholder="Ex: 35mm, macro..." />
+              <label style={{ display: "flex", flexDirection: "column", gap: 6, gridColumn: "1 / -1" }}>
+                <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>Equipamento</span>
+                <EquipmentPicker
+                  value={shot.equipamentos}
+                  outro={shot.equipamentoOutro}
+                  onChange={(list) => onChange({ ...shot, equipamentos: list })}
+                  onChangeOutro={(v) => onChange({ ...shot, equipamentoOutro: v })}
+                />
+              </label>
+              <Field label="Roteiro" value={shot.objetivo} onChange={(v) => onChange({ ...shot, objetivo: v })} placeholder="Como a cena se desenrola, passo a passo" multiline style={{ gridColumn: "1 / -1" }} />
               <Field
                 label="Referência (link)"
                 value={shot.referencia}
@@ -290,7 +343,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
               {shot.thumbnailUrl && (
                 <img src={shot.thumbnailUrl} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}`, flexShrink: 0 }} />
               )}
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: C.teal }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, color: C.amber }}>
                 Ver referência <ExternalLink size={12} />
               </span>
             </a>
@@ -366,7 +419,7 @@ function EquipeSection({ equipe, onChange, onKnowPerson }) {
 
 function CronogramaSection({ cronograma, onChange }) {
   function update(id, patch) { onChange(cronograma.map((c) => (c.id === id ? { ...c, ...patch } : c))); }
-  function add() { onChange([...cronograma, { id: uid(), horario: "", local: "", equipe: "", elenco: "", plano: "", lente: "", observacao: "" }]); }
+  function add() { onChange([...cronograma, { id: uid(), horario: "", local: "", equipe: "", elenco: "", observacao: "" }]); }
   function remove(id) { onChange(cronograma.filter((c) => c.id !== id)); }
   const sorted = [...cronograma].sort((a, b) => horarioMinutos(a.horario) - horarioMinutos(b.horario));
   return (
@@ -381,8 +434,6 @@ function CronogramaSection({ cronograma, onChange }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
             <input value={c.equipe} onChange={(e) => update(c.id, { equipe: e.target.value })} placeholder="Equipe" style={inputInlineStyle(1)} />
             <input value={c.elenco} onChange={(e) => update(c.id, { elenco: e.target.value })} placeholder="Elenco" style={inputInlineStyle(1)} />
-            <input value={c.plano} onChange={(e) => update(c.id, { plano: e.target.value })} placeholder="Plano" style={inputInlineStyle(1)} />
-            <input value={c.lente} onChange={(e) => update(c.id, { lente: e.target.value })} placeholder="Lente" style={inputInlineStyle(1)} />
           </div>
           <input value={c.observacao} onChange={(e) => update(c.id, { observacao: e.target.value })} placeholder="Observação" style={{ ...inputInlineStyle(1), width: "100%" }} />
         </div>
@@ -543,9 +594,17 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           )}
         </div>
         {!fieldMode && (
-          <IconButton onClick={() => exportProductionPDF(production)} title="Exportar PDF">
-            <FileDown size={18} />
-          </IconButton>
+          <button
+            onClick={() => exportProductionPDF(production)}
+            title="Exportar PDF"
+            style={{
+              display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+              background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8,
+              padding: "8px 12px", color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            <FileDown size={14} /> PDF
+          </button>
         )}
         <button
           onClick={handleSave}
@@ -589,7 +648,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
       )}
 
       {!fieldMode && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           <DateField label="Data" value={production.data} onChange={(v) => patch({ data: v })} />
           <Field
             label="Responsável"
@@ -599,8 +658,19 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
             listId="team-roster"
             placeholder="Israel"
           />
-          <Field label="Objetivo do dia" value={production.objetivoDia} onChange={(v) => patch({ objetivoDia: v })} placeholder="5 Reels + fotos" />
         </div>
+      )}
+
+      {!fieldMode && (
+        <Field
+          label="Demanda"
+          value={production.objetivoDia}
+          onChange={(v) => patch({ objetivoDia: v })}
+          placeholder="5 Reels + fotos"
+          multiline
+          autoGrow
+          style={{ marginBottom: 18 }}
+        />
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>

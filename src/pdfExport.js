@@ -68,10 +68,9 @@ export function exportProductionPDF(production) {
     autoTable(doc, {
       startY: y,
       margin: { left: marginX, right: marginX },
-      head: [["Horário", "Local", "Equipe", "Elenco", "Plano", "Lente", "Observação"]],
+      head: [["Horário", "Local", "Equipe", "Elenco", "Observação"]],
       body: sorted.map((c) => [
-        c.horario || "", c.local || "", c.equipe || "", c.elenco || "",
-        c.plano || "", c.lente || "", c.observacao || "",
+        c.horario || "", c.local || "", c.equipe || "", c.elenco || "", c.observacao || "",
       ]),
       styles: { fontSize: 8, cellPadding: 4 },
       headStyles: { fillColor: [30, 30, 30] },
@@ -99,10 +98,12 @@ export function exportProductionPDF(production) {
 
       doc.setFontSize(9);
       doc.setTextColor(70);
+      const equipList = [...(shot.equipamentos || []), shot.equipamentoOutro].filter(Boolean).join(", ");
       const details = [
         shot.contexto && `Contexto: ${shot.contexto}`,
-        shot.objetivo && `Objetivo: ${shot.objetivo}`,
-        shot.equipamento && `Equipamento: ${shot.equipamento}`,
+        (shot.plano || shot.lente) && `Plano/Lente: ${[shot.plano, shot.lente].filter(Boolean).join(" · ")}`,
+        equipList && `Equipamento: ${equipList}`,
+        shot.objetivo && `Roteiro: ${shot.objetivo}`,
         shot.referencia && `Referência: ${shot.referencia}`,
       ].filter(Boolean);
       for (const line of details) {
