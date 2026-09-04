@@ -35,7 +35,7 @@ export function ProductionsDashboard({ order, productions, userName }) {
   const firstName = (userName || "").trim().split(" ")[0];
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto" }}>
+    <div className="fade-in-up" style={{ maxWidth: 720, margin: "0 auto" }}>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: C.paper, marginBottom: 4 }}>
         {firstName ? `Olá, ${firstName}!` : "Visão geral"}
       </div>
@@ -136,7 +136,7 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
     .slice(0, 5);
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto" }}>
+    <div className="fade-in-up" style={{ maxWidth: 720, margin: "0 auto" }}>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: C.paper, marginBottom: 4 }}>
         Visão financeira
       </div>

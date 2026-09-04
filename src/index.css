@@ -1,3 +1,62 @@
 html, body, #root { margin: 0; padding: 0; height: 100%; }
 html, body { background: #000000; }
 * { box-sizing: border-box; }
+
+/* ---- Shared motion utilities ---- */
+
+.icon-btn {
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.icon-btn:hover { background: rgba(255,255,255,0.08) !important; }
+.icon-btn:active { transform: scale(0.88); }
+
+.hover-row {
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
+}
+.hover-row:hover {
+  border-color: #FDDF4B66 !important;
+  background: #1B1B1B !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+.hover-row:active { transform: translateY(0) scale(0.996); }
+
+.btn-anim {
+  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+.btn-anim:hover { filter: brightness(1.1); }
+.btn-anim:active { transform: scale(0.96); }
+
+/* Every plain button in the app gets a subtle press/hover feel automatically. */
+button:not(.icon-btn) {
+  transition: filter 0.15s ease, transform 0.08s ease, opacity 0.15s ease;
+}
+button:not(.icon-btn):hover:not(:disabled) { filter: brightness(1.08); }
+button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); }
+
+.chip-anim {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.chip-anim:hover { transform: translateY(-1px); }
+.chip-anim:active { transform: translateY(0) scale(0.95); }
+
+.chevron-rotate {
+  transition: transform 0.2s ease;
+  display: inline-flex;
+}
+.chevron-rotate.open { transform: rotate(90deg); }
+
+.fade-in-up {
+  animation: fadeInUp 0.28s ease both;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tap-scale { transition: transform 0.1s ease; }
+.tap-scale:active { transform: scale(0.97); }
+
+.hover-line { transition: background-color 0.15s ease; border-radius: 6px; }
+.hover-line:hover { background: rgba(255,255,255,0.04); }
+

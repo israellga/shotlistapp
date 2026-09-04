@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Plus, Trash2, ArrowLeft, ChevronRight, ChevronDown, Save, Check, Loader2,
+  Plus, Trash2, ArrowLeft, ChevronRight, Save, Check, Loader2,
   Building2, Phone, Mail, FileText, User,
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
@@ -27,6 +27,7 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
         {sorted.map((c) => (
           <div
             key={c.id}
+            className="hover-row"
             onClick={() => onOpen(c.id)}
             style={{
               background: currentClientId === c.id ? C.panel2 : C.panel,
@@ -91,7 +92,7 @@ export function ClientDetail({
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 4px 60px" }}>
+    <div className="fade-in-up" style={{ maxWidth: 640, margin: "0 auto", padding: "0 4px 60px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
         {showBack && (
           <IconButton onClick={onBack} tone="paper" title="Voltar"><ArrowLeft size={19} /></IconButton>
@@ -233,6 +234,7 @@ export function ClientDetail({
         {productions.map((p) => (
           <div
             key={p.id}
+            className="hover-row"
             onClick={() => onOpenProduction(p.id)}
             style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "11px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}
           >
@@ -265,16 +267,16 @@ function FinanceRecordRow({ record, onChange, onSave, onDelete }) {
 
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "12px 14px" }}>
-      <div onClick={() => setExpanded((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+      <div className="hover-line" onClick={() => setExpanded((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
         <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {record.label || "Sem descrição"}
         </div>
         <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO }}>{record.data || "sem data"}</div>
-        {expanded ? <ChevronDown size={15} color={C.faint} /> : <ChevronRight size={15} color={C.faint} />}
+        <ChevronRight size={15} color={C.faint} className={`chevron-rotate${expanded ? " open" : ""}`} />
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.lineSoft}` }}>
+        <div className="fade-in-up" style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.lineSoft}` }}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8, marginBottom: 10 }}>
             <input
               value={record.label}

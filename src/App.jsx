@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
+  Plus, Trash2, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
   Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
   Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles,
@@ -285,7 +285,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
 
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
-      <div onClick={onToggle} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }}>
+      <div className="hover-line" onClick={onToggle} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", cursor: "pointer" }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 20, color: C.faint, minWidth: 34 }}>
           {String(shot.numero).padStart(2, "0")}
         </div>
@@ -303,11 +303,11 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
             <Trash2 size={16} />
           </ConfirmIconButton>
         )}
-        {expanded ? <ChevronDown size={18} color={C.faint} /> : <ChevronRight size={18} color={C.faint} />}
+        <ChevronRight size={18} color={C.faint} className={`chevron-rotate${expanded ? " open" : ""}`} />
       </div>
 
       {expanded && (
-        <div style={{ padding: "0 16px 18px", borderTop: `1px solid ${C.lineSoft}` }}>
+        <div className="fade-in-up" style={{ padding: "0 16px 18px", borderTop: `1px solid ${C.lineSoft}` }}>
           {!fieldMode && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 16, marginBottom: 6 }}>
               <Field label="Nome do prato / peça" value={shot.nome} onChange={(v) => onChange({ ...shot, nome: v })} placeholder="Ex: Garden" />
@@ -654,7 +654,7 @@ function Section({ title, icon, children, defaultOpen, count, action }) {
   const [open, setOpen] = useState(!!defaultOpen);
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px" }}>
+      <div className="hover-line" style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px" }}>
         <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer" }}>
           {icon}
           <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5 }}>
@@ -663,10 +663,10 @@ function Section({ title, icon, children, defaultOpen, count, action }) {
         </div>
         {action}
         <div onClick={() => setOpen(!open)} style={{ cursor: "pointer", display: "flex" }}>
-          {open ? <ChevronDown size={16} color={C.faint} /> : <ChevronRight size={16} color={C.faint} />}
+          <ChevronRight size={16} color={C.faint} className={`chevron-rotate${open ? " open" : ""}`} />
         </div>
       </div>
-      {open && <div style={{ padding: "0 16px 16px" }}>{children}</div>}
+      {open && <div className="fade-in-up" style={{ padding: "0 16px 16px" }}>{children}</div>}
     </div>
   );
 }
@@ -737,7 +737,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
   const doneTakes = production.shots.reduce((a, s) => a + s.takes.filter((t) => t.feito).length, 0);
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 4px 60px" }}>
+    <div className="fade-in-up" style={{ maxWidth: 720, margin: "0 auto", padding: "0 4px 60px" }}>
       <datalist id="team-roster">
         {roster.map((n) => <option key={n} value={n} />)}
       </datalist>
@@ -1088,7 +1088,7 @@ function ProductionCard({ p, selected, onOpen, onDelete }) {
   const doneShots = p.shots.filter((s) => s.status === "concluido").length;
   const pct = totalShots ? Math.round((doneShots / totalShots) * 100) : 0;
   return (
-    <div onClick={onOpen} style={{ background: selected ? C.panel2 : C.panel, border: `1px solid ${selected ? C.amber : C.line}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
+    <div className="hover-row" onClick={onOpen} style={{ background: selected ? C.panel2 : C.panel, border: `1px solid ${selected ? C.amber : C.line}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: C.paper }}>{p.cliente || "Sem nome"}</div>
         <div style={{ fontSize: 12.5, color: C.faint, marginTop: 3, fontFamily: FONT_MONO }}>
@@ -1988,6 +1988,7 @@ export default function App() {
             {showingProductions ? (
               current ? (
                 <ProductionDetail
+                  key={current.id}
                   production={current}
                   fieldMode={fieldMode}
                   onChange={(next) => updateProduction(current.id, next)}
@@ -2009,6 +2010,7 @@ export default function App() {
               )
             ) : currentClient ? (
               <ClientDetail
+                key={currentClient.id}
                 client={currentClient}
                 onChange={(next) => updateClient(currentClient.id, next)}
                 onSaveNow={() => saveClientNow(currentClient.id)}

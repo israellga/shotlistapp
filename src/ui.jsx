@@ -11,6 +11,7 @@ export function IconButton({ onClick, title, children, tone = "muted", size = 34
   const colors = { muted: C.muted, brick: C.brick, amber: C.amber, paper: C.paper };
   return (
     <button
+      className="icon-btn"
       onClick={onClick}
       title={title}
       style={{
@@ -18,8 +19,6 @@ export function IconButton({ onClick, title, children, tone = "muted", size = 34
         background: "transparent", border: "none", borderRadius: 6,
         color: colors[tone] || C.muted, cursor: "pointer", flexShrink: 0,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       {children}
     </button>

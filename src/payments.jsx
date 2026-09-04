@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Check, Copy, ChevronDown, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { IconButton, ConfirmDialog } from "./ui";
 import { formatBRL } from "./finance";
@@ -98,7 +98,7 @@ export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
 
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "12px 14px" }}>
-      <div onClick={() => setExpanded((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+      <div className="hover-line" onClick={() => setExpanded((v) => !v)} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {plan.titulo || "Sem título"}
@@ -107,11 +107,11 @@ export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
             {formatBRL(t.pago)} / {formatBRL(t.total)} · {t.countPagas}/{t.count} parcelas
           </div>
         </div>
-        {expanded ? <ChevronDown size={15} color={C.faint} /> : <ChevronRight size={15} color={C.faint} />}
+        <ChevronRight size={15} color={C.faint} className={`chevron-rotate${expanded ? " open" : ""}`} />
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.lineSoft}` }}>
+        <div className="fade-in-up" style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.lineSoft}` }}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8, marginBottom: 10 }}>
             <input
               value={plan.titulo}
