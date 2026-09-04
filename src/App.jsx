@@ -1707,7 +1707,13 @@ export default function App() {
       </div>
 
       {showAccounts && (
-        <AccountsPanel onClose={() => setShowAccounts(false)} myUserId={session.user.id} workspaceId={workspaceId} workspaceName={workspaceName} />
+        <AccountsPanel
+          onClose={() => setShowAccounts(false)}
+          myUserId={session.user.id}
+          workspaceId={workspaceId}
+          workspaceName={workspaceName}
+          onRenameWorkspace={setWorkspaceName}
+        />
       )}
 
       {confirmLogout && (

@@ -1,15 +1,41 @@
 import React, { useState, useEffect } from "react";
-import { X, Loader2, ShieldCheck, User, Check, XCircle } from "lucide-react";
+import { X, Loader2, ShieldCheck, User, Check, XCircle, Pencil } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
 const STATUS_LABEL = { pending: "Pendente", approved: "Aprovado", rejected: "Recusado" };
 const STATUS_COLOR = { pending: C.amber, approved: C.sage, rejected: C.brick };
 
-export default function AccountsPanel({ onClose, myUserId, workspaceId, workspaceName }) {
+export default function AccountsPanel({ onClose, myUserId, workspaceId, workspaceName, onRenameWorkspace }) {
   const [members, setMembers] = useState([]);
   const [status, setStatus] = useState("loading");
   const [savingId, setSavingId] = useState(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(workspaceName || "");
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState("");
+
+  useEffect(() => {
+    setNameDraft(workspaceName || "");
+  }, [workspaceName]);
+
+  async function saveWorkspaceName() {
+    const trimmed = nameDraft.trim();
+    if (!trimmed) {
+      setNameError("O nome não pode ficar em branco.");
+      return;
+    }
+    setNameError("");
+    setSavingName(true);
+    const { error } = await supabase.from("workspaces").update({ name: trimmed }).eq("id", workspaceId);
+    setSavingName(false);
+    if (error) {
+      setNameError(error.message || "Não consegui salvar agora.");
+      return;
+    }
+    onRenameWorkspace && onRenameWorkspace(trimmed);
+    setEditingName(false);
+  }
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -47,7 +73,35 @@ export default function AccountsPanel({ onClose, myUserId, workspaceId, workspac
           <ShieldCheck size={17} color={C.amber} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, color: C.paper }}>CONTAS DA EQUIPE</div>
-            {workspaceName && <div style={{ fontSize: 11, color: C.faint, marginTop: 1 }}>{workspaceName}</div>}
+            {editingName ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") saveWorkspaceName(); if (e.key === "Escape") { setEditingName(false); setNameDraft(workspaceName || ""); setNameError(""); } }}
+                  autoFocus
+                  style={{ flex: 1, minWidth: 0, background: C.panel2, border: `1px solid ${C.amber}`, borderRadius: 6, padding: "4px 8px", color: C.paper, fontSize: 11.5, fontFamily: FONT_BODY, outline: "none" }}
+                />
+                <button
+                  onClick={saveWorkspaceName}
+                  disabled={savingName}
+                  style={{ background: "transparent", border: "none", color: C.sage, cursor: savingName ? "default" : "pointer", flexShrink: 0 }}
+                >
+                  {savingName ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={14} />}
+                </button>
+              </div>
+            ) : (
+              workspaceName && (
+                <div
+                  onClick={() => setEditingName(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: C.faint, marginTop: 1, cursor: "pointer" }}
+                >
+                  {workspaceName}
+                  <Pencil size={10} />
+                </div>
+              )
+            )}
+            {nameError && <div style={{ fontSize: 10.5, color: C.brick, marginTop: 3 }}>{nameError}</div>}
           </div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer" }}>
             <X size={18} />
