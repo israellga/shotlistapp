@@ -210,7 +210,7 @@ export default function ClientView({ id }) {
               : "Não consegui carregar essa produção agora. Tente atualizar a página em instantes."}
           </div>
           {state === "error" && errorDetail && (
-            <div style={{ fontSize: 11, color: C.faint, fontFamily: "monospace", maxWidth: 320, wordBreak: "break-word", marginTop: -4 }}>
+            <div style={{ fontSize: 11, color: C.faint, fontFamily: FONT_MONO, maxWidth: 320, wordBreak: "break-word", marginTop: -4 }}>
               {errorDetail}
             </div>
           )}

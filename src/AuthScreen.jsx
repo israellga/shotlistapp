@@ -115,11 +115,16 @@ export default function AuthScreen({ onAuthed }) {
         }
         .auth-formpanel {
           display: flex; align-items: center; justify-content: center;
-          padding: 40px 22px;
+          padding: 40px 24px;
           padding-top: max(40px, env(safe-area-inset-top));
         }
         @media (min-width: 760px) {
           .auth-formpanel { padding: 40px; padding-top: max(40px, env(safe-area-inset-top)); border-left: 1px solid ${C.line}; }
+        }
+        @media (max-width: 759px) {
+          .auth-logo-row { justify-content: center; margin-bottom: 46px !important; }
+          .auth-logo-row > div:last-child { font-size: 26px !important; letter-spacing: 1.5px !important; }
+          .auth-tabs { margin-bottom: 30px !important; }
         }
         .auth-footer {
           padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -135,7 +140,7 @@ export default function AuthScreen({ onAuthed }) {
         <BrandPanel />
         <div className="auth-formpanel">
           <div style={{ width: "100%", maxWidth: 340 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 30 }}>
+            <div className="auth-logo-row" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 30 }}>
               <ShotlistMark size={26} lit />
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, letterSpacing: 1, color: C.paper }}>
                 SHOTLIST
@@ -143,27 +148,23 @@ export default function AuthScreen({ onAuthed }) {
             </div>
 
             {mode !== "forgot" && (
-              <div style={{ position: "relative", display: "flex", background: C.panel2, borderRadius: 9, padding: 4, marginBottom: 22 }}>
-                <div style={{
-                  position: "absolute", top: 4, bottom: 4, left: 4,
-                  width: "calc(50% - 4px)", borderRadius: 6, background: C.amberDim,
-                  transform: mode === "signup" ? "translateX(100%)" : "translateX(0%)",
-                  transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                }} />
+              <div className="auth-tabs" style={{ position: "relative", display: "flex", borderBottom: `1px solid ${C.line}`, marginBottom: 26 }}>
                 {["login", "signup"].map((m) => (
                   <button
                     key={m}
                     onClick={() => { setMode(m); setError(""); setNotice(""); }}
                     style={{
-                      position: "relative", zIndex: 1,
-                      flex: 1, padding: "9px 0", borderRadius: 6, border: "none", cursor: "pointer",
+                      flex: 1, padding: "0 0 14px", border: "none", cursor: "pointer",
                       background: "transparent",
-                      color: mode === m ? C.amber : C.muted,
-                      fontFamily: FONT_MONO, fontSize: 12.5, fontWeight: 600, letterSpacing: 0.4,
-                      transition: "color 0.2s",
+                      color: mode === m ? C.paper : C.faint,
+                      fontFamily: FONT_BODY, fontSize: 14, fontWeight: 600,
+                      transition: "color 0.2s", position: "relative",
                     }}
                   >
-                    {m === "login" ? "ENTRAR" : "CRIAR CONTA"}
+                    {m === "login" ? "Entrar" : "Criar conta"}
+                    {mode === m && (
+                      <span style={{ position: "absolute", left: "20%", right: "20%", bottom: -1, height: 2, background: C.amber, borderRadius: 2 }} />
+                    )}
                   </button>
                 ))}
               </div>
@@ -267,7 +268,7 @@ function BrandPanel() {
   return (
     <div className="auth-brandpanel" style={{ background: "#000000", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
       <div style={{ width: "min(78%, 620px)" }}>
-        <ShotlistMark size="100%" interactive glowOpacity={0.35} glowRadius={30} />
+        <ShotlistMark size="100%" interactive amber={C.paper} dim="#141414" glowOpacity={0.18} glowRadius={34} />
       </div>
       <div style={{ position: "absolute", bottom: 40, left: 40, right: 40 }}>
         <div style={{ fontFamily: FONT_BODY, fontSize: 12.5, color: C.faint, letterSpacing: 0.2, lineHeight: 1.6 }}>
@@ -305,11 +306,11 @@ function traduzErro(msg) {
 const inputStyle = {
   background: C.panel2,
   border: `1px solid ${C.line}`,
-  borderRadius: 8,
-  padding: "12px 14px",
+  borderRadius: 10,
+  padding: "13px 15px",
   color: C.paper,
   fontFamily: FONT_BODY,
-  fontSize: 14.5,
+  fontSize: 15,
   outline: "none",
 };
 

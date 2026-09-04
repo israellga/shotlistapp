@@ -1071,7 +1071,7 @@ function SaveFinanceButton({ onSave }) {
         {saved ? "Salvo" : errorMsg ? "Erro ao salvar" : "Salvar financeiro"}
       </button>
       {errorMsg && (
-        <div style={{ marginTop: 8, fontSize: 11, color: C.brick, fontFamily: "monospace", wordBreak: "break-word" }}>
+        <div style={{ marginTop: 8, fontSize: 11, color: C.brick, fontFamily: FONT_MONO, wordBreak: "break-word" }}>
           {errorMsg}
         </div>
       )}
@@ -1084,15 +1084,15 @@ function SaveFinanceButton({ onSave }) {
 // ---------------------------------------------------------------------------
 
 function ProductionCard({ p, selected, onOpen, onDelete }) {
-  const totalTakes = p.shots.reduce((a, s) => a + s.takes.length, 0);
-  const doneTakes = p.shots.reduce((a, s) => a + s.takes.filter((t) => t.feito).length, 0);
-  const pct = totalTakes ? Math.round((doneTakes / totalTakes) * 100) : 0;
+  const totalShots = p.shots.length;
+  const doneShots = p.shots.filter((s) => s.status === "concluido").length;
+  const pct = totalShots ? Math.round((doneShots / totalShots) * 100) : 0;
   return (
     <div onClick={onOpen} style={{ background: selected ? C.panel2 : C.panel, border: `1px solid ${selected ? C.amber : C.line}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: C.paper }}>{p.cliente || "Sem nome"}</div>
         <div style={{ fontSize: 12.5, color: C.faint, marginTop: 3, fontFamily: FONT_MONO }}>
-          {formatIntervaloDatas(p.data, p.dataFim) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalTakes > 0 && ` · ${pct}% concluído`}
+          {formatIntervaloDatas(p.data, p.dataFim) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalShots > 0 && ` · ${pct}% concluído`}
         </div>
       </div>
       {!p.__shared && (
