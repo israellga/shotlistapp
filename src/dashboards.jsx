@@ -23,18 +23,19 @@ function StatCard({ label, value, tone }) {
   );
 }
 
-export function ProductionsDashboard({ order, productions }) {
+export function ProductionsDashboard({ order, productions, userName }) {
   const today = new Date().toISOString().slice(0, 10);
   const all = order.map((id) => productions[id]).filter(Boolean);
   const upcoming = all.filter((p) => p.data && p.data >= today).sort((a, b) => a.data.localeCompare(b.data));
   const incomplete = all
     .map((p) => ({ p, issues: getProductionIssues(p) }))
     .filter((x) => x.issues.length > 0);
+  const firstName = (userName || "").trim().split(" ")[0];
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto" }}>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: C.paper, marginBottom: 4 }}>
-        Visão geral
+        {firstName ? `Olá, ${firstName}!` : "Visão geral"}
       </div>
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 22 }}>
         Selecione uma produção à esquerda, ou crie uma nova.

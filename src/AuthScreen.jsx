@@ -8,6 +8,7 @@ import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 export default function AuthScreen({ onAuthed }) {
   const [mode, setMode] = useState("login"); // login | signup | forgot
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,6 +57,10 @@ export default function AuthScreen({ onAuthed }) {
       setError("Preencha email e senha.");
       return;
     }
+    if (mode === "signup" && !name.trim()) {
+      setError("Digite seu nome.");
+      return;
+    }
     setLoading(true);
     if (mode === "login") {
       const { error: err } = await supabase.auth.signInWithPassword({
@@ -71,6 +76,7 @@ export default function AuthScreen({ onAuthed }) {
       const { data, error: err } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: { data: { name: name.trim() } },
       });
       if (err) {
         setError(traduzErro(err.message));
@@ -192,6 +198,16 @@ export default function AuthScreen({ onAuthed }) {
               </form>
             ) : (
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {mode === "signup" && (
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Seu nome"
+                    autoComplete="name"
+                    style={inputStyle}
+                  />
+                )}
                 <input
                   type="email"
                   value={email}

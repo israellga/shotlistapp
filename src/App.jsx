@@ -944,6 +944,7 @@ export default function App() {
   const [recovery, setRecovery] = useState(false);
   const [myRole, setMyRole] = useState(null); // null until known: 'regular' | 'gestor'
   const [myStatus, setMyStatus] = useState(null); // 'pending' | 'approved' | 'rejected'
+  const [myName, setMyName] = useState("");
   const [showAccounts, setShowAccounts] = useState(false);
   const [financeMap, setFinanceMap] = useState({});
   const [financeRecords, setFinanceRecords] = useState({});
@@ -971,11 +972,13 @@ export default function App() {
     if (!session) {
       setMyRole(null);
       setMyStatus(null);
+      setMyName("");
       return;
     }
-    supabase.from("profiles").select("role, status").eq("id", session.user.id).single().then(({ data }) => {
+    supabase.from("profiles").select("role, status, name").eq("id", session.user.id).single().then(({ data }) => {
       setMyRole(data?.role || "regular");
       setMyStatus(data?.status || "pending");
+      setMyName(data?.name || "");
     });
   }, [session]);
 
@@ -1642,7 +1645,7 @@ export default function App() {
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}
                 />
               ) : (
-                <ProductionsDashboard order={order} productions={productions} />
+                <ProductionsDashboard order={order} productions={productions} userName={myName} />
               )
             ) : currentClient ? (
               <ClientDetail
