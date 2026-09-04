@@ -3,7 +3,7 @@ import {
   Plus, Trash2, ChevronDown, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
   Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
-  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign,
+  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
@@ -41,6 +41,8 @@ function emptyProduction() {
     clienteId: null,
     data: "",
     responsavel: "",
+    horaInicio: "",
+    horaFim: "",
     objetivoDia: "",
     equipe: [],
     cronograma: [],
@@ -459,6 +461,29 @@ function HorarioInput({ value, onCommit }) {
   );
 }
 
+function LabeledHorarioInput({ label, value, onCommit }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>{label}</span>
+      <input
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => onCommit(formatHorario(local))}
+        placeholder="10h30"
+        style={{
+          background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7,
+          padding: "9px 11px", color: C.paper, fontFamily: FONT_MONO,
+          fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box",
+        }}
+        onFocus={(e) => (e.target.style.borderColor = C.amber)}
+        onBlurCapture={(e) => (e.target.style.borderColor = C.line)}
+      />
+    </label>
+  );
+}
+
 function CopyLinkButton({ link, big }) {
   const [copied, setCopied] = useState(false);
   async function copyLink() {
@@ -523,16 +548,21 @@ function ShareControl({ production, onChange }) {
   );
 }
 
-function Section({ title, icon, children, defaultOpen, count }) {
+function Section({ title, icon, children, defaultOpen, count, action }) {
   const [open, setOpen] = useState(!!defaultOpen);
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, overflow: "hidden" }}>
-      <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", cursor: "pointer" }}>
-        {icon}
-        <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, flex: 1 }}>
-          {title.toUpperCase()}{typeof count === "number" && <span style={{ color: C.faint }}> ({count})</span>}
-        </span>
-        {open ? <ChevronDown size={16} color={C.faint} /> : <ChevronRight size={16} color={C.faint} />}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px" }}>
+        <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, cursor: "pointer" }}>
+          {icon}
+          <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5 }}>
+            {title.toUpperCase()}{typeof count === "number" && <span style={{ color: C.faint }}> ({count})</span>}
+          </span>
+        </div>
+        {action}
+        <div onClick={() => setOpen(!open)} style={{ cursor: "pointer", display: "flex" }}>
+          {open ? <ChevronDown size={16} color={C.faint} /> : <ChevronRight size={16} color={C.faint} />}
+        </div>
       </div>
       {open && <div style={{ padding: "0 16px 16px" }}>{children}</div>}
     </div>
@@ -543,6 +573,21 @@ function Section({ title, icon, children, defaultOpen, count }) {
 // Production detail
 // ---------------------------------------------------------------------------
 
+function nextAutoHorario(cronograma, horaInicio) {
+  const times = (cronograma || []).map((c) => horarioMinutos(c.horario)).filter((m) => m < 9999);
+  let baseMin;
+  if (times.length > 0) {
+    baseMin = Math.max(...times) + 30;
+  } else if (horaInicio) {
+    const parsed = horarioMinutos(horaInicio);
+    baseMin = parsed < 9999 ? parsed : null;
+  }
+  if (baseMin == null || isNaN(baseMin)) return "";
+  const h = Math.floor(baseMin / 60) % 24;
+  const m = baseMin % 60;
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
+}
+
 function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -552,7 +597,11 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
   function updateShot(id, next) { patch({ shots: production.shots.map((s) => (s.id === id ? next : s)) }); }
   function addShot() {
     const s = emptyShot(production.shots.length + 1);
-    patch({ shots: [...production.shots, s] });
+    const novoHorario = nextAutoHorario(production.cronograma, production.horaInicio);
+    const novaOrdem = novoHorario
+      ? [...production.cronograma, { id: uid(), horario: novoHorario, local: "", equipe: "", elenco: "", observacao: "" }]
+      : production.cronograma;
+    onChange({ ...production, shots: [...production.shots, s], cronograma: novaOrdem });
     setExpandedShot(s.id);
   }
   function deleteShot(id) {
@@ -584,7 +633,11 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
             <>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.paper }}>{production.cliente || "Produção sem nome"}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint }}>
-                {formatDataComDiaSemana(production.data) || "sem data"}{totalTakes > 0 && <span> · {doneTakes}/{totalTakes} takes concluídos</span>}
+                {formatDataComDiaSemana(production.data) || "sem data"}
+                {(production.horaInicio || production.horaFim) && (
+                  <span> · {production.horaInicio || "?"}–{production.horaFim || "?"}</span>
+                )}
+                {totalTakes > 0 && <span> · {doneTakes}/{totalTakes} takes concluídos</span>}
               </div>
             </>
           ) : (
@@ -664,6 +717,13 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
       )}
 
       {!fieldMode && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+          <LabeledHorarioInput label="Horário de início" value={production.horaInicio} onCommit={(v) => patch({ horaInicio: v })} />
+          <LabeledHorarioInput label="Horário de fim" value={production.horaFim} onCommit={(v) => patch({ horaFim: v })} />
+        </div>
+      )}
+
+      {!fieldMode && (
         <Field
           label="Demanda"
           value={production.objetivoDia}
@@ -681,40 +741,51 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
             <EquipeSection equipe={production.equipe} onChange={(equipe) => patch({ equipe })} onKnowPerson={onKnowPerson} />
           </Section>
         )}
-        {!fieldMode && (
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <Section
+          title="Shots"
+          icon={<Film size={15} color={C.faint} />}
+          count={production.shots.length}
+          defaultOpen
+          action={!fieldMode && (
+            <button
+              onClick={(e) => { e.stopPropagation(); addShot(); }}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8, padding: "6px 11px", color: C.amber, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+            >
+              <Plus size={13} /> Novo shot
+            </button>
+          )}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {production.shots.length === 0 && (
+              <div style={{ color: C.faint, fontSize: 13.5, padding: "20px 4px", textAlign: "center" }}>
+                Nenhum shot ainda. Adicione o primeiro pra montar a shotlist.
+              </div>
+            )}
+            {production.shots.map((s) => (
+              <ShotCard
+                key={s.id}
+                shot={s}
+                fieldMode={fieldMode}
+                expanded={expandedShot === s.id}
+                onToggle={() => setExpandedShot(expandedShot === s.id ? null : s.id)}
+                onChange={(next) => updateShot(s.id, next)}
+                onDelete={() => deleteShot(s.id)}
+              />
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      {!fieldMode && (
+        <div style={{ marginBottom: 12 }}>
           <Section title="Ordem do dia" icon={<Clock size={15} color={C.faint} />} count={production.cronograma.length}>
             <CronogramaSection cronograma={production.cronograma} onChange={(cronograma) => patch({ cronograma })} />
           </Section>
-        )}
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", marginTop: 26, marginBottom: 12 }}>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, flex: 1 }}>SHOTS ({production.shots.length})</span>
-        {!fieldMode && (
-          <button onClick={addShot} style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 8, padding: "7px 12px", color: C.amber, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            <Plus size={14} /> Novo shot
-          </button>
-        )}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-        {production.shots.length === 0 && (
-          <div style={{ color: C.faint, fontSize: 13.5, padding: "20px 4px", textAlign: "center" }}>
-            Nenhum shot ainda. Adicione o primeiro pra montar a shotlist.
-          </div>
-        )}
-        {production.shots.map((s) => (
-          <ShotCard
-            key={s.id}
-            shot={s}
-            fieldMode={fieldMode}
-            expanded={expandedShot === s.id}
-            onToggle={() => setExpandedShot(expandedShot === s.id ? null : s.id)}
-            onChange={(next) => updateShot(s.id, next)}
-            onDelete={() => deleteShot(s.id)}
-          />
-        ))}
-      </div>
+        </div>
+      )}
 
       {!fieldMode && (
         <Section title="Compartilhar com cliente" icon={<Share2 size={15} color={C.faint} />}>
