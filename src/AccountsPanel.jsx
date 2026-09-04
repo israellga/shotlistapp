@@ -8,16 +8,60 @@ const STATUS_COLOR = { pending: C.amber, approved: C.sage, rejected: C.brick };
 
 export default function AccountsPanel({ onClose, myUserId, workspaceId, workspaceName, onRenameWorkspace }) {
   const [members, setMembers] = useState([]);
+  const [invites, setInvites] = useState([]);
   const [status, setStatus] = useState("loading");
   const [savingId, setSavingId] = useState(null);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(workspaceName || "");
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("regular");
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState("");
 
   useEffect(() => {
     setNameDraft(workspaceName || "");
   }, [workspaceName]);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    loadInvites();
+  }, [workspaceId]);
+
+  async function loadInvites() {
+    const { data } = await supabase.from("workspace_invites").select("*").eq("workspace_id", workspaceId).eq("accepted", false).order("created_at", { ascending: false });
+    setInvites(data || []);
+  }
+
+  async function sendInvite(e) {
+    e.preventDefault();
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      setInviteError("Digite um email válido.");
+      return;
+    }
+    setInviteError("");
+    setInviting(true);
+    const { error } = await supabase.from("workspace_invites").insert({
+      id: Math.random().toString(36).slice(2, 10),
+      workspace_id: workspaceId,
+      email,
+      role: inviteRole,
+    });
+    setInviting(false);
+    if (error) {
+      setInviteError(error.message || "Não consegui enviar o convite.");
+      return;
+    }
+    setInviteEmail("");
+    loadInvites();
+  }
+
+  async function cancelInvite(id) {
+    await supabase.from("workspace_invites").delete().eq("id", id);
+    setInvites((prev) => prev.filter((i) => i.id !== id));
+  }
 
   async function saveWorkspaceName() {
     const trimmed = nameDraft.trim();
@@ -191,8 +235,56 @@ export default function AccountsPanel({ onClose, myUserId, workspaceId, workspac
                 )}
               </div>
 
-              <div style={{ marginTop: 18, fontSize: 11.5, color: C.faint, lineHeight: 1.5, textAlign: "center" }}>
-                Convidar alguém de fora pro seu espaço chega numa próxima atualização.
+              {invites.length > 0 && (
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.muted, letterSpacing: 0.5, marginBottom: 8 }}>
+                    CONVITES ENVIADOS ({invites.length})
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {invites.map((inv) => (
+                      <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 10px" }}>
+                        <span style={{ flex: 1, fontSize: 12.5, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.email}</span>
+                        <span style={{ fontSize: 10.5, color: C.faint, fontFamily: FONT_MONO }}>{inv.role === "gestor" ? "Gestor" : "Regular"}</span>
+                        <button onClick={() => cancelInvite(inv.id)} style={{ background: "transparent", border: "none", color: C.brick, cursor: "pointer", padding: 2 }} title="Cancelar convite">
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.muted, letterSpacing: 0.5, marginBottom: 8 }}>
+                  CONVIDAR PRA SUA EQUIPE
+                </div>
+                <form onSubmit={sendInvite} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="email@pessoa.com"
+                    style={{ flex: 1, minWidth: 140, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontFamily: FONT_BODY, fontSize: 13, outline: "none" }}
+                  />
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                    style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontSize: 12.5, fontFamily: FONT_BODY, outline: "none", colorScheme: "dark" }}
+                  >
+                    <option value="regular">Regular</option>
+                    <option value="gestor">Gestor</option>
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={inviting}
+                    style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 14px", color: C.amber, fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: inviting ? "default" : "pointer" }}
+                  >
+                    {inviting ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : "Convidar"}
+                  </button>
+                </form>
+                {inviteError && <div style={{ color: C.brick, fontSize: 11.5, marginTop: 8 }}>{inviteError}</div>}
+                <p style={{ fontSize: 11, color: C.faint, lineHeight: 1.5, marginTop: 8 }}>
+                  A pessoa recebe o acesso automaticamente ao entrar no Shotlist com esse email — não precisa de aprovação separada.
+                </p>
               </div>
             </>
           )}

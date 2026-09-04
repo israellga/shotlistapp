@@ -932,7 +932,15 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
         </Section>
       )}
 
-      {!fieldMode && isGestor && (
+      {!fieldMode && isGestor && !production.__shared && (
+        <div style={{ marginTop: 12 }}>
+          <Section title="Compartilhar com colaborador" icon={<Users size={15} color={C.faint} />}>
+            <CollaboratorShareControl productionId={production.id} />
+          </Section>
+        </div>
+      )}
+
+      {!fieldMode && isGestor && !production.__shared && (
         <div style={{ marginTop: 12 }}>
           <Section title="Financeiro" icon={<DollarSign size={15} color={C.faint} />}>
             <FinanceSection
@@ -943,6 +951,89 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           </Section>
         </div>
       )}
+    </div>
+  );
+}
+
+function CollaboratorShareControl({ productionId }) {
+  const [shares, setShares] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from("production_shares").select("*").eq("production_id", productionId).then(({ data }) => {
+      if (!cancelled) {
+        setShares(data || []);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [productionId]);
+
+  async function addShare(e) {
+    e.preventDefault();
+    const clean = email.trim().toLowerCase();
+    if (!clean || !clean.includes("@")) {
+      setError("Digite um email válido.");
+      return;
+    }
+    setError("");
+    setAdding(true);
+    const row = { id: uid(), production_id: productionId, shared_with_email: clean };
+    const { error: err } = await supabase.from("production_shares").insert(row);
+    setAdding(false);
+    if (err) {
+      setError(err.message || "Não consegui compartilhar agora.");
+      return;
+    }
+    setShares((prev) => [...prev, row]);
+    setEmail("");
+  }
+
+  async function removeShare(id) {
+    setShares((prev) => prev.filter((s) => s.id !== id));
+    await supabase.from("production_shares").delete().eq("id", id);
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.5, marginBottom: 10 }}>
+        A pessoa vê e edita só esta produção, mesmo sem fazer parte do seu espaço de trabalho.
+      </p>
+      {loading ? (
+        <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          {shares.map((s) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px" }}>
+              <span style={{ flex: 1, fontSize: 12.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.shared_with_email}</span>
+              <IconButton onClick={() => removeShare(s.id)} tone="brick" size={26}><Trash2 size={13} /></IconButton>
+            </div>
+          ))}
+          {shares.length === 0 && (
+            <div style={{ fontSize: 12.5, color: C.faint }}>Ninguém de fora tem acesso a esta produção ainda.</div>
+          )}
+        </div>
+      )}
+      <form onSubmit={addShare} style={{ display: "flex", gap: 8 }}>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="email@colaborador.com"
+          style={{ flex: 1, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 7, padding: "8px 10px", color: C.paper, fontFamily: FONT_BODY, fontSize: 13, outline: "none" }}
+        />
+        <button
+          type="submit"
+          disabled={adding}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 7, padding: "8px 14px", color: C.amber, fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: adding ? "default" : "pointer" }}
+        >
+          {adding ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : "Compartilhar"}
+        </button>
+      </form>
+      {error && <div style={{ color: C.brick, fontSize: 11.5, marginTop: 8 }}>{error}</div>}
     </div>
   );
 }
@@ -1004,9 +1095,11 @@ function ProductionCard({ p, selected, onOpen, onDelete }) {
           {formatIntervaloDatas(p.data, p.dataFim) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalTakes > 0 && ` · ${pct}% concluído`}
         </div>
       </div>
-      <ConfirmIconButton onConfirm={onDelete} title="Excluir produção" confirmTitle="Excluir produção?" confirmMessage={`"${p.cliente || "Esta produção"}" e toda a shotlist vão ser apagadas.`} stopPropagation>
-        <Trash2 size={16} />
-      </ConfirmIconButton>
+      {!p.__shared && (
+        <ConfirmIconButton onConfirm={onDelete} title="Excluir produção" confirmTitle="Excluir produção?" confirmMessage={`"${p.cliente || "Esta produção"}" e toda a shotlist vão ser apagadas.`} stopPropagation>
+          <Trash2 size={16} />
+        </ConfirmIconButton>
+      )}
       <ChevronRight size={18} color={C.faint} />
     </div>
   );
@@ -1059,12 +1152,15 @@ export default function App() {
   const [myName, setMyName] = useState("");
   const [workspaceId, setWorkspaceId] = useState(undefined); // undefined = checking, null = none yet
   const [workspaceName, setWorkspaceName] = useState("");
+  const [pendingInvites, setPendingInvites] = useState([]);
   const [showAccounts, setShowAccounts] = useState(false);
   const [financeMap, setFinanceMap] = useState({});
   const [financeRecords, setFinanceRecords] = useState({});
   const [financeRecordOrder, setFinanceRecordOrder] = useState([]);
   const [paymentPlans, setPaymentPlans] = useState({});
   const [paymentPlanOrder, setPaymentPlanOrder] = useState([]);
+  const [sharedProductions, setSharedProductions] = useState({});
+  const [sharedOrder, setSharedOrder] = useState([]);
   const isGestor = myRole === "gestor";
   const isWide = useMediaQuery("(min-width: 900px)");
   const saveTimers = useRef({});
@@ -1107,12 +1203,19 @@ export default function App() {
       setWorkspaceId(null);
       setMyRole(null);
       setMyStatus(null);
+      const { data: myUser } = await supabase.auth.getUser();
+      const email = myUser?.user?.email;
+      if (email) {
+        const { data: invites } = await supabase.from("workspace_invites").select("*, workspaces ( name )").eq("email", email).eq("accepted", false);
+        setPendingInvites(invites || []);
+      }
       return;
     }
     setWorkspaceId(data.workspace_id);
     setMyRole(data.role);
     setMyStatus(data.status);
     setWorkspaceName(data.workspaces?.name || "");
+    setPendingInvites([]);
   }, []);
 
   const loadFinance = useCallback(async () => {
@@ -1151,6 +1254,25 @@ export default function App() {
     setPaymentPlans(map);
     setPaymentPlanOrder(ord);
   }, [workspaceId]);
+
+  const loadSharedProductions = useCallback(async () => {
+    const email = session?.user?.email;
+    if (!email) return;
+    const { data, error } = await supabase
+      .from("production_shares")
+      .select("production_id, productions ( id, payload, updated_at )")
+      .eq("shared_with_email", email);
+    if (error) return;
+    const map = {};
+    const ord = [];
+    for (const row of data || []) {
+      if (!row.productions) continue;
+      map[row.productions.id] = { ...row.productions.payload, __shared: true };
+      ord.push(row.productions.id);
+    }
+    setSharedProductions(map);
+    setSharedOrder(ord);
+  }, [session]);
 
   const loadAll = useCallback(async () => {
     if (!workspaceId) return;
@@ -1209,6 +1331,7 @@ export default function App() {
     loadFinance();
     loadFinanceRecords();
     loadPaymentPlans();
+    loadSharedProductions();
     supabase.from(TABLE_TEAM).select("name").eq("workspace_id", workspaceId).order("name").then(({ data }) => {
       setRoster((data || []).map((r) => r.name));
     });
@@ -1308,16 +1431,20 @@ export default function App() {
       supabase.removeChannel(financeRecordsChannel);
       supabase.removeChannel(paymentPlansChannel);
     };
-  }, [session, workspaceId, loadAll, loadClients, loadFinance, loadFinanceRecords, loadPaymentPlans]);
+  }, [session, workspaceId, loadAll, loadClients, loadFinance, loadFinanceRecords, loadPaymentPlans, loadSharedProductions]);
 
   async function saveNow(id) {
     if (saveTimers.current["p:" + id]) {
       clearTimeout(saveTimers.current["p:" + id]);
       delete saveTimers.current["p:" + id];
     }
-    const payload = productions[id];
-    if (!payload) return;
-    const { error } = await supabase.from(TABLE).upsert({ id, workspace_id: workspaceId, payload, updated_at: new Date().toISOString() });
+    const isShared = !!sharedProductions[id];
+    const raw = isShared ? sharedProductions[id] : productions[id];
+    if (!raw) return;
+    const { __shared, ...payload } = raw;
+    const upsertObj = { id, payload, updated_at: new Date().toISOString() };
+    if (!isShared) upsertObj.workspace_id = workspaceId;
+    const { error } = await supabase.from(TABLE).upsert(upsertObj);
     setOnline(!error);
     if (!error) clearDraft("productions", id);
   }
@@ -1447,11 +1574,19 @@ export default function App() {
   }
 
   function updateProduction(id, next) {
-    setProductions((prev) => ({ ...prev, [id]: next }));
+    const isShared = !!sharedProductions[id];
+    if (isShared) {
+      setSharedProductions((prev) => ({ ...prev, [id]: next }));
+    } else {
+      setProductions((prev) => ({ ...prev, [id]: next }));
+    }
     saveDraft("productions", id, next);
     if (saveTimers.current["p:" + id]) clearTimeout(saveTimers.current["p:" + id]);
     saveTimers.current["p:" + id] = setTimeout(async () => {
-      const { error } = await supabase.from(TABLE).upsert({ id, workspace_id: workspaceId, payload: next, updated_at: new Date().toISOString() });
+      const { __shared, ...payload } = next;
+      const upsertObj = { id, payload, updated_at: new Date().toISOString() };
+      if (!isShared) upsertObj.workspace_id = workspaceId;
+      const { error } = await supabase.from(TABLE).upsert(upsertObj);
       setOnline(!error);
       if (!error) clearDraft("productions", id);
     }, 700);
@@ -1543,7 +1678,7 @@ export default function App() {
     setActiveTab("producoes");
   }
 
-  const current = currentId ? productions[currentId] : null;
+  const current = currentId ? (productions[currentId] || sharedProductions[currentId]) : null;
   const currentClient = currentClientId ? clients[currentClientId] : null;
   const clientList = clientOrder.map((id) => clients[id]).filter(Boolean);
 
@@ -1589,6 +1724,8 @@ export default function App() {
         userEmail={session.user?.email}
         onSignOut={() => supabase.auth.signOut()}
         onCreated={() => loadMyWorkspace()}
+        pendingInvites={pendingInvites}
+        onAcceptInvite={() => loadMyWorkspace()}
       />
     );
   }
@@ -1781,6 +1918,8 @@ export default function App() {
                   currentId={currentId}
                   onOpen={setCurrentId}
                   onDelete={deleteProduction}
+                  sharedOrder={sharedOrder}
+                  sharedProductions={sharedProductions}
                 />
               )}
             </div>
@@ -1881,7 +2020,7 @@ function EmptyMainState({ label }) {
   );
 }
 
-function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete }) {
+function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, sharedOrder, sharedProductions }) {
   const groups = [];
   const byClient = {};
   const semCliente = [];
@@ -1900,9 +2039,12 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
   for (const cid of clientIds) groups.push({ label: clients[cid].name, items: byClient[cid] });
   if (semCliente.length) groups.push({ label: "Sem cliente", items: semCliente });
 
+  const sharedItems = (sharedOrder || []).map((id) => sharedProductions[id]).filter(Boolean);
+  if (sharedItems.length) groups.push({ label: "Compartilhado comigo", items: sharedItems, shared: true });
+
   return (
     <div style={{ paddingBottom: 10 }}>
-      {order.length === 0 && (
+      {order.length === 0 && sharedItems.length === 0 && (
         <div style={{ color: C.faint, fontSize: 13.5, padding: "50px 4px 30px", textAlign: "center" }}>
           <ShotlistMark size={26} lit={false} amber={C.line} dim={C.line} style={{ marginBottom: 12 }} />
           <div>Nenhuma produção ainda.</div>
