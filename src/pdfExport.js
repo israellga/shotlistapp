@@ -82,10 +82,11 @@ export function exportProductionPDF(production) {
 
   // Shots
   if (production.shots?.length) {
-    heading(`Shotlist (${production.shots.length})`);
-
-    for (const shot of production.shots) {
-      ensureSpace(46);
+    for (const [shotIndex, shot] of production.shots.entries()) {
+      // Cada shot começa em uma página nova
+      doc.addPage();
+      y = 50;
+      if (shotIndex === 0) heading(`Shotlist (${production.shots.length})`);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(15);

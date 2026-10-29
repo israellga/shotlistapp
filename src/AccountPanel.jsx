@@ -36,11 +36,11 @@ export default function AccountPanel({ email, onClose, forced, onDone }) {
   }
 
   return (
-    <div style={{
+    <div className="modal-backdrop" style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 50,
       display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY,
     }}>
-      <div style={{ width: "100%", maxWidth: 380, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 22, position: "relative" }}>
+      <div className="modal-card" style={{ width: "100%", maxWidth: 380, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 22, position: "relative" }}>
         {!forced && (
           <button
             onClick={onClose}

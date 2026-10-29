@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Trash2, DollarSign } from "lucide-react";
+import { Plus, Trash2, DollarSign, Users, Link2Off } from "lucide-react";
 import { C, FONT_MONO } from "./theme";
 import { IconButton, inputInlineStyle, selectInlineStyle, dashedAddStyle } from "./ui";
 
@@ -16,12 +16,36 @@ export function totalCustos(finance) {
   return (finance?.custos || []).reduce((a, c) => a + (Number(c.valor) || 0), 0);
 }
 
-export function FinanceSection({ finance, onChange }) {
-  const f = finance || { orcamento: "", custos: [] };
+export function valorImposto(finance) {
+  const pct = Number(finance?.imposto_pct) || 0;
+  return ((Number(finance?.orcamento) || 0) * pct) / 100;
+}
+
+// Total de saídas = custos + imposto
+export function totalSaidas(finance) {
+  return totalCustos(finance) + valorImposto(finance);
+}
+
+export function FinanceSection({ finance, onChange, equipe = null }) {
+  const f = finance || { orcamento: "", custos: [], imposto_pct: "" };
   const custos = f.custos || [];
   const total = totalCustos(f);
   const orcamento = Number(f.orcamento) || 0;
-  const saldo = orcamento - total;
+  const imposto = valorImposto(f);
+  const saldo = orcamento - total - imposto;
+  const membros = (equipe || []).filter((m) => (m.responsavel || "").trim());
+  const linkedIds = new Set(custos.map((c) => c.equipeId).filter(Boolean));
+  const pendentes = membros.filter((m) => !linkedIds.has(m.id));
+
+  function memberLabel(m) {
+    return `${m.responsavel.trim()} — ${m.funcao || "Equipe"}`;
+  }
+  function importEquipe() {
+    const novos = pendentes.map((m) => ({
+      id: Math.random().toString(36).slice(2, 9), categoria: "Equipe", valor: "", equipeId: m.id,
+    }));
+    patch({ custos: [...custos, ...novos] });
+  }
 
   function patch(fields) { onChange({ ...f, ...fields }); }
   function updateCusto(id, patchFields) {
@@ -48,7 +72,7 @@ export function FinanceSection({ finance, onChange }) {
           />
         </div>
         <div>
-          <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3, marginBottom: 6 }}>Saldo (orçamento − custos)</div>
+          <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3, marginBottom: 6 }}>Saldo (orçamento − custos − imposto)</div>
           <div style={{
             padding: "8px 10px", borderRadius: 7, fontSize: 14, fontFamily: FONT_MONO,
             color: saldo >= 0 ? C.sage : C.brick, background: saldo >= 0 ? C.sageDim : C.brickDim,
@@ -59,25 +83,75 @@ export function FinanceSection({ finance, onChange }) {
         </div>
       </div>
 
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3, marginBottom: 6 }}>Imposto (%)</div>
+          <input
+            type="number"
+            value={f.imposto_pct ?? ""}
+            onChange={(e) => patch({ imposto_pct: e.target.value })}
+            placeholder="0"
+            style={{ ...inputInlineStyle(1), width: "100%" }}
+          />
+        </div>
+        <div>
+          <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3, marginBottom: 6 }}>Valor do imposto</div>
+          <div style={{ padding: "8px 10px", borderRadius: 7, fontSize: 14, fontFamily: FONT_MONO, color: C.muted, background: C.panel2, border: `1px solid ${C.line}` }}>
+            {formatBRL(imposto)}
+          </div>
+        </div>
+      </div>
+
       <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3, marginBottom: 8 }}>
         CUSTOS ({custos.length}) · total {formatBRL(total)}
       </div>
-      {custos.map((c) => (
-        <div key={c.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-          <select value={c.categoria} onChange={(e) => updateCusto(c.id, { categoria: e.target.value })} style={selectInlineStyle(1.4)}>
-            {CATEGORIAS_CUSTO.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
-          <input
-            type="number"
-            value={c.valor}
-            onChange={(e) => updateCusto(c.id, { valor: e.target.value })}
-            placeholder="0,00"
-            style={inputInlineStyle(1)}
-          />
-          <IconButton onClick={() => removeCusto(c.id)} tone="brick" size={30}><Trash2 size={14} /></IconButton>
-        </div>
-      ))}
+      {custos.map((c) => {
+        const m = c.equipeId ? (equipe || []).find((x) => x.id === c.equipeId) : null;
+        return (
+          <div key={c.id} style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <select value={c.categoria} onChange={(e) => updateCusto(c.id, { categoria: e.target.value })} style={selectInlineStyle(1.4)}>
+                {CATEGORIAS_CUSTO.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+              <input
+                type="number"
+                value={c.valor}
+                onChange={(e) => updateCusto(c.id, { valor: e.target.value })}
+                placeholder="0,00"
+                style={inputInlineStyle(1)}
+              />
+              <IconButton onClick={() => removeCusto(c.id)} tone="brick" size={30}><Trash2 size={14} /></IconButton>
+            </div>
+            {m && (m.responsavel || "").trim() ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, padding: "7px 10px", borderRadius: 7, fontSize: 13, color: C.paper, background: C.panel2, border: `1px solid ${C.line}` }}>
+                  {memberLabel(m)}
+                </div>
+                <IconButton onClick={() => updateCusto(c.id, { equipeId: null, responsavel: memberLabel(m) })} size={30} title="Desvincular da equipe"><Link2Off size={14} /></IconButton>
+              </div>
+            ) : (
+              <input
+                value={c.responsavel || ""}
+                onChange={(e) => updateCusto(c.id, { responsavel: e.target.value, equipeId: null })}
+                placeholder="Responsável (nome — função)"
+                list={equipe ? "finance-equipe-list" : undefined}
+                style={{ ...inputInlineStyle(1), width: "100%" }}
+              />
+            )}
+          </div>
+        );
+      })}
+      {equipe && (
+        <datalist id="finance-equipe-list">
+          {membros.map((m) => <option key={m.id} value={memberLabel(m)} />)}
+        </datalist>
+      )}
       <button onClick={addCusto} style={dashedAddStyle}><Plus size={14} /> Adicionar custo</button>
+      {equipe && pendentes.length > 0 && (
+        <button onClick={importEquipe} style={{ ...dashedAddStyle, marginTop: 8 }}>
+          <Users size={14} /> Importar da equipe ({pendentes.length})
+        </button>
+      )}
     </div>
   );
 }
@@ -86,12 +160,12 @@ export function ClientBalanceSummary({ productions, financeMap, financeRecords =
   const fromProductions = productions.map((p) => {
     const f = financeMap[p.id];
     const orc = Number(f?.orcamento) || 0;
-    const custo = totalCustos(f);
+    const custo = totalSaidas(f);
     return { id: p.id, nome: p.cliente || "Sem nome", data: p.data, orcamento: orc, custo, saldo: orc - custo };
   });
   const fromRecords = financeRecords.map((r) => {
     const orc = Number(r.orcamento) || 0;
-    const custo = totalCustos(r);
+    const custo = totalSaidas(r);
     return { id: r.id, nome: r.label || "Registro financeiro", data: r.data, orcamento: orc, custo, saldo: orc - custo };
   });
   const fromPayments = paymentPlans.map((plan) => {

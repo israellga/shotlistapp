@@ -121,9 +121,10 @@ function TakeRow({ take, fieldMode, onChange, onDelete }) {
         style={{
           display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 4px",
           borderBottom: `1px solid ${C.lineSoft}`, cursor: "pointer", opacity: take.feito ? 0.5 : 1,
+          transition: "opacity 0.2s ease",
         }}
       >
-        <div style={{
+        <div className={`pop-check${take.feito ? " checked" : ""}`} style={{
           width: 26, height: 26, borderRadius: 7, border: `2px solid ${take.feito ? C.sage : C.line}`,
           background: take.feito ? C.sage : "transparent", display: "grid", placeItems: "center",
           flexShrink: 0, marginTop: 1,
@@ -199,6 +200,7 @@ function EquipmentPicker({ value, outro, onChange, onChangeOutro }) {
             <button
               key={item}
               type="button"
+              className="chip-anim"
               onClick={() => toggle(item)}
               style={{
                 display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 20,
@@ -261,7 +263,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
     setAnalysisError("");
     setAnalyzing(true);
     try {
-      const result = await analyzeReferenceFrames(shot.thumbnailUrl);
+      const result = await analyzeReferenceFrames(shot.thumbnailUrl, (shot.referencia || "").trim());
       setSuggestion(result);
     } catch (e) {
       setAnalysisError(e?.message || "Não consegui analisar essa referência.");
@@ -836,14 +838,21 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
 
       {!fieldMode && (
         production.dataFim ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginBottom: 10, alignItems: "end" }}>
-            <DateField label="Data de fim" value={production.dataFim} onChange={(v) => patch({ dataFim: v })} />
-            <button
-              onClick={() => patch({ dataFim: "" })}
-              style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "0 12px", height: 40, color: C.muted, fontSize: 12, fontFamily: FONT_BODY, cursor: "pointer" }}
-            >
-              Remover
-            </button>
+          <div style={{ marginBottom: 10 }}>
+            <DateField
+              label="Data de fim"
+              value={production.dataFim}
+              onChange={(v) => patch({ dataFim: v })}
+              labelAction={
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); patch({ dataFim: "" }); }}
+                  style={{ background: "transparent", border: "none", padding: 0, color: C.muted, fontSize: 11.5, fontFamily: FONT_BODY, cursor: "pointer", textDecoration: "underline" }}
+                >
+                  Remover
+                </button>
+              }
+            />
           </div>
         ) : (
           <button
@@ -946,6 +955,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
             <FinanceSection
               finance={finance}
               onChange={onFinanceChange}
+              equipe={production.equipe || []}
             />
             <SaveFinanceButton onSave={onFinanceSaveNow} />
           </Section>
@@ -1232,7 +1242,7 @@ export default function App() {
     const { data, error } = await supabase.from("production_finance").select("*").eq("workspace_id", workspaceId);
     if (error) return; // regular users: RLS blocks this, that's expected
     const map = {};
-    for (const row of data || []) map[row.production_id] = { orcamento: row.orcamento, custos: row.custos || [] };
+    for (const row of data || []) map[row.production_id] = { orcamento: row.orcamento, custos: row.custos || [], imposto_pct: row.imposto_pct ?? "" };
     setFinanceMap(map);
   }, [workspaceId]);
 
@@ -1407,7 +1417,7 @@ export default function App() {
           });
         } else {
           const row = payload.new;
-          setFinanceMap((prev) => ({ ...prev, [row.production_id]: { orcamento: row.orcamento, custos: row.custos || [] } }));
+          setFinanceMap((prev) => ({ ...prev, [row.production_id]: { orcamento: row.orcamento, custos: row.custos || [], imposto_pct: row.imposto_pct ?? "" } }));
         }
       })
       .subscribe();
@@ -1496,12 +1506,13 @@ export default function App() {
   }
 
   async function saveFinanceNow(productionId) {
-    const f = financeMap[productionId] || { orcamento: "", custos: [] };
+    const f = financeMap[productionId] || { orcamento: "", custos: [], imposto_pct: "" };
     const { error } = await supabase.from("production_finance").upsert({
       production_id: productionId,
       workspace_id: workspaceId,
       orcamento: f.orcamento === "" ? null : Number(f.orcamento),
       custos: f.custos || [],
+      imposto_pct: f.imposto_pct === "" || f.imposto_pct == null ? null : Number(f.imposto_pct),
       updated_at: new Date().toISOString(),
     });
     setOnline(!error);
@@ -1509,7 +1520,7 @@ export default function App() {
   }
 
   function addFinanceRecord(clientId) {
-    const rec = { id: uid(), client_id: clientId, label: "", data: "", orcamento: "", custos: [] };
+    const rec = { id: uid(), client_id: clientId, label: "", data: "", orcamento: "", custos: [], imposto_pct: "" };
     setFinanceRecords((prev) => ({ ...prev, [rec.id]: rec }));
     setFinanceRecordOrder((prev) => [rec.id, ...prev]);
     return rec.id;
@@ -1526,6 +1537,7 @@ export default function App() {
       ...rec,
       workspace_id: workspaceId,
       orcamento: rec.orcamento === "" ? null : Number(rec.orcamento),
+      imposto_pct: rec.imposto_pct === "" || rec.imposto_pct == null ? null : Number(rec.imposto_pct),
       updated_at: new Date().toISOString(),
     });
     setOnline(!error);

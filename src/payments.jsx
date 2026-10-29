@@ -157,6 +157,7 @@ export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
               <button
                 onClick={() => updateParcela(p.id, { pago: !p.pago })}
                 title={p.pago ? "Marcar como pendente" : "Marcar como pago"}
+                className={`pop-check${p.pago ? " checked" : ""}`}
                 style={{ background: "transparent", border: "none", color: p.pago ? C.sage : C.faint, cursor: "pointer", flexShrink: 0 }}
               >
                 {p.pago ? <CheckCircle2 size={18} /> : <Circle size={18} />}

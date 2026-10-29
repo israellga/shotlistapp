@@ -68,11 +68,14 @@ export function Field({ label, value, onChange, onBlur, listId, placeholder, mon
   );
 }
 
-export function DateField({ label, value, onChange }) {
+export function DateField({ label, value, onChange, labelAction }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       {label && (
-        <span style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>{label}</span>
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3 }}>
+          <span>{label}</span>
+          {labelAction}
+        </span>
       )}
       <input
         type="date"
@@ -128,8 +131,8 @@ export const dashedAddStyle = {
 
 export function ConfirmDialog({ title, message, confirmLabel = "Confirmar", cancelLabel = "Cancelar", danger, onConfirm, onCancel }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 60, display: "grid", placeItems: "center", padding: 20 }}>
-      <div style={{ width: "100%", maxWidth: 360, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 22 }}>
+    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 60, display: "grid", placeItems: "center", padding: 20 }}>
+      <div className="modal-card" style={{ width: "100%", maxWidth: 360, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 22 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, color: C.paper, marginBottom: 8 }}>{title}</div>
         {message && <div style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.5, marginBottom: 20 }}>{message}</div>}
         <div style={{ display: "flex", gap: 10 }}>

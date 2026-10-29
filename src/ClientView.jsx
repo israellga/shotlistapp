@@ -13,6 +13,8 @@ const STATUS = {
 
 const SAFETY_POLL_MS = 60000;
 
+import { getEmbedUrl } from "./referenceLinks";
+
 function isInstagramUrl(url) {
   return /instagram\.com\/(p|reel|reels|tv)\//i.test(url || "");
 }
@@ -70,6 +72,7 @@ function ShotRow({ s }) {
   const done = Number(s.doneTakes) || 0;
   const canEmbed = isInstagramUrl(s.referencia);
   const isVideo = isDirectVideoUrl(s.referencia);
+  const playerUrl = getEmbedUrl(s.referencia);
 
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px" }}>
@@ -101,7 +104,7 @@ function ShotRow({ s }) {
               <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.muted }}>{done}/{total} takes</span>
             ) : <span />}
             {s.referencia && (
-              canEmbed || isVideo ? (
+              canEmbed || isVideo || playerUrl ? (
                 <button
                   onClick={() => setRefOpen((v) => !v)}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: "none", color: C.amber, fontSize: 12, fontFamily: FONT_BODY, cursor: "pointer", padding: 0 }}
@@ -118,6 +121,17 @@ function ShotRow({ s }) {
           {canEmbed && refOpen && (
             <div style={{ display: "flex", justifyContent: "center", overflow: "hidden", marginTop: 10 }}>
               <InstagramEmbed url={s.referencia} />
+            </div>
+          )}
+          {playerUrl && refOpen && (
+            <div style={{ position: "relative", width: "100%", maxWidth: 560, margin: "10px auto 0", aspectRatio: "16 / 9", borderRadius: 10, overflow: "hidden", background: "#000" }}>
+              <iframe
+                src={playerUrl}
+                title="Referência"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowFullScreen
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+              />
             </div>
           )}
           {isVideo && refOpen && (
@@ -269,7 +283,7 @@ export default function ClientView({ id }) {
 
       {lastFetch && (
         <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: C.faint, fontFamily: FONT_MONO, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? C.sage : C.faint, display: "inline-block" }} />
+          <span className={live ? "live-dot" : ""} style={{ width: 6, height: 6, borderRadius: "50%", background: live ? C.sage : C.faint, display: "inline-block" }} />
           {live ? "Ao vivo" : "Atualizado"} às {lastFetch.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
         </div>
       )}

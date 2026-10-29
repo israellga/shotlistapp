@@ -2,7 +2,7 @@ import React from "react";
 import { CalendarClock, AlertTriangle, Award, PieChart } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
 import { formatDataComDiaSemana, formatIntervaloDatas } from "./datetime";
-import { formatBRL, totalCustos } from "./finance";
+import { formatBRL, totalCustos, valorImposto } from "./finance";
 
 function getProductionIssues(p) {
   const issues = [];
@@ -100,11 +100,13 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
     clientId: p.clienteId,
     orcamento: Number(financeMap[p.id]?.orcamento) || 0,
     custos: financeMap[p.id]?.custos || [],
+    imposto: valorImposto(financeMap[p.id]),
   }));
   const recordRows = financeRecords.map((r) => ({
     clientId: r.client_id,
     orcamento: Number(r.orcamento) || 0,
     custos: r.custos || [],
+    imposto: valorImposto(r),
   }));
   const paymentRows = paymentPlans.map((plan) => ({
     clientId: plan.client_id,
@@ -114,7 +116,7 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
   const rows = [...productionRows, ...recordRows, ...paymentRows];
 
   const totalFaturamento = rows.reduce((a, r) => a + r.orcamento, 0);
-  const totalCusto = rows.reduce((a, r) => a + totalCustos({ custos: r.custos }), 0);
+  const totalCusto = rows.reduce((a, r) => a + totalCustos({ custos: r.custos }) + (r.imposto || 0), 0);
 
   const byCategory = {};
   for (const r of rows) {
@@ -123,6 +125,8 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
       byCategory[cat] = (byCategory[cat] || 0) + (Number(c.valor) || 0);
     }
   }
+  const totalImposto = rows.reduce((a, r) => a + (r.imposto || 0), 0);
+  if (totalImposto > 0) byCategory["Imposto"] = totalImposto;
   const topCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   const byClient = {};
@@ -167,7 +171,7 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
                   <span style={{ color: C.muted, fontFamily: FONT_MONO }}>{formatBRL(total)}</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: C.lineSoft, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${pct}%`, background: C.amber }} />
+                  <div style={{ height: "100%", width: `${pct}%`, background: C.amber, transition: "width 0.4s ease" }} />
                 </div>
               </div>
             );
