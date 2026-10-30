@@ -1701,46 +1701,6 @@ export default function App() {
     }, 700);
   }
 
-  const [thumbProgress, setThumbProgress] = useState(null); // null | { done, total }
-
-  // Refaz as miniaturas de todas as referências com link (links do Instagram expiram com o tempo)
-  async function refreshAllThumbnails() {
-    if (thumbProgress) return;
-    const jobs = [];
-    for (const id of Object.keys(productions)) {
-      (productions[id].shots || []).forEach((shot) => {
-        const url = (shot.referencia || "").trim();
-        if (/^https?:\/\//i.test(url)) jobs.push({ pid: id, shotId: shot.id, url });
-      });
-    }
-    if (jobs.length === 0) return;
-    setThumbProgress({ done: 0, total: jobs.length });
-    const results = {};
-    let done = 0;
-    let next = 0;
-    async function worker() {
-      while (next < jobs.length) {
-        const job = jobs[next++];
-        const thumb = await fetchThumbnail(job.url);
-        results[job.pid + ":" + job.shotId] = { thumb, url: job.url };
-        done++;
-        setThumbProgress({ done, total: jobs.length });
-      }
-    }
-    await Promise.all([worker(), worker(), worker()]);
-    for (const pid of new Set(jobs.map((j) => j.pid))) {
-      const prod = productions[pid];
-      if (!prod) continue;
-      const shots = (prod.shots || []).map((shot) => {
-        const r = results[pid + ":" + shot.id];
-        if (!r) return shot;
-        return { ...shot, thumbnailUrl: r.thumb || shot.thumbnailUrl, thumbnailSourceUrl: r.url, thumbnailFailed: !(r.thumb || shot.thumbnailUrl) };
-      });
-      updateProduction(pid, { ...prod, shots });
-    }
-    setTimeout(() => setThumbProgress(null), 1200);
-  }
-
   async function deleteProduction(id) {
     setProductions((prev) => {
       const next = { ...prev };
@@ -2078,22 +2038,9 @@ export default function App() {
             </div>
             <div className="sidebar-footer">
               {showingProductions ? (
-                <>
-                  <button onClick={addProduction} style={addButtonStyle}>
-                    <Plus size={16} /> Nova produção
-                  </button>
-                  {!fieldMode && (
-                    <button
-                      onClick={refreshAllThumbnails}
-                      disabled={!!thumbProgress}
-                      style={{ width: "100%", marginTop: 8, background: "transparent", border: "none", color: C.faint, fontSize: 12, fontFamily: FONT_BODY, padding: "6px 0", cursor: thumbProgress ? "default" : "pointer" }}
-                    >
-                      {thumbProgress
-                        ? (thumbProgress.done >= thumbProgress.total ? "Miniaturas atualizadas" : `Atualizando miniaturas… ${thumbProgress.done}/${thumbProgress.total}`)
-                        : "Atualizar todas as miniaturas"}
-                    </button>
-                  )}
-                </>
+                <button onClick={addProduction} style={addButtonStyle}>
+                  <Plus size={16} /> Nova produção
+                </button>
               ) : (
                 <button onClick={() => setCurrentClientId(addClient())} style={addButtonStyle}>
                   <Plus size={16} /> Novo cliente
