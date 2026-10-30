@@ -1892,6 +1892,31 @@ export default function App() {
             </div>
           )}
         </div>
+        {!fieldMode && (
+          <div style={{ display: "flex", gap: 2, background: C.panel2, borderRadius: 9, padding: 3 }}>
+            {[
+              { key: "producoes", label: "Produções", icon: <Film size={14} /> },
+              { key: "clientes", label: "Clientes", icon: <Building2 size={14} /> },
+            ].map((t) => {
+              const on = (activeTab === "clientes") === (t.key === "clientes");
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  title={t.label}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, border: "none", cursor: "pointer",
+                    padding: "6px 10px", borderRadius: 6, fontFamily: FONT_BODY, fontSize: 12.5, fontWeight: 600,
+                    background: on ? C.amberDim : "transparent", color: on ? C.amber : C.muted,
+                    transition: "background 0.2s, color 0.2s",
+                  }}
+                >
+                  {t.icon}<span className="fm-label">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {online ? <Wifi size={15} color={C.sage} /> : <WifiOff size={15} color={C.brick} />}
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
         {isGestor && (
@@ -1943,27 +1968,8 @@ export default function App() {
           <div className="sidebar">
             <div className="pane-list">
               {!fieldMode && (
-                <div className="tabs" style={{ position: "relative" }}>
-                  <div style={{
-                    position: "absolute", top: 4, bottom: 4, left: 4,
-                    width: "calc(50% - 4px)", borderRadius: 6, background: C.amberDim,
-                    transform: activeTab === "clientes" ? "translateX(100%)" : "translateX(0%)",
-                    transition: "transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                  }} />
-                  <button
-                    className="tab-btn"
-                    onClick={() => setActiveTab("producoes")}
-                    style={{ position: "relative", zIndex: 1, background: "transparent", color: activeTab !== "clientes" ? C.amber : C.muted, transition: "color 0.2s" }}
-                  >
-                    PRÓXIMAS PRODUÇÕES
-                  </button>
-                  <button
-                    className="tab-btn"
-                    onClick={() => setActiveTab("clientes")}
-                    style={{ position: "relative", zIndex: 1, background: "transparent", color: activeTab === "clientes" ? C.amber : C.muted, transition: "color 0.2s" }}
-                  >
-                    CLIENTES
-                  </button>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 600, letterSpacing: 0.6, color: C.muted, margin: "0 4px 14px" }}>
+                  {activeTab === "clientes" ? "CLIENTES" : "PRÓXIMAS PRODUÇÕES"}
                 </div>
               )}
 
