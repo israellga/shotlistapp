@@ -10,7 +10,7 @@ import AuthScreen from "./AuthScreen";
 import AccountPanel from "./AccountPanel";
 import ShotlistMark from "./ShotlistMark";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
-import { formatDataComDiaSemana, formatIntervaloDatas, formatHorario, horarioMinutos } from "./datetime";
+import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto, formatHorario, horarioMinutos } from "./datetime";
 import {
   uid, IconButton, Field, DateField, selectFieldStyle, selectInlineStyle,
   inputInlineStyle, dashedAddStyle, ConfirmDialog, EditableTitle, ConfirmIconButton,
@@ -1098,25 +1098,49 @@ function ProductionCard({ p, selected, onOpen, onDelete, onArchive }) {
   const totalShots = p.shots.length;
   const doneShots = p.shots.filter((s) => s.status === "concluido").length;
   const pct = totalShots ? Math.round((doneShots / totalShots) * 100) : 0;
+  const st = productionStatus(p);
+  const barColor = st === "concluido" ? C.sage : st === "andamento" ? C.amber : C.faint;
+  const meta = [formatIntervaloCurto(p.data, p.dataFim) || "sem data", `${totalShots} shot${totalShots !== 1 ? "s" : ""}`].join("  ·  ");
   return (
-    <div className="hover-row" onClick={onOpen} style={{ background: selected ? C.panel2 : C.panel, border: `1px solid ${selected ? C.amber : C.line}`, borderRadius: 10, padding: "16px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: C.paper }}>{p.cliente || "Sem nome"}</div>
-        <div style={{ fontSize: 12.5, color: C.faint, marginTop: 3, fontFamily: FONT_MONO }}>
-          {formatIntervaloDatas(p.data, p.dataFim) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalShots > 0 && ` · ${pct}% concluído`}
+    <div
+      className="hover-row prod-card"
+      onClick={onOpen}
+      style={{
+        background: selected ? C.panel2 : C.panel,
+        border: `1px solid ${selected ? C.amber + "99" : C.line}`,
+        borderRadius: 12, padding: "14px 16px 13px", cursor: "pointer",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 15.5, fontWeight: 600, color: C.paper, lineHeight: 1.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {p.cliente || "Sem nome"}
+          </div>
+          <div style={{ fontSize: 12, color: C.faint, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {meta}
+          </div>
+        </div>
+        <div className="card-actions" style={{ margin: "-6px -8px 0 0" }}>
+          {!p.__shared && onArchive && (
+            <IconButton onClick={(e) => { e.stopPropagation(); onArchive(); }} title={p.arquivada ? "Desarquivar" : "Arquivar"} size={30}>
+              {p.arquivada ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+            </IconButton>
+          )}
+          {!p.__shared && (
+            <ConfirmIconButton onConfirm={onDelete} title="Excluir produção" confirmTitle="Excluir produção?" confirmMessage={`"${p.cliente || "Esta produção"}" e toda a shotlist vão ser apagadas.`} stopPropagation>
+              <Trash2 size={15} />
+            </ConfirmIconButton>
+          )}
         </div>
       </div>
-      {!p.__shared && onArchive && (
-        <IconButton onClick={(e) => { e.stopPropagation(); onArchive(); }} title={p.arquivada ? "Desarquivar" : "Arquivar"} size={34}>
-          {p.arquivada ? <ArchiveRestore size={16} /> : <Archive size={16} />}
-        </IconButton>
+      {totalShots > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 11 }}>
+          <div className="prod-progress" style={{ flex: 1 }}>
+            <span style={{ width: `${pct}%`, background: barColor }} />
+          </div>
+          <span style={{ fontSize: 11, color: C.faint, fontVariantNumeric: "tabular-nums", minWidth: 28, textAlign: "right" }}>{pct}%</span>
+        </div>
       )}
-      {!p.__shared && (
-        <ConfirmIconButton onConfirm={onDelete} title="Excluir produção" confirmTitle="Excluir produção?" confirmMessage={`"${p.cliente || "Esta produção"}" e toda a shotlist vão ser apagadas.`} stopPropagation>
-          <Trash2 size={16} />
-        </ConfirmIconButton>
-      )}
-      <ChevronRight size={18} color={C.faint} />
     </div>
   );
 }
@@ -1861,18 +1885,15 @@ export default function App() {
         @media (min-width: 900px) {
           .sidebar { border-right: 1px solid ${C.line}; }
         }
-        .pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 14px 0; }
+        .pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px 0; }
         @media (min-width: 700px) {
-          .pane-list { padding-top: 62px; }
-          .pane-main { padding-top: 68px; }
-        }
-        @media (min-width: 900px) {
-          .pane-list { padding-top: 66px; }
+          .pane-list { padding-top: 24px; }
+          .pane-main { padding-top: 28px; }
         }
         .sidebar-footer { flex-shrink: 0; padding: 12px 14px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid ${C.line}; }
         .pane-main { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 14px 90px; }
         @media (min-width: 900px) {
-          .pane-main { padding-left: 24px; padding-right: 24px; padding-bottom: 60px; padding-top: 76px; }
+          .pane-main { padding-left: 24px; padding-right: 24px; padding-bottom: 60px; padding-top: 32px; }
         }
         .tabs { display: flex; gap: 4px; background: ${C.panel2}; border-radius: 9px; padding: 4px; margin-bottom: 14px; }
         .tab-btn { flex: 1; padding: 8px 0; border-radius: 6px; border: none; cursor: pointer; font-family: ${FONT_MONO}; font-size: 12px; font-weight: 600; letter-spacing: 0.4px; }
@@ -1968,8 +1989,8 @@ export default function App() {
           <div className="sidebar">
             <div className="pane-list">
               {!fieldMode && (
-                <div style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 600, letterSpacing: 0.6, color: C.muted, margin: "0 4px 14px" }}>
-                  {activeTab === "clientes" ? "CLIENTES" : "PRÓXIMAS PRODUÇÕES"}
+                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 700, letterSpacing: -0.2, color: C.paper, margin: "0 2px 22px" }}>
+                  {activeTab === "clientes" ? "Clientes" : "Próximas produções"}
                 </div>
               )}
 
@@ -2095,15 +2116,21 @@ function EmptyMainState({ label }) {
 
 const STATUS_DOT = { afazer: C.faint, andamento: C.amber, concluido: C.sage };
 
-function GroupHeader({ label, count, dot, onClick, open }) {
+function GroupHeader({ label, count, dot, onClick, open, dim }) {
   return (
     <div
       onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px", cursor: onClick ? "pointer" : "default", userSelect: "none" }}
+      style={{
+        display: "flex", alignItems: "center", gap: 8, margin: "0 2px 10px",
+        fontSize: 11, fontWeight: 600, letterSpacing: 0.8, color: dim ? C.line : C.muted,
+        cursor: onClick ? "pointer" : "default", userSelect: "none",
+      }}
     >
-      {dot && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot, flexShrink: 0 }} />}
-      <span>{label} ({count})</span>
-      {onClick && <ChevronRight size={12} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />}
+      {dot && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot, opacity: dim ? 0.4 : 1, flexShrink: 0 }} />}
+      <span>{label}</span>
+      <span style={{ color: C.faint, fontWeight: 500, opacity: dim ? 0.6 : 1 }}>{count}</span>
+      <span style={{ flex: 1 }} />
+      {onClick && <ChevronRight size={13} color={C.faint} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />}
     </div>
   );
 }
@@ -2139,12 +2166,10 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
         </div>
       )}
       {(order.length > 0 || sharedItems.length > 0) && groups.map((g) => (
-        <div key={g.key} style={{ marginBottom: 18 }}>
-          <GroupHeader label={g.label} count={g.items.length} dot={STATUS_DOT[g.key]} />
-          {g.items.length === 0 ? (
-            <div style={{ fontSize: 12, color: C.line, margin: "0 4px" }}>—</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div key={g.key} style={{ marginBottom: g.items.length === 0 ? 14 : 24 }}>
+          <GroupHeader label={g.label} count={g.items.length} dot={STATUS_DOT[g.key]} dim={g.items.length === 0} />
+          {g.items.length === 0 ? null : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {g.items.map((p) => (
                 <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} />
               ))}
@@ -2154,9 +2179,9 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
       ))}
 
       {sharedItems.length > 0 && (
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: 24 }}>
           <GroupHeader label="COMPARTILHADO COMIGO" count={sharedItems.length} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {sharedItems.map((p) => (
               <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} />
             ))}
@@ -2165,10 +2190,10 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
       )}
 
       {archived.length > 0 && (
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: 24, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}` }}>
           <GroupHeader label="ARQUIVADAS" count={archived.length} onClick={() => setShowArchived((v) => !v)} open={showArchived} />
           {showArchived && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, opacity: 0.75 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: 0.7 }}>
               {archived.map((p) => (
                 <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} />
               ))}

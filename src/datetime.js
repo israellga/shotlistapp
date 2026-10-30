@@ -45,3 +45,22 @@ export function horarioMinutos(raw) {
   if (!parsed) return 9999;
   return parsed.h * 60 + parsed.m;
 }
+
+// Formato curto pra listas: "27 out · ter" (mostra o ano só se não for o atual)
+export function formatDataCurta(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  const date = new Date(y, m - 1, d);
+  if (isNaN(date.getTime())) return iso;
+  const mes = date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  const semana = date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+  const ano = y !== new Date().getFullYear() ? ` ${y}` : "";
+  return `${d} ${mes}${ano} · ${semana}`;
+}
+
+export function formatIntervaloCurto(inicio, fim) {
+  if (!inicio) return "";
+  if (!fim || fim === inicio) return formatDataCurta(inicio);
+  return `${formatDataCurta(inicio)} → ${formatDataCurta(fim)}`;
+}
