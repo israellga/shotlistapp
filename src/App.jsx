@@ -231,6 +231,15 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
   const [suggestion, setSuggestion] = useState(null);
+  const autoRefreshedFor = useRef("");
+
+  // Links de miniatura do Instagram expiram: se a imagem não abrir, busca uma nova (uma vez por link)
+  function handleThumbError() {
+    const url = (shot.referencia || "").trim();
+    if (!url || autoRefreshedFor.current === url) return;
+    autoRefreshedFor.current = url;
+    attemptFetchThumbnail(url);
+  }
 
   function updateTake(id, next) {
     const nextTakes = shot.takes.map((t) => (t.id === id ? next : t));
@@ -264,7 +273,15 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
     setAnalysisError("");
     setAnalyzing(true);
     try {
-      const result = await analyzeReferenceFrames(shot.thumbnailUrl, (shot.referencia || "").trim());
+      const refUrl = (shot.referencia || "").trim();
+      // Sempre usa uma miniatura recém-buscada (as antigas do Instagram expiram)
+      let thumb = shot.thumbnailUrl;
+      const fresh = await fetchThumbnail(refUrl);
+      if (fresh) {
+        thumb = fresh;
+        if (fresh !== shot.thumbnailUrl) onChange({ ...shot, thumbnailUrl: fresh, thumbnailSourceUrl: refUrl, thumbnailFailed: false });
+      }
+      const result = await analyzeReferenceFrames(thumb, refUrl);
       setSuggestion(result);
     } catch (e) {
       setAnalysisError(e?.message || "Não consegui analisar essa referência.");
@@ -353,7 +370,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
                       </div>
                     ) : shot.thumbnailUrl ? (
                       <>
-                        <img src={shot.thumbnailUrl} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
+                        <img src={shot.thumbnailUrl} alt="" onError={handleThumbError} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.line}` }} />
                         <span style={{ fontSize: 11.5, color: C.faint }}>Miniatura da referência</span>
                         <button
                           onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
