@@ -4,23 +4,14 @@ import { supabase } from "./supabaseClient";
 let lastIssue = "";
 export function getLastThumbnailIssue() { return lastIssue; }
 
-// Fallback via servidor (Edge Function): lê a página de embed do Instagram
+// Instagram via servidor (Edge Function): várias tentativas, sem depender do limite do microlink
 async function fetchViaServer(url) {
   try {
     const { data } = await supabase.functions.invoke("analyze-reference", { body: { thumbnailFor: url } });
+    if (!data?.thumbnailUrl && Array.isArray(data?.debug)) lastIssue = `Instagram não entregou a imagem (${data.debug.join(" · ")})`;
     return data?.thumbnailUrl || null;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchOEmbedThumb(endpoint) {
-  try {
-    const res = await fetch(endpoint);
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json?.thumbnail_url || null;
-  } catch {
+  } catch (e) {
+    lastIssue = `Falha ao falar com o servidor: ${e?.message || e}`;
     return null;
   }
 }
@@ -48,8 +39,9 @@ export async function fetchThumbnail(url) {
   }
 
   if (isInstagram) {
-    // Instagram's default metadata often isn't picked up by generic scraping;
-    // microlink's own documented recipe targets the og:image tag directly.
+    const viaServer = await fetchViaServer(clean);
+    if (viaServer) { lastIssue = ""; return viaServer; }
+    // último recurso: microlink direto do navegador
     try {
       const params = new URLSearchParams({
         url: clean,
@@ -59,17 +51,12 @@ export async function fetchThumbnail(url) {
         "data.thumb.type": "image",
       });
       const res = await fetch(`https://api.microlink.io/?${params.toString()}`);
-      if (res.status === 429) lastIssue = "Limite diário do serviço de miniaturas atingido. Tente de novo mais tarde.";
       if (res.ok) {
         const json = await res.json();
         const thumbUrl = json?.data?.thumb?.url || json?.data?.thumb;
-        if (thumbUrl && typeof thumbUrl === "string") return thumbUrl;
+        if (thumbUrl && typeof thumbUrl === "string") { lastIssue = ""; return thumbUrl; }
       }
-    } catch {
-      /* fall through to generic attempt below */
-    }
-    const viaServer = await fetchViaServer(clean);
-    if (viaServer) { lastIssue = ""; return viaServer; }
+    } catch { /* ignore */ }
     return null;
   }
 

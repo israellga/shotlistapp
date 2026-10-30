@@ -84,23 +84,51 @@ async function gatherContext(referenceUrl: string, thumbUrl: string) {
   return { imageUrls, notes };
 }
 
-// Instagram: tenta achar a imagem de capa pela página de embed (sem login)
+// Instagram: várias tentativas em sequência; devolve também um diagnóstico do que aconteceu em cada uma
 async function instagramThumbnail(url: string) {
+  const debug: string[] = [];
   const m = url.match(/instagram\.com\/(?:[\w.]+\/)?(p|reel|reels|tv)\/([\w-]+)/i);
-  if (!m) return null;
+  if (!m) return { thumbnailUrl: null, debug: ["link do Instagram não reconhecido"] };
   const kind = m[1].toLowerCase() === "reels" ? "reel" : m[1].toLowerCase();
-  const headers = { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36", "accept-language": "en-US,en;q=0.9" };
+  const code = m[2];
+  const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36";
+  const headers = { "user-agent": UA, "accept-language": "en-US,en;q=0.9" };
   const decode = (t: string) => t.replace(/&amp;/g, "&").replace(/\\u0026/g, "&").replace(/\\\//g, "/");
-  for (const page of [`https://www.instagram.com/${kind}/${m[2]}/embed/captioned/`, `https://www.instagram.com/${kind}/${m[2]}/`]) {
+
+  // 1) página de embed e página do post (procura a imagem no HTML)
+  for (const page of [`https://www.instagram.com/${kind}/${code}/embed/captioned/`, `https://www.instagram.com/${kind}/${code}/`]) {
     try {
       const r = await fetch(page, { headers });
-      if (!r.ok) continue;
+      if (!r.ok) { debug.push(`${page.includes("embed") ? "embed" : "página"}: HTTP ${r.status}`); continue; }
       const html = await r.text();
       const a = html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) || html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i) || html.match(/"display_url":"([^"]+)"/i);
-      if (a?.[1]) return decode(a[1]);
-    } catch { /* tenta a próxima */ }
+      if (a?.[1]) return { thumbnailUrl: decode(a[1]), debug };
+      debug.push(`${page.includes("embed") ? "embed" : "página"}: sem imagem no HTML`);
+    } catch (e) { debug.push(`erro de rede: ${e?.message || e}`); }
   }
-  return null;
+
+  // 2) endereço /media/ (redireciona direto pra imagem em posts públicos)
+  try {
+    const r = await fetch(`https://www.instagram.com/p/${code}/media/?size=l`, { headers, redirect: "follow" });
+    const ct = r.headers.get("content-type") || "";
+    if (r.ok && ct.startsWith("image/")) return { thumbnailUrl: r.url, debug };
+    debug.push(`/media/: HTTP ${r.status} ${ct}`);
+  } catch (e) { debug.push(`/media/ erro: ${e?.message || e}`); }
+
+  // 3) microlink, a partir do servidor
+  try {
+    const params = new URLSearchParams({ url, meta: "false", "data.thumb.selector": 'meta[property="og:image"]', "data.thumb.attr": "content", "data.thumb.type": "image" });
+    const r = await fetch(`https://api.microlink.io/?${params}`);
+    if (r.ok) {
+      const j = await r.json();
+      const t = j?.data?.thumb?.url || j?.data?.thumb;
+      if (t && typeof t === "string") return { thumbnailUrl: t, debug };
+      debug.push("microlink: sem imagem");
+    } else debug.push(`microlink: HTTP ${r.status}`);
+  } catch (e) { debug.push(`microlink erro: ${e?.message || e}`); }
+
+  console.log("instagram thumbnail failed", url, JSON.stringify(debug));
+  return { thumbnailUrl: null, debug };
 }
 
 Deno.serve(async (req) => {
@@ -111,8 +139,7 @@ Deno.serve(async (req) => {
     try {
       const peek = await req.clone().json();
       if (peek?.thumbnailFor) {
-        const thumbnailUrl = await instagramThumbnail(String(peek.thumbnailFor));
-        return jsonResponse({ thumbnailUrl });
+        return jsonResponse(await instagramThumbnail(String(peek.thumbnailFor)));
       }
     } catch { /* segue o fluxo normal */ }
   }
