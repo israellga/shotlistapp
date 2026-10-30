@@ -19,7 +19,7 @@ function jsonResponse(body, status = 200) {
 }
 
 async function fetchImageAsBase64(url) {
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (compatible; ShotlistBot/1.0)", accept: "image/*,*/*" } });
   if (!res.ok) throw new Error(`Não consegui baixar a imagem da referência (${res.status}).`);
   const contentType = res.headers.get("content-type") || "image/jpeg";
   const buf = await res.arrayBuffer();
@@ -56,6 +56,7 @@ async function gatherContext(referenceUrl: string, thumbUrl: string) {
   const yt = youtubeId(ref);
   if (yt) {
     // O YouTube expõe 3 quadros do vídeo (aprox. 25%, 50% e 75%)
+    imageUrls[0] = `https://img.youtube.com/vi/${yt}/hqdefault.jpg`;
     for (const n of [1, 2, 3]) imageUrls.push(`https://img.youtube.com/vi/${yt}/${n}.jpg`);
     const o = await getJson(`https://www.youtube.com/oembed?url=${encodeURIComponent(ref)}&format=json`);
     if (o?.title) notes.push(`Título: ${o.title}`);
@@ -98,16 +99,17 @@ Deno.serve(async (req) => {
 
     const ctx = await gatherContext(referenceUrl || "", imageUrl);
     const images: { base64: string; mediaType: string }[] = [];
+    let lastError = "";
     for (let i = 0; i < ctx.imageUrls.length; i++) {
       try {
         const img = await fetchImageAsBase64(ctx.imageUrls[i]);
         if (img.mediaType.startsWith("image/")) images.push(img);
       } catch (e) {
-        if (i === 0) return jsonResponse({ error: e?.message || "Não consegui baixar a miniatura." }, 502);
-        // quadros extras são opcionais
+        lastError = e?.message || String(e);
+        // se uma imagem falhar, segue com as outras
       }
     }
-    if (images.length === 0) return jsonResponse({ error: "Não consegui baixar a miniatura." }, 502);
+    if (images.length === 0) return jsonResponse({ error: lastError || "Não consegui baixar a miniatura." }, 200);
 
     const promptText = `Você é um assistente de produção audiovisual. ${images.length > 1 ? "Estas imagens são a capa e quadros ao longo de um vídeo de referência (YouTube, Vimeo ou outra plataforma)." : "Esta imagem é a capa/miniatura de um conteúdo de referência (post, reels ou vídeo)."} ${ctx.notes.length ? "Informações do conteúdo:\n" + ctx.notes.join("\n") + "\n" : ""}Com base no que você vê e nessas informações, sugira uma estrutura de shot pra recriar algo no mesmo estilo.
 
