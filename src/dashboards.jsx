@@ -2,6 +2,7 @@ import React from "react";
 import { CalendarClock, AlertTriangle, Award, PieChart } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
 import { formatDataComDiaSemana, formatIntervaloDatas } from "./datetime";
+import { productionStatus } from "./productionStatus";
 import { formatBRL, totalCustos, valorImposto } from "./finance";
 
 function getProductionIssues(p) {
@@ -14,18 +15,23 @@ function getProductionIssues(p) {
   return issues;
 }
 
-function StatCard({ label, value, tone }) {
+function StatCard({ label, value, dot }) {
   return (
     <div style={{ flex: 1, minWidth: 140, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px" }}>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.4, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: tone || C.paper }}>{value}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.4, marginBottom: 6 }}>
+        {dot && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot }} />}
+        {label}
+      </div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, color: C.paper }}>{value}</div>
     </div>
   );
 }
 
 export function ProductionsDashboard({ order, productions, userName }) {
   const today = new Date().toISOString().slice(0, 10);
-  const all = order.map((id) => productions[id]).filter(Boolean);
+  const all = order.map((id) => productions[id]).filter(Boolean).filter((p) => !p.arquivada);
+  const counts = { afazer: 0, andamento: 0, concluido: 0 };
+  for (const p of all) counts[productionStatus(p)]++;
   const upcoming = all
     .filter((p) => { const endRef = p.dataFim || p.data; return endRef && endRef >= today; })
     .sort((a, b) => (a.data || "").localeCompare(b.data || ""));
@@ -44,9 +50,9 @@ export function ProductionsDashboard({ order, productions, userName }) {
       </div>
 
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-        <StatCard label="PRÓXIMAS SESSÕES" value={upcoming.length} tone={C.sage} />
-        <StatCard label="PRODUÇÕES INCOMPLETAS" value={incomplete.length} tone={incomplete.length ? C.amber : C.sage} />
-        <StatCard label="TOTAL DE PRODUÇÕES" value={all.length} />
+        <StatCard label="A FAZER" value={counts.afazer} dot={C.faint} />
+        <StatCard label="EM ANDAMENTO" value={counts.andamento} dot={C.amber} />
+        <StatCard label="CONCLUÍDO" value={counts.concluido} dot={C.sage} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -60,7 +66,7 @@ export function ProductionsDashboard({ order, productions, userName }) {
           {upcoming.slice(0, 6).map((p) => (
             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px" }}>
               <span style={{ flex: 1, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
-              <span style={{ fontSize: 12, color: C.amber, fontFamily: FONT_MONO }}>{formatIntervaloDatas(p.data, p.dataFim)}</span>
+              <span style={{ fontSize: 12, color: C.muted, fontFamily: FONT_MONO }}>{formatIntervaloDatas(p.data, p.dataFim)}</span>
             </div>
           ))}
           {upcoming.length > 6 && (
@@ -82,7 +88,7 @@ export function ProductionsDashboard({ order, productions, userName }) {
               <div style={{ fontSize: 13.5, color: C.paper, marginBottom: 6 }}>{p.cliente || "Sem nome"}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {issues.map((issue) => (
-                  <span key={issue} style={{ fontSize: 11, fontFamily: FONT_MONO, color: C.amber, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 12, padding: "3px 9px" }}>
+                  <span key={issue} style={{ fontSize: 11, fontFamily: FONT_MONO, color: C.muted, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "3px 9px" }}>
                     {issue}
                   </span>
                 ))}

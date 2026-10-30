@@ -3,7 +3,7 @@ import {
   Plus, Trash2, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
   Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
-  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles,
+  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles, Archive, ArchiveRestore,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
@@ -21,6 +21,7 @@ import { analyzeReferenceFrames } from "./aiAnalysis";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
+import { PRODUCTION_STATUS, productionStatus } from "./productionStatus";
 import { PaymentPlansSection, emptyPaymentPlan } from "./payments";
 import WorkspaceOnboarding from "./WorkspaceOnboarding";
 import { saveDraft, loadDraft, clearDraft, getDraftIndex } from "./draftStorage";
@@ -1093,7 +1094,7 @@ function SaveFinanceButton({ onSave }) {
 // Production list
 // ---------------------------------------------------------------------------
 
-function ProductionCard({ p, selected, onOpen, onDelete }) {
+function ProductionCard({ p, selected, onOpen, onDelete, onArchive }) {
   const totalShots = p.shots.length;
   const doneShots = p.shots.filter((s) => s.status === "concluido").length;
   const pct = totalShots ? Math.round((doneShots / totalShots) * 100) : 0;
@@ -1105,6 +1106,11 @@ function ProductionCard({ p, selected, onOpen, onDelete }) {
           {formatIntervaloDatas(p.data, p.dataFim) || "sem data"} · {p.shots.length} shot{p.shots.length !== 1 ? "s" : ""}{totalShots > 0 && ` · ${pct}% concluído`}
         </div>
       </div>
+      {!p.__shared && onArchive && (
+        <IconButton onClick={(e) => { e.stopPropagation(); onArchive(); }} title={p.arquivada ? "Desarquivar" : "Arquivar"} size={34}>
+          {p.arquivada ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+        </IconButton>
+      )}
       {!p.__shared && (
         <ConfirmIconButton onConfirm={onDelete} title="Excluir produção" confirmTitle="Excluir produção?" confirmMessage={`"${p.cliente || "Esta produção"}" e toda a shotlist vão ser apagadas.`} stopPropagation>
           <Trash2 size={16} />
@@ -1976,6 +1982,7 @@ export default function App() {
                   currentId={currentId}
                   onOpen={setCurrentId}
                   onDelete={deleteProduction}
+                  onArchive={(id) => updateProduction(id, { ...productions[id], arquivada: !productions[id].arquivada })}
                   sharedOrder={sharedOrder}
                   sharedProductions={sharedProductions}
                 />
@@ -2080,7 +2087,24 @@ function EmptyMainState({ label }) {
   );
 }
 
-function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, sharedOrder, sharedProductions }) {
+const STATUS_DOT = { afazer: C.faint, andamento: C.amber, concluido: C.sage };
+
+function GroupHeader({ label, count, dot, onClick, open }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px", cursor: onClick ? "pointer" : "default", userSelect: "none" }}
+    >
+      {dot && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot, flexShrink: 0 }} />}
+      <span>{label} ({count})</span>
+      {onClick && <ChevronRight size={12} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />}
+    </div>
+  );
+}
+
+function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, onArchive, sharedOrder, sharedProductions }) {
+  const [showArchived, setShowArchived] = useState(false);
+
   function sortByDate(items) {
     return [...items].sort((a, b) => {
       if (!a.data && !b.data) return 0;
@@ -2090,26 +2114,14 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
     });
   }
 
-  const groups = [];
-  const byClient = {};
-  const semCliente = [];
-
-  for (const id of order) {
-    const p = productions[id];
-    if (!p) continue;
-    if (p.clienteId && clients[p.clienteId]) {
-      if (!byClient[p.clienteId]) byClient[p.clienteId] = [];
-      byClient[p.clienteId].push(p);
-    } else {
-      semCliente.push(p);
-    }
-  }
-  const clientIds = Object.keys(byClient).sort((a, b) => (clients[a]?.name || "").localeCompare(clients[b]?.name || "", "pt-BR"));
-  for (const cid of clientIds) groups.push({ label: clients[cid].name, items: sortByDate(byClient[cid]) });
-  if (semCliente.length) groups.push({ label: "Sem cliente", items: sortByDate(semCliente) });
-
+  const all = order.map((id) => productions[id]).filter(Boolean);
+  const active = all.filter((p) => !p.arquivada);
+  const archived = sortByDate(all.filter((p) => p.arquivada));
+  const groups = PRODUCTION_STATUS.map((st) => ({
+    ...st,
+    items: sortByDate(active.filter((p) => productionStatus(p) === st.key)),
+  }));
   const sharedItems = sortByDate((sharedOrder || []).map((id) => sharedProductions[id]).filter(Boolean));
-  if (sharedItems.length) groups.push({ label: "Compartilhado comigo", items: sharedItems, shared: true });
 
   return (
     <div style={{ paddingBottom: 10 }}>
@@ -2120,18 +2132,44 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
           <div>Toque em "Nova produção" abaixo pra montar cronograma, equipe e shotlist.</div>
         </div>
       )}
-      {groups.map((g) => (
-        <div key={g.label} style={{ marginBottom: 18 }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, margin: "0 4px 8px" }}>
-            {g.label.toUpperCase()} ({g.items.length})
-          </div>
+      {(order.length > 0 || sharedItems.length > 0) && groups.map((g) => (
+        <div key={g.key} style={{ marginBottom: 18 }}>
+          <GroupHeader label={g.label} count={g.items.length} dot={STATUS_DOT[g.key]} />
+          {g.items.length === 0 ? (
+            <div style={{ fontSize: 12, color: C.line, margin: "0 4px" }}>—</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {g.items.map((p) => (
+                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {sharedItems.length > 0 && (
+        <div style={{ marginBottom: 18 }}>
+          <GroupHeader label="COMPARTILHADO COMIGO" count={sharedItems.length} />
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {g.items.map((p) => (
+            {sharedItems.map((p) => (
               <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} />
             ))}
           </div>
         </div>
-      ))}
+      )}
+
+      {archived.length > 0 && (
+        <div style={{ marginBottom: 18 }}>
+          <GroupHeader label="ARQUIVADAS" count={archived.length} onClick={() => setShowArchived((v) => !v)} open={showArchived} />
+          {showArchived && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, opacity: 0.75 }}>
+              {archived.map((p) => (
+                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
