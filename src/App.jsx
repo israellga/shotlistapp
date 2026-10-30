@@ -435,6 +435,27 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
             </div>
           )}
 
+          {fieldMode && (() => {
+            const equip = [...(shot.equipamentos || []), shot.equipamentoOutro].filter(Boolean).join(", ");
+            const rows = [
+              ["Roteiro", shot.objetivo],
+              ["Contexto", shot.contexto],
+              ["Plano / Lente", [shot.plano, shot.lente].filter(Boolean).join(" · ")],
+              ["Equipamento", equip],
+            ].filter(([, v]) => v);
+            if (!rows.length) return null;
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+                {rows.map(([label, value]) => (
+                  <div key={label}>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.5, marginBottom: 4 }}>{label.toUpperCase()}</div>
+                    <div style={{ fontSize: 14.5, color: C.paper, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {fieldMode && shot.referencia && (
             <a href={shot.referencia} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, textDecoration: "none" }}>
               {shot.thumbnailUrl && (
