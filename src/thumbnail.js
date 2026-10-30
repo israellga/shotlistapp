@@ -1,4 +1,18 @@
 import { getYouTubeId, getVimeoId } from "./referenceLinks";
+import { supabase } from "./supabaseClient";
+
+let lastIssue = "";
+export function getLastThumbnailIssue() { return lastIssue; }
+
+// Fallback via servidor (Edge Function): lê a página de embed do Instagram
+async function fetchViaServer(url) {
+  try {
+    const { data } = await supabase.functions.invoke("analyze-reference", { body: { thumbnailFor: url } });
+    return data?.thumbnailUrl || null;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchOEmbedThumb(endpoint) {
   try {
@@ -12,6 +26,7 @@ async function fetchOEmbedThumb(endpoint) {
 }
 
 export async function fetchThumbnail(url) {
+  lastIssue = "";
   if (!url || !/^https?:\/\//i.test(url.trim())) return null;
   const clean = url.trim();
   const isInstagram = /instagram\.com/i.test(clean);
@@ -44,6 +59,7 @@ export async function fetchThumbnail(url) {
         "data.thumb.type": "image",
       });
       const res = await fetch(`https://api.microlink.io/?${params.toString()}`);
+      if (res.status === 429) lastIssue = "Limite diário do serviço de miniaturas atingido. Tente de novo mais tarde.";
       if (res.ok) {
         const json = await res.json();
         const thumbUrl = json?.data?.thumb?.url || json?.data?.thumb;
@@ -52,6 +68,9 @@ export async function fetchThumbnail(url) {
     } catch {
       /* fall through to generic attempt below */
     }
+    const viaServer = await fetchViaServer(clean);
+    if (viaServer) { lastIssue = ""; return viaServer; }
+    return null;
   }
 
   try {

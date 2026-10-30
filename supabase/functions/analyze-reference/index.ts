@@ -84,8 +84,38 @@ async function gatherContext(referenceUrl: string, thumbUrl: string) {
   return { imageUrls, notes };
 }
 
+// Instagram: tenta achar a imagem de capa pela página de embed (sem login)
+async function instagramThumbnail(url: string) {
+  const m = url.match(/instagram\.com\/(?:[\w.]+\/)?(p|reel|reels|tv)\/([\w-]+)/i);
+  if (!m) return null;
+  const kind = m[1].toLowerCase() === "reels" ? "reel" : m[1].toLowerCase();
+  const headers = { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36", "accept-language": "en-US,en;q=0.9" };
+  const decode = (t: string) => t.replace(/&amp;/g, "&").replace(/\\u0026/g, "&").replace(/\\\//g, "/");
+  for (const page of [`https://www.instagram.com/${kind}/${m[2]}/embed/captioned/`, `https://www.instagram.com/${kind}/${m[2]}/`]) {
+    try {
+      const r = await fetch(page, { headers });
+      if (!r.ok) continue;
+      const html = await r.text();
+      const a = html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) || html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i) || html.match(/"display_url":"([^"]+)"/i);
+      if (a?.[1]) return decode(a[1]);
+    } catch { /* tenta a próxima */ }
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
+  // Modo miniatura: só devolve o endereço da imagem
+  if (req.headers.get("content-type")?.includes("json")) {
+    try {
+      const peek = await req.clone().json();
+      if (peek?.thumbnailFor) {
+        const thumbnailUrl = await instagramThumbnail(String(peek.thumbnailFor));
+        return jsonResponse({ thumbnailUrl });
+      }
+    } catch { /* segue o fluxo normal */ }
+  }
 
   if (!ANTHROPIC_API_KEY) {
     return jsonResponse({ error: "ANTHROPIC_API_KEY não configurada nas secrets da function." }, 500);

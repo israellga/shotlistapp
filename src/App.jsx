@@ -16,7 +16,7 @@ import {
   inputInlineStyle, dashedAddStyle, ConfirmDialog, EditableTitle, ConfirmIconButton,
 } from "./ui";
 import { ClientsList, ClientDetail, ClientPickerInline } from "./ClientsPanel";
-import { fetchThumbnail } from "./thumbnail";
+import { fetchThumbnail, getLastThumbnailIssue } from "./thumbnail";
 import { analyzeReferenceFrames } from "./aiAnalysis";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
@@ -232,6 +232,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
   const [analysisError, setAnalysisError] = useState("");
   const [suggestion, setSuggestion] = useState(null);
   const autoRefreshedFor = useRef("");
+  const [thumbIssue, setThumbIssue] = useState("");
 
   // Links de miniatura do Instagram expiram: se a imagem não abrir, busca uma nova (uma vez por link)
   function handleThumbError() {
@@ -259,6 +260,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
     if (!url) return;
     setThumbLoading(true);
     const thumb = await fetchThumbnail(url);
+    setThumbIssue(thumb ? "" : getLastThumbnailIssue());
     setThumbLoading(false);
     onChange({ ...shot, thumbnailUrl: thumb || shot.thumbnailUrl, thumbnailSourceUrl: url, thumbnailFailed: !thumb });
   }
@@ -274,14 +276,16 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
     setAnalyzing(true);
     try {
       const refUrl = (shot.referencia || "").trim();
-      // Sempre usa uma miniatura recém-buscada (as antigas do Instagram expiram)
-      let thumb = shot.thumbnailUrl;
-      const fresh = await fetchThumbnail(refUrl);
-      if (fresh) {
-        thumb = fresh;
-        if (fresh !== shot.thumbnailUrl) onChange({ ...shot, thumbnailUrl: fresh, thumbnailSourceUrl: refUrl, thumbnailFailed: false });
+      let result;
+      try {
+        result = await analyzeReferenceFrames(shot.thumbnailUrl, refUrl);
+      } catch (firstErr) {
+        // miniatura provavelmente vencida: busca uma nova e tenta de novo uma vez
+        const fresh = await fetchThumbnail(refUrl);
+        if (!fresh || fresh === shot.thumbnailUrl) throw firstErr;
+        onChange({ ...shot, thumbnailUrl: fresh, thumbnailSourceUrl: refUrl, thumbnailFailed: false });
+        result = await analyzeReferenceFrames(fresh, refUrl);
       }
-      const result = await analyzeReferenceFrames(thumb, refUrl);
       setSuggestion(result);
     } catch (e) {
       setAnalysisError(e?.message || "Não consegui analisar essa referência.");
@@ -381,7 +385,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
                       </>
                     ) : (
                       <>
-                        <span style={{ fontSize: 11.5, color: C.faint }}>Não consegui buscar a miniatura dessa referência.</span>
+                        <span style={{ fontSize: 11.5, color: C.faint }}>{thumbIssue || "Não consegui buscar a miniatura dessa referência."}</span>
                         <button
                           onClick={() => attemptFetchThumbnail(shot.referencia.trim())}
                           style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 6, padding: "5px 9px", color: C.amber, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}
