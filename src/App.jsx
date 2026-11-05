@@ -774,11 +774,18 @@ function PauseTimer() {
   );
 }
 
-function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow }) {
+function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+
+  async function handleProposal() {
+    const { exportProposalPDF } = await import("./proposalPdf");
+    const client = production.clienteId ? clients?.[production.clienteId] : null;
+    const plan = (paymentPlans || []).find((p) => p.client_id === production.clienteId);
+    exportProposalPDF({ production, client, finance, plan, issuer: issuerName });
+  }
 
   async function handleExportPdf() {
     setExportingPdf(true);
@@ -849,6 +856,15 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
             />
           )}
         </div>
+        {!fieldMode && isGestor && (
+          <button
+            onClick={handleProposal}
+            title="Gerar proposta comercial em PDF"
+            style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 12px", color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          >
+            <FileText size={14} /> Proposta
+          </button>
+        )}
         {!fieldMode && (
           <button
             onClick={handleExportPdf}
@@ -2248,6 +2264,8 @@ export default function App() {
                   onOpenClient={openClientFromProduction}
                   showBack={!isWide}
                   isGestor={isGestor}
+                  paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean)}
+                  issuerName={myName || workspaceName}
                   finance={financeMap[current.id]}
                   onFinanceChange={(next) => updateFinance(current.id, next)}
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}
