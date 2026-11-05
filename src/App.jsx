@@ -674,7 +674,7 @@ function ShareControl({ production, onChange }) {
           style={{ display: "flex", alignItems: "center", gap: 8, background: enabled ? C.amberDim : C.panel2, border: `1px solid ${enabled ? C.amber : C.line}`, borderRadius: 20, padding: "5px 10px 5px 5px", cursor: "pointer", flexShrink: 0 }}
         >
           <div style={{ width: 28, height: 16, borderRadius: 9, background: enabled ? C.amber : C.line, position: "relative" }}>
-            <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: enabled ? 14 : 2, transition: "left 0.15s" }} />
+            <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: enabled ? 14 : 2, transition: "left 0.3s cubic-bezier(0.32,0.72,0,1)" }} />
           </div>
           <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: enabled ? C.amber : C.muted }}>{enabled ? "ATIVO" : "INATIVO"}</span>
         </button>
@@ -2253,8 +2253,8 @@ function FieldModeToggle({ value, onChange }) {
       style={{ display: "flex", alignItems: "center", gap: 8, background: value ? C.amberDim : C.panel2, border: `1px solid ${value ? C.amber : C.line}`, borderRadius: 20, padding: "6px 12px 6px 6px", cursor: "pointer" }}
       title="Alternar modo campo"
     >
-      <div style={{ width: 30, height: 18, borderRadius: 10, background: value ? C.amber : C.line, position: "relative", transition: "background 0.15s" }}>
-        <div style={{ width: 14, height: 14, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: value ? 14 : 2, transition: "left 0.15s" }} />
+      <div style={{ width: 30, height: 18, borderRadius: 10, background: value ? C.amber : C.line, position: "relative", transition: "background 0.3s cubic-bezier(0.25,0.1,0.25,1)" }}>
+        <div style={{ width: 14, height: 14, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: value ? 14 : 2, transition: "left 0.3s cubic-bezier(0.32,0.72,0,1)" }} />
       </div>
       <span style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: value ? C.amber : C.muted, letterSpacing: 0.3 }} className="fm-label">MODO CAMPO</span>
     </button>

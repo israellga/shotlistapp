@@ -211,7 +211,7 @@ export function PaymentPlanRow({ plan, clientEmail, onChange, onSave, onDelete }
               style={{ display: "flex", alignItems: "center", gap: 8, background: plan.share_enabled ? C.amberDim : C.panel, border: `1px solid ${plan.share_enabled ? C.amber : C.line}`, borderRadius: 20, padding: "5px 10px 5px 5px", cursor: "pointer" }}
             >
               <div style={{ width: 28, height: 16, borderRadius: 9, background: plan.share_enabled ? C.amber : C.line, position: "relative" }}>
-                <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: plan.share_enabled ? 14 : 2, transition: "left 0.15s" }} />
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: plan.share_enabled ? 14 : 2, transition: "left 0.3s cubic-bezier(0.32,0.72,0,1)" }} />
               </div>
               <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: plan.share_enabled ? C.amber : C.muted }}>{plan.share_enabled ? "ATIVO" : "INATIVO"}</span>
             </button>
@@ -235,7 +235,7 @@ export function PaymentPlanRow({ plan, clientEmail, onChange, onSave, onDelete }
                 style={{ display: "flex", alignItems: "center", gap: 8, background: plan.notify_enabled ? C.amberDim : C.panel, border: `1px solid ${plan.notify_enabled ? C.amber : C.line}`, borderRadius: 20, padding: "5px 10px 5px 5px", cursor: "pointer" }}
               >
                 <div style={{ width: 28, height: 16, borderRadius: 9, background: plan.notify_enabled ? C.amber : C.line, position: "relative" }}>
-                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: plan.notify_enabled ? 14 : 2, transition: "left 0.15s" }} />
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: plan.notify_enabled ? 14 : 2, transition: "left 0.3s cubic-bezier(0.32,0.72,0,1)" }} />
                 </div>
                 <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: plan.notify_enabled ? C.amber : C.muted }}>{plan.notify_enabled ? "ATIVO" : "INATIVO"}</span>
               </button>
