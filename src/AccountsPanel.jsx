@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { X, Loader2, ShieldCheck, User, Check, XCircle, Pencil } from "lucide-react";
+import { X, Loader2, ShieldCheck, User, Check, XCircle, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
+import { ConfirmIconButton } from "./ui";
 
 const STATUS_LABEL = { pending: "Pendente", approved: "Aprovado", rejected: "Recusado" };
 const STATUS_COLOR = { pending: C.amber, approved: C.sage, rejected: C.brick };
@@ -19,6 +20,7 @@ export default function AccountsPanel({ onClose, myUserId, workspaceId, workspac
   const [inviteRole, setInviteRole] = useState("regular");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
+  const [removeError, setRemoveError] = useState("");
 
   useEffect(() => {
     setNameDraft(workspaceName || "");
@@ -107,8 +109,19 @@ export default function AccountsPanel({ onClose, myUserId, workspaceId, workspac
     setSavingId(null);
   }
 
+  async function removeMember(userId) {
+    setSavingId(userId);
+    const { data, error } = await supabase.rpc("remove_workspace_member", { ws: workspaceId, uid: userId });
+    if (!error && data) setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+    else setRemoveError("Não consegui remover essa pessoa. O dono da conta não pode ser removido.");
+    setSavingId(null);
+  }
+
+  const byEmail = (a, b) => (a.email || "").localeCompare(b.email || "", "pt-BR");
   const pending = members.filter((m) => m.status === "pending");
   const others = members.filter((m) => m.status !== "pending");
+  const gestores = others.filter((m) => m.role === "gestor").sort(byEmail);
+  const regulares = others.filter((m) => m.role !== "gestor").sort(byEmail);
 
   return (
     <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 55, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
@@ -197,43 +210,60 @@ export default function AccountsPanel({ onClose, myUserId, workspaceId, workspac
                 </div>
               )}
 
-              <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.muted, letterSpacing: 0.5, marginBottom: 8 }}>
-                CONTAS ({others.length})
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {others.map((m) => (
-                  <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 9, padding: "11px 12px" }}>
-                    <User size={15} color={C.faint} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {m.email}{m.user_id === myUserId && <span style={{ color: C.faint }}> (você)</span>}
-                      </div>
-                      <div style={{ fontSize: 11, color: STATUS_COLOR[m.status], fontFamily: FONT_MONO, marginTop: 1 }}>
-                        {STATUS_LABEL[m.status] || m.status}
-                      </div>
-                    </div>
-                    {savingId === m.user_id ? (
-                      <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
-                    ) : (
-                      <select
-                        value={m.role}
-                        onChange={(e) => changeRole(m.user_id, e.target.value)}
-                        disabled={m.user_id === myUserId}
-                        style={{
-                          background: C.panel, border: `1px solid ${C.line}`, borderRadius: 6, padding: "6px 8px",
-                          color: C.paper, fontSize: 12.5, fontFamily: FONT_BODY, outline: "none", colorScheme: "dark",
-                        }}
-                      >
-                        <option value="regular">Regular</option>
-                        <option value="gestor">Gestor</option>
-                      </select>
-                    )}
+              {removeError && <div style={{ color: C.brick, fontSize: 12.5, marginBottom: 10 }}>{removeError}</div>}
+              {[["GESTORES", gestores], ["REGULARES", regulares]].map(([label, list]) => list.length > 0 && (
+                <div key={label} style={{ marginBottom: 16 }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.muted, letterSpacing: 0.5, marginBottom: 8 }}>
+                    {label} ({list.length})
                   </div>
-                ))}
-                {members.length === 0 && (
-                  <div style={{ color: C.faint, fontSize: 13, textAlign: "center", padding: 30 }}>Nenhuma conta encontrada.</div>
-                )}
-              </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {list.map((m) => (
+                      <div key={m.user_id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 12, padding: "9px 12px" }}>
+                        <User size={15} color={C.faint} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {m.email}{m.user_id === myUserId && <span style={{ color: C.faint }}> (você)</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: STATUS_COLOR[m.status], fontFamily: FONT_MONO, marginTop: 1 }}>
+                            {STATUS_LABEL[m.status] || m.status}
+                          </div>
+                        </div>
+                        {savingId === m.user_id ? (
+                          <Loader2 size={14} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />
+                        ) : (
+                          <>
+                            <select
+                              value={m.role}
+                              onChange={(e) => changeRole(m.user_id, e.target.value)}
+                              disabled={m.user_id === myUserId}
+                              style={{
+                                background: C.panel, border: `1px solid ${C.line}`, borderRadius: 8, padding: "6px 8px", minHeight: 36,
+                                color: C.paper, fontSize: 12.5, fontFamily: FONT_BODY, outline: "none", colorScheme: "dark",
+                              }}
+                            >
+                              <option value="regular">Regular</option>
+                              <option value="gestor">Gestor</option>
+                            </select>
+                            {m.user_id !== myUserId && (
+                              <ConfirmIconButton
+                                onConfirm={() => removeMember(m.user_id)}
+                                title="Remover da equipe"
+                                confirmTitle="Remover da equipe?"
+                                confirmMessage={`${m.email} perde o acesso ao Shotlist da sua equipe. Dá para convidar de novo depois.`}
+                              >
+                                <Trash2 size={16} />
+                              </ConfirmIconButton>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {members.length === 0 && (
+                <div style={{ color: C.faint, fontSize: 13, textAlign: "center", padding: 30 }}>Nenhuma conta encontrada.</div>
+              )}
 
               {invites.length > 0 && (
                 <div style={{ marginTop: 18 }}>
