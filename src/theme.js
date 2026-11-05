@@ -17,13 +17,11 @@ export const C = {
   brickDim: "rgba(224,112,90,0.16)",
 };
 
-// Headings: SF Pro Display (native on Apple devices via the system stack — no
-// embed needed, and it's the licensed way to use it on the web). Falls back
-// to Helvetica/Arial elsewhere.
-export const FONT_DISPLAY = "-apple-system, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif";
-// Body: Helvetica, matching the brand's own typography.
-export const FONT_BODY = "Helvetica, 'Helvetica Neue', Arial, sans-serif";
-// Small data/labels reuse the same body face — no separate mono/display
-// treatment, to keep the type system to just these two.
-export const FONT_MONO = FONT_BODY;
-
+// iOS system typography: the -apple-system stack resolves to SF Pro Text at small sizes and
+// SF Pro Display at large sizes (optical sizing), the same way iOS does. Helvetica Neue is the
+// fallback on other platforms.
+const SYSTEM = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif";
+export const FONT_DISPLAY = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif";
+export const FONT_BODY = SYSTEM;
+// Small data/labels reuse the same face, no separate mono treatment.
+export const FONT_MONO = SYSTEM;

@@ -1,15 +1,15 @@
 html, body, #root { margin: 0; padding: 0; height: 100%; }
-html, body { background: #05070C; }
+html, body { background: #000; }
 
 /* ---- Liquid glass ground: a few soft light pools the glass can pick up ---- */
 body::before {
   content: "";
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(48vmax 42vmax at 8% 4%, rgba(64, 104, 255, 0.46), transparent 66%),
-    radial-gradient(46vmax 40vmax at 92% 10%, rgba(138, 76, 255, 0.34), transparent 66%),
-    radial-gradient(44vmax 38vmax at 38% 62%, rgba(40, 120, 255, 0.16), transparent 66%),
-    radial-gradient(56vmax 46vmax at 78% 108%, rgba(28, 176, 200, 0.30), transparent 66%);
+    radial-gradient(52vmax 44vmax at 8% 2%, rgba(255, 255, 255, 0.10), transparent 66%),
+    radial-gradient(46vmax 40vmax at 94% 8%, rgba(253, 223, 75, 0.07), transparent 66%),
+    radial-gradient(50vmax 44vmax at 40% 64%, rgba(255, 255, 255, 0.04), transparent 66%),
+    radial-gradient(56vmax 46vmax at 80% 110%, rgba(255, 255, 255, 0.07), transparent 66%);
 }
 #root { position: relative; z-index: 1; }
 
@@ -25,100 +25,93 @@ body::before {
   backdrop-filter: blur(22px) saturate(170%);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass-blur { background-color: rgba(18, 20, 28, 0.92) !important; }
+  .glass-blur { background-color: rgba(22, 22, 22, 0.94) !important; }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .glass-blur { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgba(18, 20, 28, 0.96) !important; }
+  .glass-blur { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgba(22, 22, 22, 0.97) !important; }
 }
 
 /* Browser surfaces that belong to the design */
-::selection { background: rgba(120, 150, 255, 0.35); color: #fff; }
-:focus-visible { outline: 2px solid rgba(160, 184, 255, 0.85); outline-offset: 2px; }
-input, textarea, select { caret-color: #A9BBFF; }
+::selection { background: rgba(253, 223, 75, 0.35); color: #fff; }
+:focus-visible { outline: 2px solid rgba(253, 223, 75, 0.85); outline-offset: 2px; }
+input, textarea, select { caret-color: #FDDF4B; }
 * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 * { box-sizing: border-box; }
-
-/* ---- Shared motion utilities ---- */
-
-.icon-btn {
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto; text-rendering: optimizeLegibility;
 }
-.icon-btn:hover { background: rgba(255,255,255,0.12) !important; }
-.icon-btn:active { transform: scale(0.88); }
 
-.hover-row {
-  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
+/* ---- Shared motion: iOS feel ----
+   No hover lifts or brightness filters. Press = quick scale + dim, released on the iOS
+   curve; entrances use the iOS sheet/navigation curve; dialogs ease in with a soft spring. */
+:root {
+  --ios-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ios-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ios-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
 }
+button, [role="button"] { -webkit-tap-highlight-color: transparent; }
+
+.icon-btn { transition: background-color 0.2s var(--ios-ease), transform 0.35s var(--ios-out), opacity 0.2s var(--ios-ease); }
+.icon-btn:hover { background: rgba(255,255,255,0.1) !important; }
+.icon-btn:active { transform: scale(0.9); opacity: 0.7; transition-duration: 0.08s; }
+
+/* Cards/rows: hover lightens through an overlay, so the card's own gradient never flickers */
+.hover-row { transition: box-shadow 0.25s var(--ios-ease), border-color 0.25s var(--ios-ease), transform 0.35s var(--ios-out); }
 .hover-row:hover {
-  border-color: rgba(255,255,255,0.28) !important;
-  background: rgba(255,255,255,0.11) !important;
-  transform: translateY(-1px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), 0 10px 26px rgba(0,0,0,0.36);
+  border-color: rgba(255,255,255,0.26) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), inset 0 0 0 999px rgba(255,255,255,0.035), 0 10px 26px rgba(0,0,0,0.36);
 }
-.hover-row:active { transform: translateY(0) scale(0.996); }
+.hover-row:active { transform: scale(0.985); transition-duration: 0.1s; }
 
-.btn-anim {
-  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
-}
-.btn-anim:hover { filter: brightness(1.1); }
-.btn-anim:active { transform: scale(0.96); }
+.btn-anim { transition: transform 0.35s var(--ios-out), opacity 0.2s var(--ios-ease); }
+.btn-anim:active { transform: scale(0.97); opacity: 0.8; transition-duration: 0.08s; }
 
-/* Every plain button in the app gets a subtle press/hover feel automatically. */
-button:not(.icon-btn) {
-  transition: filter 0.15s ease, transform 0.08s ease, opacity 0.15s ease;
-}
-button:not(.icon-btn):hover:not(:disabled) { filter: brightness(1.08); }
-button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); }
+button:not(.icon-btn) { transition: transform 0.35s var(--ios-out), opacity 0.2s var(--ios-ease), background-color 0.2s var(--ios-ease), border-color 0.2s var(--ios-ease); }
+button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); opacity: 0.78; transition-duration: 0.08s; }
 
-.chip-anim {
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
-}
-.chip-anim:hover { transform: translateY(-1px); }
-.chip-anim:active { transform: translateY(0) scale(0.95); }
+.chip-anim { transition: background-color 0.2s var(--ios-ease), border-color 0.2s var(--ios-ease), color 0.2s var(--ios-ease), transform 0.35s var(--ios-out); }
+.chip-anim:active { transform: scale(0.95); transition-duration: 0.08s; }
 
-.chevron-rotate {
-  transition: transform 0.2s ease;
-  display: inline-flex;
-}
+.chevron-rotate { transition: transform 0.35s var(--ios-out); display: inline-flex; }
 .chevron-rotate.open { transform: rotate(90deg); }
 
-.fade-in-up {
-  animation: fadeInUp 0.28s ease both;
-}
+.fade-in-up { animation: fadeInUp 0.4s var(--ios-out) both; }
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.tap-scale { transition: transform 0.1s ease; }
-.tap-scale:active { transform: scale(0.97); }
+.tap-scale { transition: transform 0.35s var(--ios-out); }
+.tap-scale:active { transform: scale(0.97); transition-duration: 0.08s; }
 
-.hover-line { transition: background-color 0.15s ease; border-radius: 6px; }
+.hover-line { transition: background-color 0.2s var(--ios-ease); border-radius: 6px; }
 .hover-line:hover { background: rgba(255,255,255,0.06); }
 
-.modal-backdrop { animation: modalBackdropIn 0.18s ease both; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.modal-backdrop { animation: modalBackdropIn 0.3s var(--ios-ease) both; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 @keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-card {
-  animation: modalCardIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-  background: linear-gradient(180deg, rgba(40,44,58,0.82), rgba(24,26,36,0.88)) !important;
+  animation: modalCardIn 0.42s var(--ios-spring) both;
+  background: linear-gradient(180deg, rgba(48,48,48,0.84), rgba(26,26,26,0.9)) !important;
   -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
   border: 1px solid rgba(255,255,255,0.16) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 24px 60px rgba(0,0,0,0.5);
 }
 @keyframes modalCardIn {
-  from { opacity: 0; transform: scale(0.96) translateY(6px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(1.06); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-.pop-check { transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.pop-check.checked { animation: popCheck 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pop-check { transition: transform 0.3s var(--ios-spring); }
+.pop-check.checked { animation: popCheck 0.4s var(--ios-spring); }
 @keyframes popCheck {
   0% { transform: scale(1); }
-  40% { transform: scale(1.3); }
+  40% { transform: scale(1.2); }
   100% { transform: scale(1); }
 }
 
@@ -132,15 +125,19 @@ button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); }
 
 /* ---- Lista de produções (sidebar) ---- */
 .prod-card { position: relative; }
-.prod-card .card-actions { display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.16s ease; }
+.prod-card .card-actions { display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.25s var(--ios-ease); }
 .prod-card:hover .card-actions, .prod-card:focus-within .card-actions { opacity: 1; }
 @media (hover: none) { .prod-card .card-actions { opacity: 0.7; } }
 .prod-progress { height: 3px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
-.prod-progress > span { display: block; height: 100%; border-radius: 3px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.prod-progress > span { display: block; height: 100%; border-radius: 3px; transition: width 0.6s var(--ios-out); }
 
-/* Primary action: a bright glass pill, so the home screen is not a wall of yellow */
+/* Primary action: the brand yellow, lit like glass */
 .btn-glass-primary {
-  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.80)) !important;
-  color: #0A0B10 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 22px rgba(0,0,0,0.35);
+  background: linear-gradient(180deg, #FFE866, #FDDF4B) !important;
+  color: #0A0A0A !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 8px 22px rgba(0,0,0,0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
