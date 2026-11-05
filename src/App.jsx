@@ -1946,7 +1946,7 @@ export default function App() {
         }
         .sidebar { display: flex; flex-direction: column; min-height: 0; }
         @media (min-width: 900px) {
-          .sidebar { border-right: 1px solid ${C.lineSoft}; background: rgba(255,255,255,0.025); -webkit-backdrop-filter: blur(26px) saturate(150%); backdrop-filter: blur(26px) saturate(150%); }
+          .sidebar { border-right: 1px solid ${C.lineSoft}; background: rgba(255,255,255,0.02); }
         }
         .pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px 0; }
         @media (min-width: 700px) {
