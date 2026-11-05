@@ -839,6 +839,27 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
         </button>
       </div>
 
+      {!fieldMode && (() => {
+        const steps = [
+          ["Cliente", !!production.clienteId],
+          ["Data", !!production.data],
+          ["Equipe", (production.equipe || []).length > 0],
+          ["Shots", production.shots.length > 0],
+          ["Takes", production.shots.length > 0 && production.shots.every((sh) => sh.takes.length > 0)],
+          ...(isGestor ? [["Orçamento", Number(finance?.orcamento) > 0]] : []),
+        ];
+        const done = steps.filter(([, ok]) => ok).length;
+        const missing = steps.filter(([, ok]) => !ok).map(([n]) => n);
+        return (
+          <div style={{ marginBottom: 18 }}>
+            <div className="prod-progress" style={{ height: 4 }}><span style={{ width: `${(done / steps.length) * 100}%`, background: done === steps.length ? C.sage : C.amber }} /></div>
+            <div style={{ fontSize: 12.5, color: C.muted, marginTop: 6 }}>
+              {done === steps.length ? "Produção completa" : `${done} de ${steps.length} · falta ${missing.join(", ").toLowerCase()}`}
+            </div>
+          </div>
+        );
+      })()}
+
       {fieldMode && production.clientShareEnabled && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 18, marginTop: -8 }}>
           <CopyLinkButton link={`${window.location.origin}/?client=${production.id}`} big />
@@ -1221,6 +1242,7 @@ export default function App() {
   const [clientOrder, setClientOrder] = useState([]);
   const [currentClientId, setCurrentClientId] = useState(null);
   const [activeTab, setActiveTab] = useState("producoes"); // producoes | clientes
+  const [statusFilter, setStatusFilter] = useState(null);
   const [fieldMode, setFieldMode] = useState(false);
   const [status, setStatus] = useState("boot"); // boot | loading | ready
   const [online, setOnline] = useState(true);
@@ -2053,6 +2075,8 @@ export default function App() {
                   onArchive={(id) => updateProduction(id, { ...productions[id], arquivada: !productions[id].arquivada })}
                   sharedOrder={sharedOrder}
                   sharedProductions={sharedProductions}
+                  statusFilter={statusFilter}
+                  onClearFilter={() => setStatusFilter(null)}
                 />
               )}
             </div>
@@ -2093,7 +2117,18 @@ export default function App() {
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}
                 />
               ) : (
-                <ProductionsDashboard order={order} productions={productions} userName={myName} />
+                <ProductionsDashboard
+                  order={order}
+                  productions={productions}
+                  userName={myName}
+                  paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean)}
+                  clients={clients}
+                  isGestor={isGestor}
+                  onOpenProduction={setCurrentId}
+                  onOpenClient={openClientFromProduction}
+                  onFilterStatus={(k) => setStatusFilter(k)}
+                  onCreate={addProduction}
+                />
               )
             ) : currentClient ? (
               <ClientDetail
@@ -2176,7 +2211,7 @@ function GroupHeader({ label, count, dot, onClick, open, dim }) {
   );
 }
 
-function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, onArchive, sharedOrder, sharedProductions }) {
+function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, onArchive, sharedOrder, sharedProductions, statusFilter, onClearFilter }) {
   const [showArchived, setShowArchived] = useState(false);
 
   function sortByDate(items) {
@@ -2191,7 +2226,7 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
   const all = order.map((id) => productions[id]).filter(Boolean);
   const active = all.filter((p) => !p.arquivada);
   const archived = sortByDate(all.filter((p) => p.arquivada));
-  const groups = PRODUCTION_STATUS.map((st) => ({
+  const groups = PRODUCTION_STATUS.filter((st) => !statusFilter || st.key === statusFilter).map((st) => ({
     ...st,
     items: sortByDate(active.filter((p) => productionStatus(p) === st.key)),
   }));
@@ -2199,6 +2234,14 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
 
   return (
     <div style={{ paddingBottom: 10 }}>
+      {statusFilter && (
+        <button
+          onClick={onClearFilter}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 36, marginBottom: 14, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 18, padding: "6px 12px", color: C.amber, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+        >
+          Só {PRODUCTION_STATUS.find((s) => s.key === statusFilter)?.label.toLowerCase()} <XIcon size={14} />
+        </button>
+      )}
       {order.length === 0 && sharedItems.length === 0 && (
         <div style={{ color: C.faint, fontSize: 13.5, padding: "50px 4px 30px", textAlign: "center" }}>
           <ShotlistMark size={26} lit={false} amber={C.line} dim={C.line} style={{ marginBottom: 12 }} />

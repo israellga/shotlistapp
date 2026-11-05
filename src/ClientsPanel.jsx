@@ -1,10 +1,11 @@
 import React from "react";
 import {
   Plus, Trash2, ArrowLeft, ChevronRight, Save, Check, Loader2,
-  Building2, Phone, Mail, FileText, User,
+  Building2, Phone, Mail, FileText, User, MessageCircle, ChevronDown,
 } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
-import { Field, IconButton, EditableTitle, ConfirmIconButton, ConfirmDialog } from "./ui";
+import { Field, DateField, IconButton, EditableTitle, ConfirmIconButton, ConfirmDialog } from "./ui";
+import { formatBRL } from "./finance";
 import { ClientBalanceSummary, FinanceSection } from "./finance";
 import { PaymentPlansSection } from "./payments";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
@@ -63,6 +64,24 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
   );
 }
 
+function todayLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function diffDays(fromISO, toISO) {
+  return Math.round((new Date(toISO + "T00:00:00") - new Date(fromISO + "T00:00:00")) / 86400000);
+}
+function waLink(phone) {
+  const d = (phone || "").replace(/\D/g, "");
+  if (d.length < 10) return null;
+  return `https://wa.me/${d.length <= 11 ? "55" + d : d}`;
+}
+const contactBtn = {
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 44, padding: "0 16px",
+  borderRadius: 22, background: C.panel2, border: `1px solid ${C.line}`, color: C.paper,
+  fontSize: 14, fontWeight: 600, textDecoration: "none", fontFamily: "inherit", cursor: "pointer",
+};
+
 export function ClientDetail({
   client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, onAddProduction, showBack, isGestor, financeMap,
   financeRecords, onAddFinanceRecord, onChangeFinanceRecord, onSaveFinanceRecord, onDeleteFinanceRecord,
@@ -71,6 +90,7 @@ export function ClientDetail({
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [lookingUpCep, setLookingUpCep] = React.useState(false);
+  const [moreOpen, setMoreOpen] = React.useState(false);
 
   function patch(fields) { onChange({ ...client, ...fields }); }
 
@@ -116,13 +136,90 @@ export function ClientDetail({
         </ConfirmIconButton>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+      {(waLink(client.phone) || client.phone || client.email) && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          {waLink(client.phone) && (
+            <a href={waLink(client.phone)} target="_blank" rel="noreferrer" style={contactBtn}><MessageCircle size={16} /> WhatsApp</a>
+          )}
+          {client.phone && <a href={`tel:${client.phone.replace(/\D/g, "")}`} style={contactBtn}><Phone size={16} /> Ligar</a>}
+          {client.email && <a href={`mailto:${client.email}`} style={contactBtn}><Mail size={16} /> E-mail</a>}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10, marginBottom: 12 }}>
         <Field label="Responsável" value={client.responsavel || ""} onChange={(v) => patch({ responsavel: v })} placeholder="Nome de quem responde por esse cliente" />
         <Field label="Telefone" value={client.phone || ""} onChange={(v) => patch({ phone: maskPhone(v) })} placeholder="(11) 99999-9999" mono />
         <Field label="Email" value={client.email || ""} onChange={(v) => patch({ email: v })} placeholder="contato@cliente.com" mono />
-        <Field label="CNPJ" value={client.cnpj || ""} onChange={(v) => patch({ cnpj: maskCNPJ(v) })} placeholder="00.000.000/0000-00" mono />
       </div>
 
+      <div className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 16 }}>
+        {(() => {
+          const today = todayLocalISO();
+          const last = client.ultimo_contato;
+          const lastDiff = last ? diffDays(last, today) : null;
+          const ret = client.proximo_retorno;
+          const retDiff = ret ? diffDays(today, ret) : null;
+          const late = retDiff !== null && retDiff < 0;
+          return (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <div style={{ fontSize: 12, color: C.faint, marginBottom: 2 }}>Último contato</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: lastDiff !== null && lastDiff > 30 ? C.brick : C.paper }}>
+                    {lastDiff === null ? "Sem registro" : lastDiff === 0 ? "Hoje" : `Há ${lastDiff} dia${lastDiff === 1 ? "" : "s"}`}
+                  </div>
+                </div>
+                <button onClick={() => patch({ ultimo_contato: today })} style={contactBtn}>
+                  <Check size={15} /> Falei hoje
+                </button>
+              </div>
+              <DateField label="Próximo retorno" value={ret || ""} onChange={(v) => patch({ proximo_retorno: v || null })} />
+              {late && <div style={{ fontSize: 12.5, color: C.brick, marginTop: 6 }}>Retorno atrasado há {-retDiff} dia{retDiff === -1 ? "" : "s"}</div>}
+            </>
+          );
+        })()}
+      </div>
+
+      {(() => {
+        const open = [];
+        for (const plan of paymentPlans || []) for (const pc of plan.parcelas || []) if (!pc.pago && pc.vencimento) open.push(pc);
+        open.sort((x, y) => x.vencimento.localeCompare(y.vencimento));
+        const nextP = open[0];
+        const items = [`${productions.length} produç${productions.length === 1 ? "ão" : "ões"}`];
+        if (isGestor && nextP) items.push(`Próxima parcela ${nextP.vencimento.split("-").reverse().slice(0, 2).join("/")} · ${formatBRL(Number(nextP.valor) || 0)}`);
+        return (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+            {items.map((t) => (
+              <span key={t} style={{ fontSize: 12.5, color: C.muted, border: `1px solid ${C.line}`, borderRadius: 14, padding: "4px 11px" }}>{t}</span>
+            ))}
+          </div>
+        );
+      })()}
+
+      <Field
+        label="Observações"
+        value={client.notes || ""}
+        onChange={(v) => patch({ notes: v })}
+        placeholder="Preferências, histórico, combinados gerais..."
+        multiline
+        style={{ marginBottom: 16 }}
+      />
+
+      <button
+        onClick={() => setMoreOpen((v) => !v)}
+        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minHeight: 44, background: "transparent", border: "none", borderTop: `1px solid ${C.lineSoft}`, color: C.muted, fontSize: 13.5, fontWeight: 600, cursor: "pointer", padding: "0 2px", marginBottom: moreOpen ? 12 : 20, fontFamily: "inherit" }}
+      >
+        <ChevronDown size={16} style={{ transform: moreOpen ? "rotate(180deg)" : "none", transition: "transform 0.35s cubic-bezier(0.32,0.72,0,1)" }} />
+        CNPJ e endereço
+        {!moreOpen && (client.cidade || client.cnpj) && (
+          <span style={{ marginLeft: "auto", fontWeight: 400, color: C.faint, fontSize: 12.5 }}>{[client.cidade, client.estado].filter(Boolean).join("/") || client.cnpj}</span>
+        )}
+      </button>
+      {moreOpen && (
+        <div className="fade-in-up" style={{ marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginBottom: 12 }}>
+        <Field label="CNPJ" value={client.cnpj || ""} onChange={(v) => patch({ cnpj: maskCNPJ(v) })} placeholder="00.000.000/0000-00" mono />
+          </div>
       <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, color: C.faint, letterSpacing: 0.3, marginBottom: 8, marginTop: 4 }}>
         ENDEREÇO
       </div>
@@ -151,14 +248,9 @@ export function ClientDetail({
         <Field label="Bairro" value={client.bairro || ""} onChange={(v) => patch({ bairro: v })} placeholder="Bairro" />
         <Field label="Complemento" value={client.complemento || ""} onChange={(v) => patch({ complemento: v })} placeholder="Sala, andar, referência..." />
       </div>
-      <Field
-        label="Observações"
-        value={client.notes || ""}
-        onChange={(v) => patch({ notes: v })}
-        placeholder="Preferências, histórico, combinados gerais..."
-        multiline
-        style={{ marginBottom: 24 }}
-      />
+        </div>
+      )}
+
 
       {isGestor && (
         <div style={{ marginBottom: 24 }}>

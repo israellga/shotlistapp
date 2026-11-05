@@ -1,5 +1,5 @@
 import React from "react";
-import { CalendarClock, AlertTriangle, Award, PieChart } from "lucide-react";
+import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
 import { formatDataComDiaSemana, formatIntervaloDatas } from "./datetime";
 import { productionStatus } from "./productionStatus";
@@ -15,20 +15,58 @@ function getProductionIssues(p) {
   return issues;
 }
 
-function StatCard({ label, value, dot }) {
+function StatCard({ label, value, dot, onClick, small }) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className="glass" style={{ flex: 1, minWidth: 140, borderRadius: 14, padding: "14px 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.4, marginBottom: 6 }}>
+    <Tag
+      className={onClick ? "glass hover-row" : "glass"}
+      onClick={onClick}
+      style={{ flex: 1, minWidth: small ? 120 : 140, minHeight: 44, textAlign: "left", fontFamily: "inherit", color: "inherit", borderRadius: 14, padding: "14px 16px", cursor: onClick ? "pointer" : "default" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 500, color: C.faint, letterSpacing: 0.4, marginBottom: 6 }}>
         {dot && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot }} />}
         {label}
       </div>
-      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, color: C.paper }}>{value}</div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: small ? 18 : 26, fontWeight: 600, color: C.paper }}>{value}</div>
+    </Tag>
+  );
+}
+
+function localISO(d = new Date()) {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+function daysFrom(todayISO, iso) {
+  const a = new Date(todayISO + "T00:00:00");
+  const b = new Date(iso + "T00:00:00");
+  return Math.round((b - a) / 86400000);
+}
+
+function whenLabel(diff) {
+  if (diff < 0) return `há ${-diff} dia${diff === -1 ? "" : "s"}`;
+  if (diff === 0) return "hoje";
+  if (diff === 1) return "amanhã";
+  return `em ${diff} dias`;
+}
+
+function SectionTitle({ icon: Icon, children }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+      <Icon size={15} color={C.faint} />
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.muted, letterSpacing: 0.2 }}>{children}</span>
     </div>
   );
 }
 
-export function ProductionsDashboard({ order, productions, userName }) {
-  const today = new Date().toISOString().slice(0, 10);
+const rowBtn = {
+  display: "flex", alignItems: "center", gap: 10, width: "100%", minHeight: 48, textAlign: "left",
+  borderRadius: 12, padding: "10px 14px", cursor: "pointer", color: "inherit", fontFamily: "inherit",
+};
+
+export function ProductionsDashboard({ order, productions, userName, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate }) {
+  const today = localISO();
   const all = order.map((id) => productions[id]).filter(Boolean).filter((p) => !p.arquivada);
   const counts = { afazer: 0, andamento: 0, concluido: 0 };
   for (const p of all) counts[productionStatus(p)]++;
@@ -40,62 +78,134 @@ export function ProductionsDashboard({ order, productions, userName }) {
     .filter((x) => x.issues.length > 0);
   const firstName = (userName || "").trim().split(" ")[0];
 
+  const next = upcoming[0];
+  const nextDiff = next ? daysFrom(today, next.data || today) : 0;
+  const nextHappening = next && next.data && next.data <= today;
+
+  // Parcelas em aberto (somente gestor)
+  const open = [];
+  if (isGestor) {
+    for (const plan of paymentPlans) {
+      for (const parc of plan.parcelas || []) {
+        if (parc.pago || !parc.vencimento) continue;
+        open.push({ plan, parc, diff: daysFrom(today, parc.vencimento), valor: Number(parc.valor) || 0 });
+      }
+    }
+    open.sort((a, b) => a.parc.vencimento.localeCompare(b.parc.vencimento));
+  }
+  const overdue = open.filter((x) => x.diff < 0);
+  const week = open.filter((x) => x.diff >= 0 && x.diff <= 7);
+  const monthKey = today.slice(0, 7);
+  const monthTotal = open.filter((x) => x.parc.vencimento.slice(0, 7) === monthKey).reduce((a, x) => a + x.valor, 0);
+  const sum = (arr) => arr.reduce((a, x) => a + x.valor, 0);
+  const moneyList = [...overdue, ...week].slice(0, 4);
+
   return (
-    <div className="fade-in-up" style={{ maxWidth: 720, margin: "0 auto" }}>
-      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: C.paper, marginBottom: 4 }}>
+    <div className="fade-in-up" style={{ maxWidth: 720, margin: "0 auto", paddingBottom: 40 }}>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 700, letterSpacing: 0.3, color: C.paper, marginBottom: 18 }}>
         {firstName ? `Olá, ${firstName}!` : "Visão geral"}
       </div>
-      <div style={{ fontSize: 13, color: C.muted, marginBottom: 22 }}>
-        Selecione uma produção à esquerda, ou crie uma nova.
-      </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-        <StatCard label="A FAZER" value={counts.afazer} dot={C.faint} />
-        <StatCard label="EM ANDAMENTO" value={counts.andamento} dot={C.amber} />
-        <StatCard label="CONCLUÍDO" value={counts.concluido} dot={C.sage} />
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <CalendarClock size={15} color={C.faint} />
-        <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.4 }}>PRÓXIMAS SESSÕES</span>
-      </div>
-      {upcoming.length === 0 ? (
-        <div style={{ color: C.faint, fontSize: 13.5, padding: "10px 4px", marginBottom: 26 }}>Nenhuma sessão com data futura cadastrada.</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
-          {upcoming.slice(0, 6).map((p) => (
-            <div key={p.id} className="glass" style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 12, padding: "10px 14px" }}>
-              <span style={{ flex: 1, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
-              <span style={{ fontSize: 12, color: C.muted, fontFamily: FONT_MONO }}>{formatIntervaloDatas(p.data, p.dataFim)}</span>
+      {all.length === 0 ? (
+        <div className="glass" style={{ borderRadius: 16, padding: "20px 18px", marginBottom: 24 }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.paper, marginBottom: 12 }}>Comece em três passos</div>
+          {["Cadastre o cliente (aba Clientes, no topo)", "Crie a produção e ligue ao cliente", "Monte o shotlist e compartilhe o link com o cliente"].map((t, i) => (
+            <div key={t} style={{ display: "flex", gap: 12, alignItems: "center", padding: "8px 0", color: C.muted, fontSize: 14 }}>
+              <span style={{ width: 24, height: 24, borderRadius: "50%", background: C.amberDim, color: C.amber, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{i + 1}</span>
+              {t}
             </div>
           ))}
-          {upcoming.length > 6 && (
-            <div style={{ fontSize: 12, color: C.faint, textAlign: "center" }}>+{upcoming.length - 6} outras</div>
+          {onCreate && (
+            <button className="btn-glass-primary" onClick={onCreate} style={{ marginTop: 14, border: "none", borderRadius: 22, padding: "12px 20px", minHeight: 44, fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              Nova produção
+            </button>
           )}
+        </div>
+      ) : next ? (
+        <button
+          className="glass hover-row"
+          onClick={() => onOpenProduction && onOpenProduction(next.id)}
+          style={{ ...rowBtn, flexDirection: "column", alignItems: "flex-start", gap: 6, padding: "16px 18px", borderRadius: 16, marginBottom: 20, borderColor: nextHappening ? C.amber : undefined }}
+        >
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: nextHappening ? C.amber : C.muted }}>
+            {nextHappening ? "Acontecendo agora" : `Próxima sessão · ${whenLabel(nextDiff)}`}
+          </span>
+          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: C.paper }}>{next.cliente || "Sem nome"}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: C.muted, width: "100%" }}>
+            <span style={{ flex: 1 }}>{formatIntervaloDatas(next.data, next.dataFim)}</span>
+            <span style={{ color: C.amber, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>Abrir <ChevronRight size={15} /></span>
+          </span>
+        </button>
+      ) : null}
+
+      {isGestor && (overdue.length > 0 || week.length > 0 || monthTotal > 0) && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={Wallet}>Dinheiro</SectionTitle>
+          <div style={{ display: "flex", gap: 10, marginBottom: moneyList.length ? 10 : 0, flexWrap: "wrap" }}>
+            <StatCard label="ATRASADO" value={formatBRL(sum(overdue))} dot={overdue.length ? C.brick : C.faint} small />
+            <StatCard label="PRÓXIMOS 7 DIAS" value={formatBRL(sum(week))} dot={C.amber} small />
+            <StatCard label="A RECEBER NO MÊS" value={formatBRL(monthTotal)} dot={C.sage} small />
+          </div>
+          {moneyList.map(({ plan, parc, diff, valor }) => (
+            <button key={parc.id} className="glass hover-row" onClick={() => onOpenClient && onOpenClient(plan.client_id)} style={{ ...rowBtn, marginBottom: 8 }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {clients[plan.client_id]?.name || "Cliente"}
+              </span>
+              <span style={{ fontSize: 12.5, color: diff < 0 ? C.brick : C.muted }}>{diff < 0 ? `atrasada ${whenLabel(diff)}` : whenLabel(diff)}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>{formatBRL(valor)}</span>
+              <ChevronRight size={15} color={C.faint} />
+            </button>
+          ))}
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <AlertTriangle size={15} color={C.faint} />
-        <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.4 }}>O QUE FALTA PREENCHER</span>
+      <div style={{ display: "flex", gap: 10, marginBottom: 26, flexWrap: "wrap" }}>
+        <StatCard label="A FAZER" value={counts.afazer} dot={C.faint} onClick={onFilterStatus ? () => onFilterStatus("afazer") : undefined} />
+        <StatCard label="EM ANDAMENTO" value={counts.andamento} dot={C.amber} onClick={onFilterStatus ? () => onFilterStatus("andamento") : undefined} />
+        <StatCard label="CONCLUÍDO" value={counts.concluido} dot={C.sage} onClick={onFilterStatus ? () => onFilterStatus("concluido") : undefined} />
       </div>
-      {incomplete.length === 0 ? (
-        <div style={{ color: C.faint, fontSize: 13.5, padding: "10px 4px" }}>Tudo certo — nenhuma produção com pendências.</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {incomplete.slice(0, 8).map(({ p, issues }) => (
-            <div key={p.id} className="glass" style={{ borderRadius: 12, padding: "10px 14px" }}>
-              <div style={{ fontSize: 13.5, color: C.paper, marginBottom: 6 }}>{p.cliente || "Sem nome"}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {issues.map((issue) => (
-                  <span key={issue} style={{ fontSize: 11, fontFamily: FONT_MONO, color: C.muted, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 12, padding: "3px 9px" }}>
-                    {issue}
+
+      {upcoming.length > 1 && (
+        <>
+          <SectionTitle icon={CalendarClock}>Depois disso</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
+            {upcoming.slice(1, 6).map((p) => (
+              <button key={p.id} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(p.id)} style={rowBtn}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
+                <span style={{ fontSize: 12.5, color: C.muted }}>{formatIntervaloDatas(p.data, p.dataFim)}</span>
+                <ChevronRight size={15} color={C.faint} />
+              </button>
+            ))}
+            {upcoming.length > 6 && (
+              <div style={{ fontSize: 12, color: C.faint, textAlign: "center" }}>+{upcoming.length - 6} outras</div>
+            )}
+          </div>
+        </>
+      )}
+
+      {all.length > 0 && (
+        <>
+          <SectionTitle icon={AlertTriangle}>O que falta preencher</SectionTitle>
+          {incomplete.length === 0 ? (
+            <div style={{ color: C.faint, fontSize: 13.5, padding: "10px 4px" }}>Tudo certo, nenhuma produção com pendências.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {incomplete.slice(0, 8).map(({ p, issues }) => (
+                <button key={p.id} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(p.id)} style={{ ...rowBtn, flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+                  <span style={{ width: "100%", display: "flex", alignItems: "center" }}>
+                    <span style={{ flex: 1, fontSize: 14, color: C.paper }}>{p.cliente || "Sem nome"}</span>
+                    <ChevronRight size={15} color={C.faint} />
                   </span>
-                ))}
-              </div>
+                  <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {issues.map((issue) => (
+                      <span key={issue} style={{ fontSize: 12, color: C.muted, border: `1px solid ${C.line}`, borderRadius: 12, padding: "3px 10px" }}>{issue}</span>
+                    ))}
+                  </span>
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

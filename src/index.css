@@ -138,3 +138,9 @@ button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); transition
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* Touch: every icon button gets a 44px hit area (iOS minimum) without changing how it looks */
+@media (pointer: coarse) {
+  .icon-btn { min-width: 44px; min-height: 44px; }
+  button { min-height: 40px; }
+}
