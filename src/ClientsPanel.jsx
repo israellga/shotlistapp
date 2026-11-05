@@ -206,6 +206,7 @@ export function ClientDetail({
         <div style={{ marginBottom: 24 }}>
           <PaymentPlansSection
             plans={paymentPlans || []}
+            clientEmail={client.email || ""}
             onAdd={onAddPaymentPlan}
             onChange={onChangePaymentPlan}
             onSave={onSavePaymentPlan}

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail } from "lucide-react";
+import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { IconButton, ConfirmDialog } from "./ui";
 import { formatBRL } from "./finance";
@@ -9,7 +10,7 @@ function uid() {
 }
 
 export function emptyPaymentPlan(clientId) {
-  return { id: uid(), client_id: clientId, titulo: "", valor_total: "", parcelas: [], share_enabled: false };
+  return { id: uid(), client_id: clientId, titulo: "", valor_total: "", parcelas: [], share_enabled: false, notify_enabled: false, notify_days_before: 3 };
 }
 
 function addMonths(dateStr, n) {
@@ -53,13 +54,32 @@ function CopyLinkButton({ link }) {
   );
 }
 
-export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
+export function PaymentPlanRow({ plan, clientEmail, onChange, onSave, onDelete }) {
+  const [testState, setTestState] = useState(""); // "" | "sending" | "ok" | mensagem de erro
   const [expanded, setExpanded] = useState(!plan.titulo);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [genCount, setGenCount] = useState(3);
   const [genFirstDate, setGenFirstDate] = useState("");
+
+  async function sendTestEmail() {
+    setTestState("sending");
+    try {
+      const { data, error } = await supabase.functions.invoke("send-payment-reminders", {
+        body: { test: true, titulo: plan.titulo, valor: (plan.parcelas || [])[0]?.valor, dias: plan.notify_days_before },
+      });
+      if (error) {
+        let detail = "";
+        try { detail = (await error.context?.json?.())?.error || ""; } catch { /* ignore */ }
+        throw new Error(detail || error.message);
+      }
+      if (data?.error) throw new Error(data.error);
+      setTestState("ok");
+    } catch (e) {
+      setTestState(e?.message || "Falha ao enviar.");
+    }
+  }
 
   function patch(fields) { onChange({ ...plan, ...fields }); }
   const parcelas = plan.parcelas || [];
@@ -205,6 +225,52 @@ export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
             </div>
           )}
 
+          <div style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: C.muted }}>
+                <Mail size={14} /> Avisar o cliente por e-mail
+              </span>
+              <button
+                onClick={() => patch({ notify_enabled: !plan.notify_enabled })}
+                style={{ display: "flex", alignItems: "center", gap: 8, background: plan.notify_enabled ? C.amberDim : C.panel, border: `1px solid ${plan.notify_enabled ? C.amber : C.line}`, borderRadius: 20, padding: "5px 10px 5px 5px", cursor: "pointer" }}
+              >
+                <div style={{ width: 28, height: 16, borderRadius: 9, background: plan.notify_enabled ? C.amber : C.line, position: "relative" }}>
+                  <div style={{ width: 12, height: 12, borderRadius: "50%", background: C.ink, position: "absolute", top: 2, left: plan.notify_enabled ? 14 : 2, transition: "left 0.15s" }} />
+                </div>
+                <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: plan.notify_enabled ? C.amber : C.muted }}>{plan.notify_enabled ? "ATIVO" : "INATIVO"}</span>
+              </button>
+            </div>
+            {plan.notify_enabled && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12.5, color: C.muted }}>
+                  <span>Enviar</span>
+                  <input
+                    type="number" min="1" max="60"
+                    value={plan.notify_days_before ?? 3}
+                    onChange={(e) => patch({ notify_days_before: e.target.value === "" ? "" : Math.max(1, Math.min(60, Number(e.target.value))) })}
+                    style={{ width: 60, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 7, padding: "6px 8px", color: C.paper, fontFamily: FONT_BODY, fontSize: 13, outline: "none", textAlign: "center" }}
+                  />
+                  <span>dia(s) antes do vencimento, no dia e 1 dia depois se não estiver paga.</span>
+                </div>
+                <div style={{ marginTop: 10, fontSize: 12, color: clientEmail ? C.faint : C.brick }}>
+                  {clientEmail ? `Para: ${clientEmail}` : "Este cliente não tem e-mail cadastrado. Adicione na ficha do cliente para os avisos funcionarem."}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                  <button
+                    disabled={testState === "sending"}
+                    onClick={sendTestEmail}
+                    style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 7, padding: "6px 11px", color: C.muted, fontSize: 12, fontFamily: FONT_BODY, cursor: "pointer" }}
+                  >
+                    {testState === "sending" ? "Enviando..." : "Enviar e-mail de teste pra mim"}
+                  </button>
+                  {testState === "ok" && <span style={{ fontSize: 12, color: C.sage }}>Enviado! Confira sua caixa de entrada.</span>}
+                  {testState && testState !== "ok" && testState !== "sending" && <span style={{ fontSize: 12, color: C.brick }}>{testState}</span>}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 11.5, color: C.faint }}>Lembre de clicar em Salvar para valer a configuração.</div>
+              </div>
+            )}
+          </div>
+
           <div style={{ display: "flex", gap: 8 }}>
             <button
               onClick={handleSave}
@@ -242,7 +308,7 @@ export function PaymentPlanRow({ plan, onChange, onSave, onDelete }) {
   );
 }
 
-export function PaymentPlansSection({ plans, onAdd, onChange, onSave, onDelete }) {
+export function PaymentPlansSection({ plans, clientEmail, onAdd, onChange, onSave, onDelete }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
@@ -267,6 +333,7 @@ export function PaymentPlansSection({ plans, onAdd, onChange, onSave, onDelete }
           <PaymentPlanRow
             key={plan.id}
             plan={plan}
+            clientEmail={clientEmail}
             onChange={(next) => onChange(plan.id, next)}
             onSave={() => onSave(plan.id)}
             onDelete={() => onDelete(plan.id)}
