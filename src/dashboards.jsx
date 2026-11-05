@@ -17,7 +17,7 @@ function getProductionIssues(p) {
 
 function StatCard({ label, value, dot }) {
   return (
-    <div style={{ flex: 1, minWidth: 140, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "14px 16px" }}>
+    <div className="glass" style={{ flex: 1, minWidth: 140, borderRadius: 14, padding: "14px 16px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: FONT_MONO, fontSize: 11, color: C.faint, letterSpacing: 0.4, marginBottom: 6 }}>
         {dot && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot }} />}
         {label}
@@ -64,7 +64,7 @@ export function ProductionsDashboard({ order, productions, userName }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 26 }}>
           {upcoming.slice(0, 6).map((p) => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px" }}>
+            <div key={p.id} className="glass" style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 12, padding: "10px 14px" }}>
               <span style={{ flex: 1, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
               <span style={{ fontSize: 12, color: C.muted, fontFamily: FONT_MONO }}>{formatIntervaloDatas(p.data, p.dataFim)}</span>
             </div>
@@ -84,7 +84,7 @@ export function ProductionsDashboard({ order, productions, userName }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {incomplete.slice(0, 8).map(({ p, issues }) => (
-            <div key={p.id} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px" }}>
+            <div key={p.id} className="glass" style={{ borderRadius: 12, padding: "10px 14px" }}>
               <div style={{ fontSize: 13.5, color: C.paper, marginBottom: 6 }}>{p.cliente || "Sem nome"}</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {issues.map((issue) => (
@@ -171,7 +171,7 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
           {topCategories.map(([cat, total]) => {
             const pct = topCategories[0][1] ? (total / topCategories[0][1]) * 100 : 0;
             return (
-              <div key={cat} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px" }}>
+              <div key={cat} className="glass" style={{ borderRadius: 12, padding: "10px 14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6 }}>
                   <span style={{ color: C.paper }}>{cat}</span>
                   <span style={{ color: C.muted, fontFamily: FONT_MONO }}>{formatBRL(total)}</span>
@@ -194,7 +194,7 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {topClients.map((c, i) => (
-            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "10px 14px" }}>
+            <div key={c.id} className="glass" style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 12, padding: "10px 14px" }}>
               <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, width: 18 }}>{i + 1}º</span>
               <span style={{ flex: 1, fontSize: 13.5, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
               <span style={{ fontSize: 12.5, color: C.sage, fontFamily: FONT_MONO }}>{formatBRL(c.total)}</span>

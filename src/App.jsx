@@ -1145,12 +1145,11 @@ function ProductionCard({ p, selected, onOpen, onDelete, onArchive }) {
   const meta = [formatIntervaloCurto(p.data, p.dataFim) || "sem data", `${totalShots} shot${totalShots !== 1 ? "s" : ""}`].join("  ·  ");
   return (
     <div
-      className="hover-row prod-card"
+      className="hover-row prod-card glass"
       onClick={onOpen}
       style={{
-        background: selected ? C.panel2 : C.panel,
-        border: `1px solid ${selected ? C.amber + "99" : C.line}`,
-        borderRadius: 12, padding: "14px 16px 13px", cursor: "pointer",
+        ...(selected ? { background: "linear-gradient(180deg, rgba(255,255,255,0.17), rgba(255,255,255,0.09))", borderColor: "rgba(255,255,255,0.38)" } : null),
+        borderRadius: 16, padding: "14px 16px 13px", cursor: "pointer",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
@@ -1917,22 +1916,22 @@ export default function App() {
         input::placeholder, textarea::placeholder { color: ${C.faint}; }
         button, input, select, textarea { font-family: inherit; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .shell { height: 100vh; height: 100dvh; background: ${C.ink}; font-family: ${FONT_BODY}; display: flex; flex-direction: column; overflow: hidden; }
-        .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); border-bottom: 1px solid ${C.line}; flex-shrink: 0; }
+        .shell { height: 100vh; height: 100dvh; background: transparent; font-family: ${FONT_BODY}; display: flex; flex-direction: column; overflow: hidden; }
+        .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); border-bottom: 1px solid ${C.lineSoft}; flex-shrink: 0; background: rgba(10,12,20,0.5); -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%); box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04); position: relative; z-index: 5; }
         .body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
         @media (min-width: 900px) {
           .body { display: grid; grid-template-columns: 340px 1fr; }
         }
         .sidebar { display: flex; flex-direction: column; min-height: 0; }
         @media (min-width: 900px) {
-          .sidebar { border-right: 1px solid ${C.line}; }
+          .sidebar { border-right: 1px solid ${C.lineSoft}; background: rgba(255,255,255,0.025); -webkit-backdrop-filter: blur(26px) saturate(150%); backdrop-filter: blur(26px) saturate(150%); }
         }
         .pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 16px 0; }
         @media (min-width: 700px) {
           .pane-list { padding-top: 24px; }
           .pane-main { padding-top: 28px; }
         }
-        .sidebar-footer { flex-shrink: 0; padding: 12px 14px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid ${C.line}; }
+        .sidebar-footer { flex-shrink: 0; padding: 12px 14px; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-top: 1px solid ${C.lineSoft}; }
         .pane-main { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 14px 90px; }
         @media (min-width: 900px) {
           .pane-main { padding-left: 24px; padding-right: 24px; padding-bottom: 60px; padding-top: 32px; }
@@ -2059,11 +2058,11 @@ export default function App() {
             </div>
             <div className="sidebar-footer">
               {showingProductions ? (
-                <button onClick={addProduction} style={addButtonStyle}>
+                <button className="btn-glass-primary" onClick={addProduction} style={addButtonStyle}>
                   <Plus size={16} /> Nova produção
                 </button>
               ) : (
-                <button onClick={() => setCurrentClientId(addClient())} style={addButtonStyle}>
+                <button className="btn-glass-primary" onClick={() => setCurrentClientId(addClient())} style={addButtonStyle}>
                   <Plus size={16} /> Novo cliente
                 </button>
               )}
@@ -2141,8 +2140,8 @@ export default function App() {
 
 const addButtonStyle = {
   width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-  background: C.amber, border: "none", borderRadius: 24, padding: "12px 16px",
-  color: C.ink, fontSize: 14, fontWeight: 700, cursor: "pointer",
+  background: C.paper, border: "none", borderRadius: 24, padding: "12px 16px",
+  color: "#0A0B10", fontSize: 14, fontWeight: 700, cursor: "pointer",
 };
 
 function EmptyMainState({ label }) {

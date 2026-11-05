@@ -1,19 +1,20 @@
 export const C = {
   ink: "#000000",
-  panel: "#111111",
-  panel2: "#1B1B1B",
-  line: "#2C2C2C",
-  lineSoft: "#202020",
-  paper: "#F5F3EC",
-  muted: "#9A988F",
-  faint: "#6B6963",
+  // Liquid glass: surfaces are translucent whites over the dark ambient ground (see index.css)
+  panel: "rgba(255,255,255,0.055)",
+  panel2: "rgba(255,255,255,0.09)",
+  line: "rgba(255,255,255,0.13)",
+  lineSoft: "rgba(255,255,255,0.075)",
+  paper: "#F5F5F7",
+  muted: "#A9A9B2",
+  faint: "#8D8D98",
   amber: "#FDDF4B",
-  amberDim: "#332C11",
+  amberDim: "rgba(253,223,75,0.15)",
   teal: "#6FA0C7",
   sage: "#7CB88F",
-  sageDim: "#1C2F22",
-  brick: "#D9634A",
-  brickDim: "#331B14",
+  sageDim: "rgba(124,184,143,0.16)",
+  brick: "#E0705A",
+  brickDim: "rgba(224,112,90,0.16)",
 };
 
 // Headings: SF Pro Display (native on Apple devices via the system stack — no

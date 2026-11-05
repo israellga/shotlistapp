@@ -1,5 +1,44 @@
 html, body, #root { margin: 0; padding: 0; height: 100%; }
-html, body { background: #000000; }
+html, body { background: #05070C; }
+
+/* ---- Liquid glass ground: a few soft light pools the glass can pick up ---- */
+body::before {
+  content: "";
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(48vmax 42vmax at 8% 4%, rgba(64, 104, 255, 0.46), transparent 66%),
+    radial-gradient(46vmax 40vmax at 92% 10%, rgba(138, 76, 255, 0.34), transparent 66%),
+    radial-gradient(44vmax 38vmax at 38% 62%, rgba(40, 120, 255, 0.16), transparent 66%),
+    radial-gradient(56vmax 46vmax at 78% 108%, rgba(28, 176, 200, 0.30), transparent 66%);
+}
+#root { position: relative; z-index: 1; }
+
+/* Glass material. Blur is reserved for a few large surfaces (bars, sidebar, dialogs):
+   cards stay translucent without blur so scrolling stays smooth on phones. */
+.glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.105), rgba(255,255,255,0.05));
+  border: 1px solid rgba(255,255,255,0.13);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.04), 0 10px 28px rgba(0,0,0,0.32);
+}
+.glass-blur {
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-blur { background-color: rgba(18, 20, 28, 0.92) !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-blur { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgba(18, 20, 28, 0.96) !important; }
+}
+
+/* Browser surfaces that belong to the design */
+::selection { background: rgba(120, 150, 255, 0.35); color: #fff; }
+:focus-visible { outline: 2px solid rgba(160, 184, 255, 0.85); outline-offset: 2px; }
+input, textarea, select { caret-color: #A9BBFF; }
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
 * { box-sizing: border-box; }
 
 /* ---- Shared motion utilities ---- */
@@ -7,17 +46,17 @@ html, body { background: #000000; }
 .icon-btn {
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
-.icon-btn:hover { background: rgba(255,255,255,0.08) !important; }
+.icon-btn:hover { background: rgba(255,255,255,0.12) !important; }
 .icon-btn:active { transform: scale(0.88); }
 
 .hover-row {
   transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
 }
 .hover-row:hover {
-  border-color: #FDDF4B66 !important;
-  background: #1B1B1B !important;
+  border-color: rgba(255,255,255,0.28) !important;
+  background: rgba(255,255,255,0.11) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.26), 0 10px 26px rgba(0,0,0,0.36);
 }
 .hover-row:active { transform: translateY(0) scale(0.996); }
 
@@ -58,12 +97,18 @@ button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); }
 .tap-scale:active { transform: scale(0.97); }
 
 .hover-line { transition: background-color 0.15s ease; border-radius: 6px; }
-.hover-line:hover { background: rgba(255,255,255,0.04); }
+.hover-line:hover { background: rgba(255,255,255,0.06); }
 
-.modal-backdrop { animation: modalBackdropIn 0.18s ease both; }
+.modal-backdrop { animation: modalBackdropIn 0.18s ease both; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 @keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 
-.modal-card { animation: modalCardIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.modal-card {
+  animation: modalCardIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: linear-gradient(180deg, rgba(40,44,58,0.82), rgba(24,26,36,0.88)) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 24px 60px rgba(0,0,0,0.5);
+}
 @keyframes modalCardIn {
   from { opacity: 0; transform: scale(0.96) translateY(6px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -90,5 +135,12 @@ button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); }
 .prod-card .card-actions { display: flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.16s ease; }
 .prod-card:hover .card-actions, .prod-card:focus-within .card-actions { opacity: 1; }
 @media (hover: none) { .prod-card .card-actions { opacity: 0.7; } }
-.prod-progress { height: 3px; border-radius: 3px; background: #242424; overflow: hidden; }
+.prod-progress { height: 3px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
 .prod-progress > span { display: block; height: 100%; border-radius: 3px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Primary action: a bright glass pill, so the home screen is not a wall of yellow */
+.btn-glass-primary {
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.80)) !important;
+  color: #0A0B10 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 8px 22px rgba(0,0,0,0.35);
+}
