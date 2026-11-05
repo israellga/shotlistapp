@@ -21,6 +21,7 @@ import { analyzeReferenceFrames } from "./aiAnalysis";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
+import ClientFeedback from "./ClientFeedback";
 import { PRODUCTION_STATUS, productionStatus } from "./productionStatus";
 import { PaymentPlansSection, emptyPaymentPlan } from "./payments";
 import WorkspaceOnboarding from "./WorkspaceOnboarding";
@@ -865,6 +866,8 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           <CopyLinkButton link={`${window.location.origin}/?client=${production.id}`} big />
         </div>
       )}
+
+      <ClientFeedback productionId={production.id} enabled={!!production.clientShareEnabled && !production.__shared} isGestor={isGestor} />
 
       {!fieldMode && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>

@@ -112,7 +112,7 @@ export default function PaymentView({ id }) {
         </div>
       </div>
 
-      <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, padding: "16px 18px", marginBottom: 20 }}>
+      <div className="glass" style={{ borderRadius: 18, padding: "16px 18px", marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
           <div>
             <div style={{ fontSize: 11, color: C.faint, fontFamily: FONT_MONO }}>PAGO</div>
@@ -140,7 +140,7 @@ export default function PaymentView({ id }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {parcelas.map((p) => (
-          <div key={p.numero} style={{ display: "flex", alignItems: "center", gap: 10, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 9, padding: "12px 14px" }}>
+          <div key={p.numero} style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 14, padding: "12px 14px" }} className="glass">
             {p.pago ? <CheckCircle2 size={17} color={C.sage} /> : <Circle size={17} color={C.faint} />}
             <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, width: 24 }}>{String(p.numero).padStart(2, "0")}</span>
             <span style={{ flex: 1, fontSize: 13.5, color: p.pago ? C.faint : C.paper, textDecoration: p.pago ? "line-through" : "none" }}>
@@ -165,11 +165,11 @@ export default function PaymentView({ id }) {
 
 function Shell({ children }) {
   return (
-    <div style={{ minHeight: "100vh", background: C.ink, fontFamily: FONT_BODY, padding: "24px 16px 60px", paddingTop: "max(24px, env(safe-area-inset-top))", paddingBottom: "max(60px, env(safe-area-inset-bottom))" }}>
+    <div style={{ minHeight: "100vh", background: "transparent", fontFamily: FONT_BODY, padding: "24px 16px 60px", paddingTop: "max(24px, env(safe-area-inset-top))", paddingBottom: "max(60px, env(safe-area-inset-bottom))" }}>
       <div style={{ maxWidth: 560, margin: "0 auto 20px", display: "flex", alignItems: "center", gap: 10 }}>
         <ShotlistMark size={18} lit />
         <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, letterSpacing: 0.5, color: C.faint }}>
-          ACOMPANHAMENTO DE PAGAMENTO
+          Acompanhamento de pagamento
         </div>
       </div>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>{children}</div>
