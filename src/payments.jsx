@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail } from "lucide-react";
+import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail, MessageCircle } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { IconButton, ConfirmDialog } from "./ui";
@@ -54,7 +54,20 @@ function CopyLinkButton({ link }) {
   );
 }
 
-export function PaymentPlanRow({ plan, clientEmail, onChange, onSave, onDelete }) {
+function waDigits(phone) {
+  const d = (phone || "").replace(/\D/g, "");
+  return d.length >= 10 ? (d.length <= 11 ? "55" + d : d) : "";
+}
+function waParcelaLink(phone, name, plan, parc, link) {
+  const [y, m, d] = (parc.vencimento || "").split("-");
+  const data = parc.vencimento ? `${d}/${m}/${y}` : "";
+  const valor = formatBRL(Number(parc.valor) || 0);
+  const first = (name || "").trim().split(" ")[0];
+  const msg = `Olá${first ? ", " + first : ""}! Passando para lembrar da parcela ${parc.numero}${plan.titulo ? " de " + plan.titulo : ""}, no valor de ${valor}${data ? ", com vencimento em " + data : ""}.${plan.share_enabled ? " Você acompanha tudo aqui: " + link : ""} Qualquer dúvida é só me chamar!`;
+  return `https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(msg)}`;
+}
+
+export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, onChange, onSave, onDelete }) {
   const [testState, setTestState] = useState(""); // "" | "sending" | "ok" | mensagem de erro
   const [expanded, setExpanded] = useState(!plan.titulo);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -192,6 +205,15 @@ export function PaymentPlanRow({ plan, clientEmail, onChange, onSave, onDelete }
                 type="date" value={p.vencimento} onChange={(e) => updateParcela(p.id, { vencimento: e.target.value })}
                 style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 6, padding: "7px 9px", color: C.paper, fontSize: 12.5, outline: "none", colorScheme: "dark" }}
               />
+              {!p.pago && waDigits(clientPhone) && (
+                <a
+                  href={waParcelaLink(clientPhone, clientName, plan, p, link)}
+                  target="_blank" rel="noreferrer" title="Lembrar pelo WhatsApp"
+                  style={{ display: "grid", placeItems: "center", minWidth: 32, minHeight: 32, color: C.sage, flexShrink: 0 }}
+                >
+                  <MessageCircle size={16} />
+                </a>
+              )}
               <IconButton onClick={() => removeParcela(p.id)} tone="brick" size={28}><Trash2 size={13} /></IconButton>
             </div>
           ))}
@@ -308,7 +330,7 @@ export function PaymentPlanRow({ plan, clientEmail, onChange, onSave, onDelete }
   );
 }
 
-export function PaymentPlansSection({ plans, clientEmail, onAdd, onChange, onSave, onDelete }) {
+export function PaymentPlansSection({ plans, clientEmail, clientPhone, clientName, onAdd, onChange, onSave, onDelete }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
@@ -334,6 +356,8 @@ export function PaymentPlansSection({ plans, clientEmail, onAdd, onChange, onSav
             key={plan.id}
             plan={plan}
             clientEmail={clientEmail}
+            clientPhone={clientPhone}
+            clientName={clientName}
             onChange={(next) => onChange(plan.id, next)}
             onSave={() => onSave(plan.id)}
             onDelete={() => onDelete(plan.id)}

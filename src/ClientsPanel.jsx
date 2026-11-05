@@ -299,6 +299,8 @@ export function ClientDetail({
           <PaymentPlansSection
             plans={paymentPlans || []}
             clientEmail={client.email || ""}
+            clientPhone={client.phone || ""}
+            clientName={client.name || ""}
             onAdd={onAddPaymentPlan}
             onChange={onChangePaymentPlan}
             onSave={onSavePaymentPlan}

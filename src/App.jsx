@@ -1160,7 +1160,7 @@ function SaveFinanceButton({ onSave }) {
 // Production list
 // ---------------------------------------------------------------------------
 
-function ProductionCard({ p, selected, onOpen, onDelete, onArchive }) {
+function ProductionCard({ p, selected, onOpen, onDelete, onArchive, onDuplicate }) {
   const totalShots = p.shots.length;
   const doneShots = p.shots.filter((s) => s.status === "concluido").length;
   const pct = totalShots ? Math.round((doneShots / totalShots) * 100) : 0;
@@ -1186,6 +1186,11 @@ function ProductionCard({ p, selected, onOpen, onDelete, onArchive }) {
           </div>
         </div>
         <div className="card-actions" style={{ margin: "-6px -8px 0 0" }}>
+          {!p.__shared && onDuplicate && (
+            <IconButton onClick={(e) => { e.stopPropagation(); onDuplicate(); }} title="Duplicar (usar como modelo)" size={30}>
+              <Copy size={15} />
+            </IconButton>
+          )}
           {!p.__shared && onArchive && (
             <IconButton onClick={(e) => { e.stopPropagation(); onArchive(); }} title={p.arquivada ? "Desarquivar" : "Arquivar"} size={30}>
               {p.arquivada ? <ArchiveRestore size={15} /> : <Archive size={15} />}
@@ -1712,6 +1717,36 @@ export default function App() {
     });
   }
 
+  function duplicateProduction(id) {
+    const src = productions[id];
+    if (!src) return;
+    const shotIds = {};
+    const shots = (src.shots || []).map((sh) => {
+      const nid = uid();
+      shotIds[sh.id] = nid;
+      return { ...sh, id: nid, status: "afazer", takes: (sh.takes || []).map((t) => ({ ...t, id: uid(), feito: false })) };
+    });
+    const p = {
+      ...src,
+      id: uid(),
+      cliente: src.cliente ? `${src.cliente} (cópia)` : "",
+      data: "", dataFim: "",
+      arquivada: false,
+      clientShareEnabled: false,
+      shots,
+      cronograma: (src.cronograma || []).map((c) => ({ ...c, id: uid(), shotId: c.shotId ? shotIds[c.shotId] || null : c.shotId })),
+      equipe: (src.equipe || []).map((m) => ({ ...m })),
+    };
+    setProductions((prev) => ({ ...prev, [p.id]: p }));
+    setOrder((prev) => [p.id, ...prev]);
+    setCurrentId(p.id);
+    saveDraft("productions", p.id, p);
+    supabase.from(TABLE).upsert({ id: p.id, workspace_id: workspaceId, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
+      setOnline(!error);
+      if (!error) clearDraft("productions", p.id);
+    });
+  }
+
   function addProductionForClient(client) {
     const p = emptyProduction();
     p.clienteId = client.id;
@@ -2076,6 +2111,7 @@ export default function App() {
                   onOpen={setCurrentId}
                   onDelete={deleteProduction}
                   onArchive={(id) => updateProduction(id, { ...productions[id], arquivada: !productions[id].arquivada })}
+                  onDuplicate={duplicateProduction}
                   sharedOrder={sharedOrder}
                   sharedProductions={sharedProductions}
                   statusFilter={statusFilter}
@@ -2214,7 +2250,7 @@ function GroupHeader({ label, count, dot, onClick, open, dim }) {
   );
 }
 
-function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, onArchive, sharedOrder, sharedProductions, statusFilter, onClearFilter }) {
+function ProductionsListPane({ order, productions, clients, currentId, onOpen, onDelete, onArchive, onDuplicate, sharedOrder, sharedProductions, statusFilter, onClearFilter }) {
   const [showArchived, setShowArchived] = useState(false);
 
   function sortByDate(items) {
@@ -2258,7 +2294,7 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
           {g.items.length === 0 ? null : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {g.items.map((p) => (
-                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} />
+                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} onDuplicate={() => onDuplicate(p.id)} />
               ))}
             </div>
           )}
@@ -2282,7 +2318,7 @@ function ProductionsListPane({ order, productions, clients, currentId, onOpen, o
           {showArchived && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: 0.7 }}>
               {archived.map((p) => (
-                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} />
+                <ProductionCard key={p.id} p={p} selected={currentId === p.id} onOpen={() => onOpen(p.id)} onDelete={() => onDelete(p.id)} onArchive={() => onArchive(p.id)} onDuplicate={() => onDuplicate(p.id)} />
               ))}
             </div>
           )}
