@@ -1,5 +1,6 @@
 // Envia lembretes de parcelas por e-mail (Resend). Chamada todo dia pelo pg_cron.
-// Secrets necessárias: RESEND_API_KEY, REMINDER_FROM (ex: "Nome <financeiro@seudominio.com>"), CRON_SECRET
+// Secrets necessárias: RESEND_API_KEY, REMINDER_FROM (ex: "Nome <financeiro@seudominio.com>")
+// O segredo do agendamento fica na tabela reminder_config (chave cron_secret), só acessível pelo service role.
 // Opcional: REMINDER_REPLY_TO, APP_URL (padrão https://shotlistapp.netlify.app)
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -12,7 +13,6 @@ const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const FROM = Deno.env.get("REMINDER_FROM");
 const REPLY_TO = Deno.env.get("REMINDER_REPLY_TO");
-const CRON_SECRET = Deno.env.get("CRON_SECRET");
 const APP_URL = (Deno.env.get("APP_URL") || "https://shotlistapp.netlify.app").replace(/\/$/, "");
 
 const brl = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
@@ -89,7 +89,9 @@ Deno.serve(async (req) => {
   }
 
   // ---- Modo automático (cron) ----
-  if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) return json({ error: "Não autorizado." }, 401);
+  const { data: cfg } = await admin.from("reminder_config").select("value").eq("key", "cron_secret").maybeSingle();
+  const provided = req.headers.get("x-cron-secret");
+  if (!cfg?.value || !provided || provided !== cfg.value) return json({ error: "Não autorizado." }, 401);
 
   const hoje = todayBR();
   const { data: plans, error: pe } = await admin.from("payment_plans").select("*").eq("notify_enabled", true);
