@@ -46,12 +46,46 @@ async function getJson(url: string) {
   }
 }
 
+type Cue = { start: number; end: number; text: string };
+
+// Legenda do YouTube (manual ou automática), quando o vídeo tem alguma. Retorna trechos com tempo em ms.
+async function youtubeTranscript(id: string): Promise<Cue[]> {
+  try {
+    const page = await fetch(`https://www.youtube.com/watch?v=${id}&hl=pt-BR`, {
+      headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36", "accept-language": "pt-BR,pt;q=0.9,en;q=0.8", cookie: "CONSENT=YES+1; SOCS=CAI" },
+    });
+    if (!page.ok) return [];
+    const html = await page.text();
+    const m = html.match(/"captionTracks":(\[.*?\]),"(?:audioTracks|translationLanguages)"/s);
+    if (!m) return [];
+    const tracks = JSON.parse(m[1]) as { baseUrl: string; languageCode: string; kind?: string }[];
+    if (!tracks.length) return [];
+    const rank = (t: { languageCode: string; kind?: string }) =>
+      (t.languageCode?.startsWith("pt") ? 0 : t.languageCode?.startsWith("en") ? 10 : 20) + (t.kind === "asr" ? 1 : 0);
+    const track = [...tracks].sort((a, b) => rank(a) - rank(b))[0];
+    const r = await fetch(track.baseUrl.replace(/\\u0026/g, "&") + "&fmt=json3");
+    if (!r.ok) return [];
+    const j = await r.json();
+    const cues: Cue[] = [];
+    for (const ev of j?.events || []) {
+      const text = (ev.segs || []).map((x: { utf8?: string }) => x.utf8 || "").join("").replace(/\s+/g, " ").trim();
+      if (!text) continue;
+      const start = Number(ev.tStartMs) || 0;
+      cues.push({ start, end: start + (Number(ev.dDurationMs) || 2000), text });
+    }
+    return cues.slice(0, 600);
+  } catch {
+    return [];
+  }
+}
+
 // Reúne metadados (título, autor, descrição) e quadros extras do vídeo, quando a plataforma permite.
 async function gatherContext(referenceUrl: string, thumbUrl: string) {
   const imageUrls: string[] = [thumbUrl];
   const notes: string[] = [];
+  let transcript: Cue[] = [];
   const ref = (referenceUrl || "").trim();
-  if (!ref) return { imageUrls, notes };
+  if (!ref) return { imageUrls, notes, transcript };
 
   const yt = youtubeId(ref);
   if (yt) {
@@ -61,7 +95,8 @@ async function gatherContext(referenceUrl: string, thumbUrl: string) {
     const o = await getJson(`https://www.youtube.com/oembed?url=${encodeURIComponent(ref)}&format=json`);
     if (o?.title) notes.push(`Título: ${o.title}`);
     if (o?.author_name) notes.push(`Canal: ${o.author_name}`);
-    return { imageUrls, notes };
+    transcript = await youtubeTranscript(yt);
+    return { imageUrls, notes, transcript };
   }
   if (/vimeo\.com/i.test(ref)) {
     const o = await getJson(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(ref)}`);
@@ -69,19 +104,19 @@ async function gatherContext(referenceUrl: string, thumbUrl: string) {
     if (o?.author_name) notes.push(`Autor: ${o.author_name}`);
     if (o?.description) notes.push(`Descrição: ${String(o.description).slice(0, 500)}`);
     if (o?.duration) notes.push(`Duração: ${o.duration}s`);
-    return { imageUrls, notes };
+    return { imageUrls, notes, transcript };
   }
   if (/tiktok\.com/i.test(ref)) {
     const o = await getJson(`https://www.tiktok.com/oembed?url=${encodeURIComponent(ref)}`);
     if (o?.title) notes.push(`Legenda: ${o.title}`);
     if (o?.author_name) notes.push(`Autor: ${o.author_name}`);
-    return { imageUrls, notes };
+    return { imageUrls, notes, transcript };
   }
   // Outras plataformas: tenta título/descrição via microlink
   const m = await getJson(`https://api.microlink.io/?url=${encodeURIComponent(ref)}&meta=true`);
   if (m?.data?.title) notes.push(`Título: ${m.data.title}`);
   if (m?.data?.description) notes.push(`Descrição: ${String(m.data.description).slice(0, 500)}`);
-  return { imageUrls, notes };
+  return { imageUrls, notes, transcript };
 }
 
 // Instagram: várias tentativas em sequência; devolve também um diagnóstico do que aconteceu em cada uma
@@ -168,7 +203,11 @@ Deno.serve(async (req) => {
     }
     if (images.length === 0) return jsonResponse({ error: lastError || "Não consegui baixar a miniatura." }, 200);
 
-    const promptText = `Você é um assistente de produção audiovisual. ${images.length > 1 ? "Estas imagens são a capa e quadros ao longo de um vídeo de referência (YouTube, Vimeo ou outra plataforma)." : "Esta imagem é a capa/miniatura de um conteúdo de referência (post, reels ou vídeo)."} ${ctx.notes.length ? "Informações do conteúdo:\n" + ctx.notes.join("\n") + "\n" : ""}Com base no que você vê e nessas informações, sugira uma estrutura de shot pra recriar algo no mesmo estilo.
+    const mmss = (ms: number) => `${String(Math.floor(ms / 60000)).padStart(2, "0")}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+    const speech = ctx.transcript.length
+      ? "Fala do vídeo (legenda com tempo):\n" + ctx.transcript.map((c) => `[${mmss(c.start)}] ${c.text}`).join("\n").slice(0, 7000) + "\n"
+      : "";
+    const promptText = `Você é um assistente de produção audiovisual. ${images.length > 1 ? "Estas imagens são a capa e quadros ao longo de um vídeo de referência (YouTube, Vimeo ou outra plataforma)." : "Esta imagem é a capa/miniatura de um conteúdo de referência (post, reels ou vídeo)."} ${ctx.notes.length ? "Informações do conteúdo:\n" + ctx.notes.join("\n") + "\n" : ""}${speech}${speech ? "Use a fala para montar o roteiro (o que é dito em cada momento) e os takes, citando os trechos importantes.\n" : ""}Com base no que você vê e nessas informações, sugira uma estrutura de shot pra recriar algo no mesmo estilo.
 
 Responda em português, APENAS com um JSON válido (sem markdown, sem texto fora do JSON), neste formato exato:
 {
@@ -194,7 +233,7 @@ Se não der pra inferir algo com confiança a partir do material disponível, de
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1024,
+        max_tokens: 1500,
         messages: [{ role: "user", content }],
       }),
     });
@@ -217,7 +256,7 @@ Se não der pra inferir algo com confiança a partir do material disponível, de
       parsed.equipamentos = parsed.equipamentos.filter((e) => EQUIPAMENTOS_PADRAO.includes(e));
     }
 
-    return jsonResponse({ data: parsed });
+    return jsonResponse({ data: parsed, transcript: ctx.transcript });
   } catch (e) {
     return jsonResponse({ error: e?.message || String(e) }, 500);
   }

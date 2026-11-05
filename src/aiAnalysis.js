@@ -14,5 +14,5 @@ export async function analyzeReferenceFrames(imageUrl, referenceUrl) {
     throw new Error(detail || error.message || "Falha ao chamar a análise.");
   }
   if (data?.error) throw new Error(data.error);
-  return data?.data;
+  return data?.data ? { ...data.data, transcript: Array.isArray(data.transcript) ? data.transcript : [] } : data?.data;
 }

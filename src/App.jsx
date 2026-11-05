@@ -22,6 +22,7 @@ import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
 import ClientFeedback from "./ClientFeedback";
+import { downloadSrt, shortTime } from "./srt";
 import { PRODUCTION_STATUS, productionStatus } from "./productionStatus";
 import { PaymentPlansSection, emptyPaymentPlan } from "./payments";
 import WorkspaceOnboarding from "./WorkspaceOnboarding";
@@ -301,6 +302,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
       tipo: suggestion.tipo && TIPOS_PRODUCAO.includes(suggestion.tipo) ? suggestion.tipo : shot.tipo,
       equipamentos: Array.isArray(suggestion.equipamentos) && suggestion.equipamentos.length ? suggestion.equipamentos : shot.equipamentos,
       objetivo: suggestion.roteiro || shot.objetivo,
+      legenda: Array.isArray(suggestion.transcript) && suggestion.transcript.length ? suggestion.transcript : shot.legenda,
       takes: Array.isArray(suggestion.takes) && suggestion.takes.length
         ? suggestion.takes.map((t, i) => ({ id: uid(), numero: i + 1, acao: t.acao || "", transicao: t.transicao || "", tempo: "", feito: false }))
         : shot.takes,
@@ -413,6 +415,17 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
                     {analysisError && (
                       <div style={{ color: C.brick, fontSize: 11.5, marginTop: 8 }}>{analysisError}</div>
                     )}
+                    {Array.isArray(shot.legenda) && shot.legenda.length > 0 && !suggestion && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontSize: 12, color: C.faint, marginBottom: 6 }}>Legenda da referência · {shot.legenda.length} trechos</div>
+                        <div style={{ maxHeight: 120, overflowY: "auto", fontSize: 12.5, color: C.muted, lineHeight: 1.5, marginBottom: 8 }}>
+                          {shot.legenda.slice(0, 40).map((c, i) => <div key={i}><span style={{ color: C.faint }}>{shortTime(c.start)}</span> {c.text}</div>)}
+                        </div>
+                        <button onClick={() => downloadSrt(shot.legenda, `shot-${shot.numero}-${shot.nome || "legenda"}`)} style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 36, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 18, padding: "0 14px", color: C.paper, fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}>
+                          <FileDown size={14} /> Baixar legenda (.srt)
+                        </button>
+                      </div>
+                    )}
                     {suggestion && (
                       <div style={{ background: C.panel2, border: `1px solid ${C.amber}`, borderRadius: 9, padding: 14, marginTop: 4 }}>
                         <div style={{ fontSize: 12, color: C.amber, fontWeight: 600, marginBottom: 10 }}>Sugestão da análise</div>
@@ -424,6 +437,9 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
                         )}
                         {suggestion.roteiro && (
                           <div style={{ fontSize: 12.5, color: C.paper, marginBottom: 6 }}><strong>Roteiro:</strong> {suggestion.roteiro}</div>
+                        )}
+                        {Array.isArray(suggestion.transcript) && suggestion.transcript.length > 0 && (
+                          <div style={{ fontSize: 12.5, color: C.paper, marginBottom: 6 }}><strong>Fala encontrada:</strong> {suggestion.transcript.length} trechos com tempo (vão para a legenda do shot)</div>
                         )}
                         {Array.isArray(suggestion.takes) && suggestion.takes.length > 0 && (
                           <div style={{ fontSize: 12.5, color: C.paper, marginBottom: 10 }}>
