@@ -1169,7 +1169,7 @@ function ProductionCard({ p, selected, onOpen, onDelete, onArchive }) {
       className="hover-row prod-card glass"
       onClick={onOpen}
       style={{
-        ...(selected ? { background: "linear-gradient(180deg, rgba(255,255,255,0.17), rgba(255,255,255,0.09))", borderColor: "rgba(255,255,255,0.38)" } : null),
+        ...(selected ? { background: "radial-gradient(130% 90% at 0% 0%, rgba(253,223,75,0.18), transparent 55%), linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04))", borderColor: "rgba(253,223,75,0.38)" } : null),
         borderRadius: 16, padding: "14px 16px 13px", cursor: "pointer",
       }}
     >

@@ -6,6 +6,19 @@ body::before {
   content: "";
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
+    radial-gradient(46vmax 38vmax at 6% 0%, rgba(255, 255, 255, 0.11), transparent 64%),
+    radial-gradient(40vmax 34vmax at 96% 10%, rgba(253, 223, 75, 0.09), transparent 66%),
+    radial-gradient(60vmax 40vmax at 50% 55%, rgba(255, 255, 255, 0.03), transparent 70%),
+    radial-gradient(56vmax 44vmax at 82% 108%, rgba(255, 255, 255, 0.07), transparent 66%);
+}
+#root { margin: 0; padding: 0; height: 100%; }
+html, body { background: #000; }
+
+/* ---- Liquid glass ground: a few soft light pools the glass can pick up ---- */
+body::before {
+  content: "";
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
     radial-gradient(52vmax 44vmax at 8% 2%, rgba(255, 255, 255, 0.10), transparent 66%),
     radial-gradient(46vmax 40vmax at 94% 8%, rgba(253, 223, 75, 0.07), transparent 66%),
     radial-gradient(50vmax 44vmax at 40% 64%, rgba(255, 255, 255, 0.04), transparent 66%),
@@ -16,9 +29,16 @@ body::before {
 /* Glass material. Blur is reserved for a few large surfaces (bars, sidebar, dialogs):
    cards stay translucent without blur so scrolling stays smooth on phones. */
 .glass {
-  background: linear-gradient(180deg, rgba(255,255,255,0.105), rgba(255,255,255,0.05));
-  border: 1px solid rgba(255,255,255,0.13);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(255,255,255,0.04), 0 10px 28px rgba(0,0,0,0.32);
+  /* layers: specular sheen from the top-left, body tint, then the fall-off to near clear */
+  background:
+    radial-gradient(130% 90% at 0% 0%, rgba(255,255,255,0.13), transparent 52%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.26),          /* top edge light */
+    inset 0 0 0 1px rgba(255,255,255,0.03),         /* rim */
+    inset 0 -14px 22px -16px rgba(255,255,255,0.10),/* light pooling at the bottom edge */
+    0 6px 22px -10px rgba(0,0,0,0.5);               /* soft, short shadow */
 }
 .glass-blur {
   -webkit-backdrop-filter: blur(22px) saturate(170%);
@@ -61,10 +81,10 @@ button, [role="button"] { -webkit-tap-highlight-color: transparent; }
 .icon-btn:active { transform: scale(0.9); opacity: 0.7; transition-duration: 0.08s; }
 
 /* Cards/rows: hover lightens through an overlay, so the card's own gradient never flickers */
-.hover-row { transition: box-shadow 0.25s var(--ios-ease), border-color 0.25s var(--ios-ease); }
+.hover-row { transition: box-shadow 0.35s var(--ios-ease), border-color 0.35s var(--ios-ease); }
 .hover-row:hover {
-  border-color: rgba(255,255,255,0.26) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), inset 0 0 0 999px rgba(255,255,255,0.035), 0 10px 26px rgba(0,0,0,0.36);
+  border-color: rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.34), inset 0 0 0 999px rgba(255,255,255,0.03), inset 0 -14px 22px -16px rgba(255,255,255,0.14), 0 10px 26px -10px rgba(0,0,0,0.5);
 }
 
 .btn-anim { transition: transform 0.35s var(--ios-out), opacity 0.2s var(--ios-ease); }
@@ -94,14 +114,16 @@ button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); transition
 @keyframes modalBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal-card {
-  animation: modalCardIn 0.32s var(--ios-out) backwards;
-  background: linear-gradient(180deg, rgba(48,48,48,0.84), rgba(26,26,26,0.9)) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%);
-  border: 1px solid rgba(255,255,255,0.16) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.24), 0 24px 60px rgba(0,0,0,0.5);
+  animation: modalCardIn 0.4s var(--ios-out) backwards;
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(255,255,255,0.12), transparent 55%),
+    linear-gradient(180deg, rgba(44,44,46,0.66), rgba(24,24,26,0.74)) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%); backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -16px 28px -20px rgba(255,255,255,0.1), 0 30px 70px -20px rgba(0,0,0,0.6);
 }
 @keyframes modalCardIn {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.97); filter: blur(8px); }
 }
 
 .pop-check { transition: transform 0.3s var(--ios-spring); }
