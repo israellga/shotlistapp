@@ -65,7 +65,117 @@ const rowBtn = {
   borderRadius: 12, padding: "10px 14px", cursor: "pointer", color: "inherit", fontFamily: "inherit",
 };
 
-export function ProductionsDashboard({ order, productions, userName, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate }) {
+const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+function MonthNav({ ym, onChange }) {
+  const [y, m] = ym.split("-").map(Number);
+  const go = (delta) => { const d = new Date(y, m - 1 + delta, 1); onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); };
+  const b = { width: 44, height: 44, display: "grid", placeItems: "center", background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 20 };
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+      <button onClick={() => go(-1)} style={b} aria-label="Mês anterior">‹</button>
+      <div style={{ fontSize: 15, fontWeight: 600, color: C.paper }}>{MONTHS[m - 1]} {y}</div>
+      <button onClick={() => go(1)} style={b} aria-label="Próximo mês">›</button>
+    </div>
+  );
+}
+
+function MonthCalendar({ productions, today, onOpenProduction }) {
+  const [ym, setYm] = React.useState(today.slice(0, 7));
+  const [sel, setSel] = React.useState(null);
+  const [y, m] = ym.split("-").map(Number);
+  const first = new Date(y, m - 1, 1).getDay();
+  const days = new Date(y, m, 0).getDate();
+  const iso = (d) => `${ym}-${String(d).padStart(2, "0")}`;
+  const on = (p, d) => p.data && p.data <= iso(d) && iso(d) <= (p.dataFim || p.data);
+  const cells = [];
+  for (let i = 0; i < first; i++) cells.push(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  const list = sel ? productions.filter((p) => on(p, sel)) : [];
+  return (
+    <div className="glass" style={{ borderRadius: 18, padding: "10px 12px 14px", marginBottom: 24 }}>
+      <MonthNav ym={ym} onChange={(v) => { setYm(v); setSel(null); }} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, textAlign: "center" }}>
+        {["D", "S", "T", "Q", "Q", "S", "S"].map((w, i) => <div key={i} style={{ fontSize: 11.5, color: C.faint, padding: "4px 0" }}>{w}</div>)}
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} />;
+          const has = productions.some((p) => on(p, d));
+          const isToday = iso(d) === today;
+          const isSel = sel === iso(d);
+          return (
+            <button
+              key={i}
+              onClick={() => setSel(isSel ? null : iso(d))}
+              style={{
+                minHeight: 40, borderRadius: 12, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 14,
+                background: isSel ? "rgba(253,223,75,0.22)" : "transparent",
+                color: isToday ? C.amber : C.paper, fontWeight: isToday ? 700 : 400,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
+              }}
+            >
+              {d}
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: has ? C.amber : "transparent" }} />
+            </button>
+          );
+        })}
+      </div>
+      {sel && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+          {list.length === 0 ? (
+            <div style={{ fontSize: 13, color: C.faint, padding: "6px 4px" }}>Nada marcado neste dia.</div>
+          ) : list.map((p) => (
+            <button key={p.id} onClick={() => onOpenProduction && onOpenProduction(p.id)} style={{ ...rowBtn, background: "rgba(255,255,255,0.05)", border: "none", minHeight: 44 }}>
+              <span style={{ flex: 1, fontSize: 14, color: C.paper }}>{p.cliente || "Sem nome"}</span>
+              <ChevronRight size={15} color={C.faint} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MonthResult({ productions, financeMap, today }) {
+  const [ym, setYm] = React.useState(today.slice(0, 7));
+  const rows = productions.filter((p) => (p.data || "").slice(0, 7) === ym);
+  let receita = 0, custo = 0;
+  for (const p of rows) {
+    const f = financeMap[p.id];
+    receita += Number(f?.orcamento) || 0;
+    custo += totalCustos(f || { custos: [] }) + valorImposto(f);
+  }
+  const lucro = receita - custo;
+  const margem = receita > 0 ? Math.round((lucro / receita) * 100) : null;
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <SectionTitle icon={PieChart}>Resultado do mês</SectionTitle>
+      <div className="glass" style={{ borderRadius: 18, padding: "6px 14px 14px" }}>
+        <MonthNav ym={ym} onChange={setYm} />
+        {rows.length === 0 ? (
+          <div style={{ fontSize: 13.5, color: C.faint, padding: "8px 4px" }}>Nenhuma produção com data neste mês.</div>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <StatCard label="RECEITA" value={formatBRL(receita)} small />
+              <StatCard label="CUSTOS E IMPOSTO" value={formatBRL(custo)} small />
+              <StatCard label={margem === null ? "LUCRO" : `LUCRO · ${margem}%`} value={formatBRL(lucro)} dot={lucro >= 0 ? C.sage : C.brick} small />
+            </div>
+            <div style={{ fontSize: 12, color: C.faint, marginTop: 10 }}>{rows.length} produç{rows.length === 1 ? "ão" : "ões"} com data neste mês, pelo orçamento e custos de cada uma.</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function gcalLink(p) {
+  const d = (s) => (s || "").replace(/-/g, "");
+  const end = new Date((p.dataFim || p.data) + "T00:00:00"); end.setDate(end.getDate() + 1);
+  const e = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, "0")}${String(end.getDate()).padStart(2, "0")}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Produção: " + (p.cliente || ""))}&dates=${d(p.data)}/${e}`;
+}
+
+export function ProductionsDashboard({ order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate }) {
   const today = localISO();
   const all = order.map((id) => productions[id]).filter(Boolean).filter((p) => !p.arquivada);
   const counts = { afazer: 0, andamento: 0, concluido: 0 };
@@ -137,6 +247,16 @@ export function ProductionsDashboard({ order, productions, userName, paymentPlan
           </span>
         </button>
       ) : null}
+
+      {next && next.data && (
+        <a href={gcalLink(next)} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, marginTop: -8, marginBottom: 14, color: C.muted, fontSize: 13, textDecoration: "none" }}>
+          + Adicionar ao Google Agenda
+        </a>
+      )}
+
+      {all.length > 0 && <MonthCalendar productions={all} today={today} onOpenProduction={onOpenProduction} />}
+
+      {isGestor && all.length > 0 && <MonthResult productions={all} financeMap={financeMap} today={today} />}
 
       {isGestor && (overdue.length > 0 || week.length > 0 || monthTotal > 0) && (
         <div style={{ marginBottom: 24 }}>

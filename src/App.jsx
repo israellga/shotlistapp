@@ -1733,6 +1733,15 @@ export default function App() {
     });
   }
 
+  async function copyIntakeLink() {
+    try {
+      const { data: tok, error } = await supabase.rpc("get_or_create_intake_token", { ws: workspaceId });
+      if (error || !tok) return false;
+      await navigator.clipboard.writeText(`${window.location.origin}/?cadastro=${tok}`);
+      return true;
+    } catch { return false; }
+  }
+
   function duplicateProduction(id) {
     const src = productions[id];
     if (!src) return;
@@ -2115,6 +2124,7 @@ export default function App() {
                 <ClientsList
                   clients={clientList}
                   currentClientId={currentClientId}
+                  onCopyIntake={isGestor ? copyIntakeLink : undefined}
                   onOpen={setCurrentClientId}
                   onDelete={deleteClient}
                 />
@@ -2176,6 +2186,7 @@ export default function App() {
                   order={order}
                   productions={productions}
                   userName={myName}
+                  financeMap={financeMap}
                   paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean)}
                   clients={clients}
                   isGestor={isGestor}

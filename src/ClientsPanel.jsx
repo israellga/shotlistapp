@@ -10,13 +10,23 @@ import { ClientBalanceSummary, FinanceSection } from "./finance";
 import { PaymentPlansSection } from "./payments";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
-export function ClientsList({ clients, onOpen, onDelete, currentClientId }) {
+export function ClientsList({ clients, onOpen, onDelete, currentClientId, onCopyIntake }) {
+  const [copied, setCopied] = React.useState(false);
   const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   return (
     <div style={{ paddingBottom: 10 }}>
       <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, margin: "0 4px 14px" }}>
         CLIENTES ({clients.length})
       </div>
+      {onCopyIntake && (
+        <button
+          onClick={async () => { const ok = await onCopyIntake(); setCopied(ok); setTimeout(() => setCopied(false), 2500); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minHeight: 44, marginBottom: 14, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 12, padding: "0 14px", color: copied ? C.sage : C.muted, fontSize: 13.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          {copied ? <Check size={15} /> : <Plus size={15} />}
+          {copied ? "Link copiado, é só enviar ao cliente" : "Copiar link de cadastro para o cliente"}
+        </button>
+      )}
       {sorted.length === 0 && (
         <div style={{ color: C.faint, fontSize: 13.5, padding: "40px 8px", textAlign: "center" }}>
           <Building2 size={24} color={C.line} style={{ marginBottom: 10 }} />
