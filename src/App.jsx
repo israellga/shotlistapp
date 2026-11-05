@@ -120,7 +120,7 @@ function TakeRow({ take, fieldMode, onChange, onDelete }) {
   if (fieldMode) {
     return (
       <div
-        onClick={() => onChange({ ...take, feito: !take.feito })}
+        onClick={() => { try { if (!take.feito && navigator.vibrate) navigator.vibrate(14); } catch { /* not supported */ } onChange({ ...take, feito: !take.feito }); }}
         style={{
           display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 4px",
           borderBottom: `1px solid ${C.lineSoft}`, cursor: "pointer", opacity: take.feito ? 0.5 : 1,
@@ -752,6 +752,28 @@ function nextAutoHorario(cronograma, horaInicio) {
   return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
 }
 
+function PauseTimer() {
+  const [startedAt, setStartedAt] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!startedAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [startedAt]);
+  const secs = startedAt ? Math.floor((now - startedAt) / 1000) : 0;
+  const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+  const ss = String(secs % 60).padStart(2, "0");
+  return (
+    <button
+      onClick={() => { setNow(Date.now()); setStartedAt(startedAt ? null : Date.now()); }}
+      className="glass"
+      style={{ display: "inline-flex", alignItems: "center", gap: 8, minHeight: 44, borderRadius: 22, padding: "0 16px", color: startedAt ? C.amber : C.paper, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: FONT_BODY, fontVariantNumeric: "tabular-nums", marginBottom: 14 }}
+    >
+      {startedAt ? `Em pausa há ${mm}:${ss} · tocar para encerrar` : "Iniciar pausa"}
+    </button>
+  );
+}
+
 function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -876,6 +898,8 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           </div>
         );
       })()}
+
+      {fieldMode && <PauseTimer />}
 
       {fieldMode && production.clientShareEnabled && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 18, marginTop: -8 }}>
@@ -1291,6 +1315,7 @@ export default function App() {
   const isGestor = myRole === "gestor";
   const isWide = useMediaQuery("(min-width: 900px)");
   const saveTimers = useRef({});
+  const loadAllRef = useRef(null);
 
   useEffect(() => {
     if (!supabaseConfigured) {
@@ -1321,8 +1346,9 @@ export default function App() {
   }, [session]);
 
   const loadMyWorkspace = useCallback(async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    const myId = userData?.user?.id;
+    // getSession reads the locally stored session, so this also works with no connection
+    const { data: sessData } = await supabase.auth.getSession();
+    const myId = sessData?.session?.user?.id;
     if (!myId) {
       setWorkspaceId(null);
       return;
@@ -1333,6 +1359,19 @@ export default function App() {
       .eq("user_id", myId)
       .limit(1)
       .maybeSingle();
+    if (error) {
+      // offline or network failure: reuse the last known workspace so the app still opens
+      try {
+        const cached = JSON.parse(localStorage.getItem("shotlist-ws:" + myId) || "null");
+        if (cached?.workspace_id) {
+          setWorkspaceId(cached.workspace_id);
+          setMyRole(cached.role);
+          setMyStatus(cached.status);
+          setWorkspaceName(cached.name || "");
+          return;
+        }
+      } catch { /* ignore */ }
+    }
     if (error || !data) {
       if (error) console.error("[Shotlist] loadMyWorkspace:", error);
       setWorkspaceId(null);
@@ -1352,6 +1391,7 @@ export default function App() {
     const { data: ws } = await supabase.from("workspaces").select("name").eq("id", data.workspace_id).maybeSingle();
     setWorkspaceName(ws?.name || "");
     setPendingInvites([]);
+    try { localStorage.setItem("shotlist-ws:" + myId, JSON.stringify({ workspace_id: data.workspace_id, role: data.role, status: data.status, name: ws?.name || "" })); } catch { /* ignore */ }
   }, []);
 
   const loadFinance = useCallback(async () => {
@@ -1410,12 +1450,32 @@ export default function App() {
     setSharedOrder(ord);
   }, [session]);
 
+  useEffect(() => {
+    function back() { loadAllRef.current && loadAllRef.current(); }
+    window.addEventListener("online", back);
+    return () => window.removeEventListener("online", back);
+  }, []);
+
   const loadAll = useCallback(async () => {
     if (!workspaceId) return;
     setStatus("loading");
     const { data, error } = await supabase.from(TABLE).select("id, payload, updated_at").eq("workspace_id", workspaceId).order("updated_at", { ascending: false });
     if (error) {
       setOnline(false);
+      // offline: show the last copy saved on this device, plus any unsaved local drafts
+      try {
+        const snap = JSON.parse(localStorage.getItem("shotlist-snap:" + workspaceId) || "null");
+        if (snap?.map) {
+          const m = { ...snap.map };
+          const o = [...(snap.ord || [])];
+          for (const id of getDraftIndex("productions")) {
+            const d = loadDraft("productions", id);
+            if (d) { m[id] = d; if (!o.includes(id)) o.unshift(id); }
+          }
+          setProductions(m);
+          setOrder(o);
+        }
+      } catch { /* ignore */ }
       setStatus("ready");
       return;
     }
@@ -1425,6 +1485,16 @@ export default function App() {
     for (const row of data || []) {
       map[row.id] = row.payload;
       ord.push(row.id);
+    }
+    try { localStorage.setItem("shotlist-snap:" + workspaceId, JSON.stringify({ map, ord })); } catch { /* storage full */ }
+    // send anything edited while offline
+    for (const id of getDraftIndex("productions")) {
+      const draft = loadDraft("productions", id);
+      if (draft) {
+        supabase.from(TABLE).upsert({ id, workspace_id: workspaceId, payload: draft, updated_at: new Date().toISOString() }).then(({ error: e2 }) => {
+          if (!e2) clearDraft("productions", id);
+        });
+      }
     }
     // restore any local, not-yet-saved drafts (survives page reloads without touching the shared db)
     for (const id of getDraftIndex("productions")) {
@@ -1438,6 +1508,7 @@ export default function App() {
     setOrder(ord);
     setStatus("ready");
   }, [workspaceId]);
+  loadAllRef.current = loadAll;
 
   const loadClients = useCallback(async () => {
     if (!workspaceId) return;
