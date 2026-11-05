@@ -80,7 +80,8 @@ function MonthNav({ ym, onChange }) {
   );
 }
 
-function MonthCalendar({ productions, today, onOpenProduction }) {
+function MonthCalendar({ productions, today, onOpenProduction, onCopyCalendar }) {
+  const [copied, setCopied] = React.useState(false);
   const [ym, setYm] = React.useState(today.slice(0, 7));
   const [sel, setSel] = React.useState(null);
   const [y, m] = ym.split("-").map(Number);
@@ -119,6 +120,14 @@ function MonthCalendar({ productions, today, onOpenProduction }) {
           );
         })}
       </div>
+      {onCopyCalendar && (
+        <button
+          onClick={async () => { const ok = await onCopyCalendar(); setCopied(ok); setTimeout(() => setCopied(false), 3000); }}
+          style={{ display: "block", width: "100%", minHeight: 44, marginTop: 8, background: "transparent", border: "none", color: copied ? C.sage : C.muted, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          {copied ? "Link copiado. No Google Agenda: Outras agendas, Por URL, colar" : "Sincronizar com Google/Apple Agenda (copiar link)"}
+        </button>
+      )}
       {sel && (
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
           {list.length === 0 ? (
@@ -175,7 +184,7 @@ function gcalLink(p) {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Produção: " + (p.cliente || ""))}&dates=${d(p.data)}/${e}`;
 }
 
-export function ProductionsDashboard({ order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate }) {
+export function ProductionsDashboard({ order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate, onCopyCalendar }) {
   const today = localISO();
   const all = order.map((id) => productions[id]).filter(Boolean).filter((p) => !p.arquivada);
   const counts = { afazer: 0, andamento: 0, concluido: 0 };
@@ -254,7 +263,7 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
         </a>
       )}
 
-      {all.length > 0 && <MonthCalendar productions={all} today={today} onOpenProduction={onOpenProduction} />}
+      {all.length > 0 && <MonthCalendar productions={all} today={today} onOpenProduction={onOpenProduction} onCopyCalendar={onCopyCalendar} />}
 
       {isGestor && all.length > 0 && <MonthResult productions={all} financeMap={financeMap} today={today} />}
 

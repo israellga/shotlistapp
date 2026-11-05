@@ -22,6 +22,7 @@ import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
 import ClientFeedback from "./ClientFeedback";
+import ShotPhotos from "./ShotPhotos";
 import { downloadSrt, shortTime } from "./srt";
 import { PRODUCTION_STATUS, productionStatus } from "./productionStatus";
 import { PaymentPlansSection, emptyPaymentPlan } from "./payments";
@@ -518,6 +519,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
               </button>
             )}
           </div>
+          <ShotPhotos shot={shot} onChange={onChange} />
         </div>
       )}
     </div>
@@ -1820,6 +1822,15 @@ export default function App() {
     });
   }
 
+  async function copyCalendarLink() {
+    try {
+      const { data: tok, error } = await supabase.rpc("get_or_create_calendar_token", { ws: workspaceId });
+      if (error || !tok) return false;
+      await navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar-feed?t=${tok}`);
+      return true;
+    } catch { return false; }
+  }
+
   async function copyIntakeLink() {
     try {
       const { data: tok, error } = await supabase.rpc("get_or_create_intake_token", { ws: workspaceId });
@@ -2283,6 +2294,7 @@ export default function App() {
                   onOpenClient={openClientFromProduction}
                   onFilterStatus={(k) => setStatusFilter(k)}
                   onCreate={addProduction}
+                  onCopyCalendar={copyCalendarLink}
                 />
               )
             ) : currentClient ? (
