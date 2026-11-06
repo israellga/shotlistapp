@@ -6,19 +6,6 @@ body::before {
   content: "";
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(46vmax 38vmax at 6% 0%, rgba(255, 255, 255, 0.11), transparent 64%),
-    radial-gradient(40vmax 34vmax at 96% 10%, rgba(253, 223, 75, 0.09), transparent 66%),
-    radial-gradient(60vmax 40vmax at 50% 55%, rgba(255, 255, 255, 0.03), transparent 70%),
-    radial-gradient(56vmax 44vmax at 82% 108%, rgba(255, 255, 255, 0.07), transparent 66%);
-}
-#root { margin: 0; padding: 0; height: 100%; }
-html, body { background: #000; }
-
-/* ---- Liquid glass ground: a few soft light pools the glass can pick up ---- */
-body::before {
-  content: "";
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background:
     radial-gradient(52vmax 44vmax at 8% 2%, rgba(255, 255, 255, 0.10), transparent 66%),
     radial-gradient(46vmax 40vmax at 94% 8%, rgba(253, 223, 75, 0.07), transparent 66%),
     radial-gradient(50vmax 44vmax at 40% 64%, rgba(255, 255, 255, 0.04), transparent 66%),
@@ -50,6 +37,7 @@ body::before {
 @media (prefers-reduced-transparency: reduce) {
   .glass-blur { -webkit-backdrop-filter: none; backdrop-filter: none; background-color: rgba(22, 22, 22, 0.97) !important; }
 }
+
 
 /* Browser surfaces that belong to the design */
 ::selection { background: rgba(253, 223, 75, 0.35); color: #fff; }
@@ -163,3 +151,16 @@ button:not(.icon-btn):active:not(:disabled) { transform: scale(0.97); transition
   .icon-btn { min-width: 44px; min-height: 44px; }
   button { min-height: 40px; }
 }
+
+/* ---- Borda refrativa: o fundo "escorre" desfocado pela lateral do vidro (só CSS, funciona no Safari) ----
+   Brilhos internos que nascem na borda e somem pra dentro: claro à esquerda/topo, âmbar à direita. */
+.glass-edge, .modal-card {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.32),
+    inset 18px 0 26px -16px rgba(255,255,255,0.26),
+    inset -22px 0 30px -14px rgba(253,223,75,0.26),
+    inset 0 16px 24px -18px rgba(255,255,255,0.18),
+    inset 0 -18px 26px -18px rgba(255,255,255,0.14),
+    0 18px 44px -18px rgba(0,0,0,0.6);
+}
+

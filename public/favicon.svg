@@ -1,32 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="64" height="64">
 <defs>
-  <radialGradient id="fav-bg" cx="30%" cy="18%" r="95%"><stop offset="0" stop-color="#2b2b2e"/><stop offset="0.55" stop-color="#0d0d0e"/><stop offset="1" stop-color="#000"/></radialGradient>
-  <linearGradient id="fav-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.08"/><stop offset="1" stop-color="#fff" stop-opacity="0.22"/></linearGradient>
-  <linearGradient id="fav-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.30"/><stop offset="1" stop-color="#fff" stop-opacity="0.05"/></linearGradient>
-  <linearGradient id="fav-g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.48"/><stop offset="1" stop-color="#fff" stop-opacity="0.08"/></linearGradient>
-  <linearGradient id="fav-g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.42"/><stop offset="0.55" stop-color="#cfcfd4" stop-opacity="0.10"/><stop offset="1" stop-color="#fff" stop-opacity="0.04"/></linearGradient>
-  <linearGradient id="fav-edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.95"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.12"/><stop offset="0.8" stop-color="#FDDF4B" stop-opacity="0.35"/><stop offset="1" stop-color="#FDDF4B" stop-opacity="0.95"/></linearGradient>
-  <filter id="fav-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="48"/></filter>
-  <filter id="fav-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
-  <clipPath id="fav-clip"><rect x="272" y="310" width="380" height="500" rx="76"/></clipPath>
+  <radialGradient id="fv-bg" cx="28%" cy="18%" r="100%"><stop offset="0" stop-color="#34343a"/><stop offset="0.6" stop-color="#121214"/><stop offset="1" stop-color="#050505"/></radialGradient>
+  <linearGradient id="fv-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.7"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.1"/><stop offset="1" stop-color="#FDDF4B" stop-opacity="0.8"/></linearGradient>
 </defs>
-<rect x="8" y="8" width="1008" height="1008" rx="232" fill="url(#fav-bg)"/>
-       <rect x="9.5" y="9.5" width="1005" height="1005" rx="230.5" fill="none" stroke="url(#fav-rim)" stroke-width="3"/>
-<g transform="translate(512 512) scale(1.5312) translate(-512 -512)">
-  
-  <rect x="272" y="310" width="380" height="500" rx="76" fill="#0e0e0f" fill-opacity="0.55"/>
-  <rect x="272" y="310" width="380" height="500" rx="76" fill="url(#fav-g3)"/>
-  <g clip-path="url(#fav-clip)">
-    <ellipse cx="650" cy="790" rx="120" ry="100" fill="#FDDF4B" fill-opacity="0.62" />
-    <path d="M250 420 L420 300 L520 300 L300 520 Z" fill="#fff" fill-opacity="0.34" filter="url(#fav-soft)"/>
-  </g>
-  <rect x="273.5" y="311.5" width="377" height="497" rx="74.5" fill="none" stroke="url(#fav-edge)" stroke-width="5"/>
-  <g stroke="#FDDF4B" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M344,504 L344,442 L406,442"/>
-    <path d="M518,442 L580,442 L580,504"/>
-    <path d="M580,616 L580,678 L518,678"/>
-    <path d="M406,678 L344,678 L344,616"/>
-  </g>
-  <circle cx="462" cy="560" r="34" fill="#FDDF4B"/>
-</g>
+<rect x="24" y="24" width="976" height="976" rx="230" fill="url(#fv-bg)"/>
+<rect x="30" y="30" width="964" height="964" rx="224" fill="none" stroke="url(#fv-rim)" stroke-width="20"/>
+<g stroke="#FDDF4B" stroke-width="76" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M322,422 L322,322 L422,322"/><path d="M602,322 L702,322 L702,422"/><path d="M702,602 L702,702 L602,702"/><path d="M422,702 L322,702 L322,602"/></g>
+<circle cx="512" cy="512" r="78" fill="#FDDF4B"/>
 </svg>

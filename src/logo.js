@@ -48,3 +48,24 @@ ${bg}
 </g>
 </svg>`;
 }
+
+// Favicon: versão simplificada pra aba do navegador (16–48px). Ícone centralizado, sem blur, traços grossos.
+export function buildFaviconSvg({ id = "fv" } = {}) {
+  const c = 512, d = 190, l = 100;
+  const p = [
+    `M${c - d},${c - d + l} L${c - d},${c - d} L${c - d + l},${c - d}`,
+    `M${c + d - l},${c - d} L${c + d},${c - d} L${c + d},${c - d + l}`,
+    `M${c + d},${c + d - l} L${c + d},${c + d} L${c + d - l},${c + d}`,
+    `M${c - d + l},${c + d} L${c - d},${c + d} L${c - d},${c + d - l}`,
+  ];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="64" height="64">
+<defs>
+  <radialGradient id="${id}-bg" cx="28%" cy="18%" r="100%"><stop offset="0" stop-color="#34343a"/><stop offset="0.6" stop-color="#121214"/><stop offset="1" stop-color="#050505"/></radialGradient>
+  <linearGradient id="${id}-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.7"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.1"/><stop offset="1" stop-color="#FDDF4B" stop-opacity="0.8"/></linearGradient>
+</defs>
+<rect x="24" y="24" width="976" height="976" rx="230" fill="url(#${id}-bg)"/>
+<rect x="30" y="30" width="964" height="964" rx="224" fill="none" stroke="url(#${id}-rim)" stroke-width="20"/>
+<g stroke="#FDDF4B" stroke-width="76" stroke-linecap="round" stroke-linejoin="round" fill="none">${p.map((x) => `<path d="${x}"/>`).join("")}</g>
+<circle cx="${c}" cy="${c}" r="78" fill="#FDDF4B"/>
+</svg>`;
+}

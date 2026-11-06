@@ -95,7 +95,7 @@ function MonthCalendar({ productions, today, onOpenProduction, onCopyCalendar })
   for (let d = 1; d <= days; d++) cells.push(d);
   const list = sel ? productions.filter((p) => on(p, sel)) : [];
   return (
-    <div className="glass" style={{ borderRadius: 18, padding: "10px 12px 14px", marginBottom: 24 }}>
+    <div className="glass glass-edge" style={{ borderRadius: 18, padding: "10px 12px 14px", marginBottom: 24 }}>
       <MonthNav ym={ym} onChange={(v) => { setYm(v); setSel(null); }} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, textAlign: "center" }}>
         {["D", "S", "T", "Q", "Q", "S", "S"].map((w, i) => <div key={i} style={{ fontSize: 11.5, color: C.faint, padding: "4px 0" }}>{w}</div>)}
@@ -159,7 +159,7 @@ function MonthResult({ productions, financeMap, today }) {
   return (
     <div style={{ marginBottom: 24 }}>
       <SectionTitle icon={PieChart}>Resultado do mês</SectionTitle>
-      <div className="glass" style={{ borderRadius: 18, padding: "6px 14px 14px" }}>
+      <div className="glass glass-edge" style={{ borderRadius: 18, padding: "6px 14px 14px" }}>
         <MonthNav ym={ym} onChange={setYm} />
         {rows.length === 0 ? (
           <div style={{ fontSize: 13.5, color: C.faint, padding: "8px 4px" }}>Nenhuma produção com data neste mês.</div>
@@ -243,7 +243,7 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
           )}
         </div>
       ) : next ? (
-        <div className="glass" style={{ borderRadius: 16, marginBottom: 20, overflow: "hidden", borderColor: nextHappening ? C.amber : undefined }}>
+        <div className="glass glass-edge" style={{ borderRadius: 16, marginBottom: 20, overflow: "hidden", borderColor: nextHappening ? C.amber : undefined }}>
           <button
             className="hover-row"
             onClick={() => onOpenProduction && onOpenProduction(next.id)}
