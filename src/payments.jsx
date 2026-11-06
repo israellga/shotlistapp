@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Paperclip } from "lucide-react";
 import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail, MessageCircle, FileDown } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
@@ -11,7 +12,7 @@ function uid() {
 }
 
 export function emptyPaymentPlan(clientId) {
-  return { id: uid(), client_id: clientId, titulo: "", valor_total: "", parcelas: [], share_enabled: false, notify_enabled: false, notify_days_before: 3 };
+  return { id: uid(), client_id: clientId, titulo: "", valor_total: "", parcelas: [], share_enabled: false, notify_enabled: false, notify_days_before: 3, pagamento: {} };
 }
 
 function addMonths(dateStr, n) {
@@ -66,6 +67,13 @@ function waParcelaLink(phone, name, plan, parc, link) {
   const first = (name || "").trim().split(" ")[0];
   const msg = `Olá${first ? ", " + first : ""}! Passando para lembrar da parcela ${parc.numero}${plan.titulo ? " de " + plan.titulo : ""}, no valor de ${valor}${data ? ", com vencimento em " + data : ""}.${plan.share_enabled ? " Você acompanha tudo aqui: " + link : ""} Qualquer dúvida é só me chamar!`;
   return `https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(msg)}`;
+}
+
+const miniInput = { width: "100%", background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 6, padding: "7px 9px", color: C.paper, fontFamily: FONT_BODY, fontSize: 12.5, outline: "none", boxSizing: "border-box" };
+
+async function openComprovante(c) {
+  const { data } = await supabase.storage.from("comprovantes").createSignedUrl(c.path, 300);
+  if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener");
 }
 
 export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, clientDoc, issuer, onChange, onSave, onDelete }) {
@@ -162,6 +170,13 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
             />
           </div>
 
+          <div style={{ fontSize: 11, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.3, marginBottom: 6 }}>COMO O CLIENTE PAGA (aparece no link dele)</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            <input value={plan.pagamento?.pix || ""} onChange={(e) => patch({ pagamento: { ...(plan.pagamento || {}), pix: e.target.value } })} placeholder="Chave Pix" style={miniInput} />
+            <input value={plan.pagamento?.favorecido || ""} onChange={(e) => patch({ pagamento: { ...(plan.pagamento || {}), favorecido: e.target.value } })} placeholder="Nome do favorecido" style={miniInput} />
+          </div>
+          <input value={plan.pagamento?.instrucoes || ""} onChange={(e) => patch({ pagamento: { ...(plan.pagamento || {}), instrucoes: e.target.value } })} placeholder="Instruções (opcional). Ex: enviar o comprovante após pagar" style={{ ...miniInput, marginBottom: 14 }} />
+
           {parcelas.length === 0 && (
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
               <span style={{ fontSize: 11.5, color: C.faint }}>Gerar</span>
@@ -187,7 +202,8 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
             PARCELAS ({parcelas.length})
           </div>
           {parcelas.map((p) => (
-            <div key={p.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
+            <div key={p.id} style={{ marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 4, alignItems: "center" }}>
               <button
                 onClick={() => updateParcela(p.id, { pago: !p.pago, pagoEm: !p.pago ? new Date().toISOString() : null })}
                 title={p.pago ? "Marcar como pendente" : "Marcar como pago"}
@@ -221,6 +237,15 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
                 </a>
               )}
               <IconButton onClick={() => removeParcela(p.id)} tone="brick" size={28}><Trash2 size={13} /></IconButton>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", paddingLeft: 52 }}>
+              <input value={p.boleto || ""} onChange={(e) => updateParcela(p.id, { boleto: e.target.value })} placeholder="Linha digitável do boleto (opcional)" inputMode="numeric" style={{ ...miniInput, fontFamily: FONT_MONO, fontSize: 11.5 }} />
+              {(p.comprovantes || []).length > 0 && (
+                <button onClick={() => openComprovante(p.comprovantes[p.comprovantes.length - 1])} title="Ver comprovante enviado pelo cliente" style={{ display: "inline-flex", alignItems: "center", gap: 4, minHeight: 32, padding: "0 10px", borderRadius: 16, border: `1px solid ${C.amber}`, background: C.amberDim, color: C.amber, fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>
+                  <Paperclip size={12} /> {p.comprovantes.length}
+                </button>
+              )}
+            </div>
             </div>
           ))}
           <button

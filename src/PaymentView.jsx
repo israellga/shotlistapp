@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Loader2, AlertCircle, CheckCircle2, Circle, RefreshCw } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Circle, RefreshCw, Copy, Check, Upload, QrCode, Barcode } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import ShotlistMark from "./ShotlistMark";
 import ShotlistLogo from "./ShotlistLogo";
@@ -7,6 +7,51 @@ import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { formatBRL } from "./finance";
 
 const SAFETY_POLL_MS = 60000;
+
+function CopyBtn({ text, label = "Copiar" }) {
+  const [ok, setOk] = useState(false);
+  async function go() {
+    try { await navigator.clipboard.writeText(text); }
+    catch { const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); } catch {} document.body.removeChild(t); }
+    setOk(true); setTimeout(() => setOk(false), 1800);
+  }
+  return (
+    <button onClick={go} style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: "0 14px", borderRadius: 20, border: `1px solid ${ok ? C.sage : C.amber}`, background: ok ? C.sageDim : C.amberDim, color: ok ? C.sage : C.amber, fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>
+      {ok ? <Check size={14} /> : <Copy size={14} />} {ok ? "Copiado" : label}
+    </button>
+  );
+}
+
+function ComprovanteBtn({ planId, parcela, onDone }) {
+  const ref = React.useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  async function pick(e) {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f) return;
+    if (f.size > 8 * 1024 * 1024) { setErr("Arquivo acima de 8 MB."); return; }
+    setBusy(true); setErr("");
+    try {
+      const ext = (f.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+      const path = `plan/${planId}/${parcela.id}-${Date.now()}.${ext}`;
+      const { error: up } = await supabase.storage.from("comprovantes").upload(path, f, { contentType: f.type || "application/octet-stream" });
+      if (up) throw new Error("Não consegui enviar. Use foto ou PDF de até 8 MB.");
+      const { data: ok, error } = await supabase.rpc("submit_comprovante", { pid: planId, parcela_id: parcela.id, file_path: path, file_name: f.name });
+      if (error || !ok) throw new Error("Não consegui registrar o comprovante.");
+      onDone();
+    } catch (e2) { setErr(e2.message || "Falha ao enviar."); }
+    setBusy(false);
+  }
+  return (
+    <div>
+      <button onClick={() => ref.current?.click()} disabled={busy} style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: "0 14px", borderRadius: 20, border: `1px solid ${C.line}`, background: "transparent", color: C.paper, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        {busy ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Upload size={14} />} Enviar comprovante
+      </button>
+      <input ref={ref} type="file" accept="image/*,application/pdf" onChange={pick} style={{ display: "none" }} />
+      {err && <div style={{ color: C.brick, fontSize: 12.5, marginTop: 6 }}>{err}</div>}
+    </div>
+  );
+}
 
 export default function PaymentView({ id }) {
   const [state, setState] = useState("loading");
@@ -139,16 +184,43 @@ export default function PaymentView({ id }) {
         </div>
       )}
 
+      {data.pagamento?.pix && (
+        <div className="glass" style={{ borderRadius: 18, padding: "14px 16px", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <QrCode size={16} color={C.amber} /><span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>Pagar por Pix</span>
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 14, color: C.paper, wordBreak: "break-all", marginBottom: 4 }}>{data.pagamento.pix}</div>
+          {data.pagamento.favorecido && <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 10 }}>Favorecido: {data.pagamento.favorecido}</div>}
+          <CopyBtn text={data.pagamento.pix} label="Copiar chave Pix" />
+          {data.pagamento.instrucoes && <div style={{ fontSize: 12.5, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>{data.pagamento.instrucoes}</div>}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {parcelas.map((p) => (
-          <div key={p.numero} style={{ display: "flex", alignItems: "center", gap: 10, borderRadius: 14, padding: "12px 14px" }} className="glass">
-            {p.pago ? <CheckCircle2 size={17} color={C.sage} /> : <Circle size={17} color={C.faint} />}
-            <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, width: 24 }}>{String(p.numero).padStart(2, "0")}</span>
-            <span style={{ flex: 1, fontSize: 13.5, color: p.pago ? C.faint : C.paper, textDecoration: p.pago ? "line-through" : "none" }}>
-              {formatBRL(p.valor)}
-            </span>
-            {p.vencimento && (
-              <span style={{ fontSize: 12, color: C.faint, fontFamily: FONT_MONO }}>{p.vencimento.split("-").reverse().join("/")}</span>
+          <div key={p.numero} className="glass" style={{ borderRadius: 14, padding: "12px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {p.pago ? <CheckCircle2 size={17} color={C.sage} /> : <Circle size={17} color={C.faint} />}
+              <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, width: 24 }}>{String(p.numero).padStart(2, "0")}</span>
+              <span style={{ flex: 1, fontSize: 13.5, color: p.pago ? C.faint : C.paper, textDecoration: p.pago ? "line-through" : "none" }}>
+                {formatBRL(p.valor)}
+              </span>
+              {p.vencimento && (
+                <span style={{ fontSize: 12, color: C.faint, fontFamily: FONT_MONO }}>{p.vencimento.split("-").reverse().join("/")}</span>
+              )}
+            </div>
+            {!p.pago && p.boleto && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.lineSoft}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, marginBottom: 4 }}><Barcode size={13} /> LINHA DIGITÁVEL DO BOLETO</div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.paper, wordBreak: "break-all", marginBottom: 8 }}>{p.boleto}</div>
+                <CopyBtn text={p.boleto.replace(/[^\d]/g, "")} label="Copiar linha digitável" />
+              </div>
+            )}
+            {!p.pago && (
+              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <ComprovanteBtn planId={id} parcela={p} onDone={load} />
+                {Number(p.comprovantes) > 0 && <span style={{ fontSize: 12.5, color: C.sage }}>{p.comprovantes} comprovante{p.comprovantes > 1 ? "s" : ""} enviado{p.comprovantes > 1 ? "s" : ""}, aguardando confirmação</span>}
+              </div>
             )}
           </div>
         ))}

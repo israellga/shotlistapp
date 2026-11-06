@@ -1849,6 +1849,8 @@ export default function App() {
 
   function addPaymentPlan(clientId) {
     const plan = emptyPaymentPlan(clientId);
+    const prev = Object.values(paymentPlans).find((x) => x.pagamento?.pix);
+    if (prev) plan.pagamento = { pix: prev.pagamento.pix, favorecido: prev.pagamento.favorecido || "", instrucoes: prev.pagamento.instrucoes || "" };
     setPaymentPlans((prev) => ({ ...prev, [plan.id]: plan }));
     setPaymentPlanOrder((prev) => [plan.id, ...prev]);
     return plan.id;
