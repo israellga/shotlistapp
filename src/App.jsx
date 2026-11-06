@@ -1,3 +1,4 @@
+import PushPrompt from "./PushPrompt";
 import AddressField from "./AddressField";
 import BriefingSection from "./BriefingSection";
 import { EntregaSection, ChecklistSection, TemplatePicker, applyTemplate, etapaLabel } from "./productionExtras";
@@ -2233,7 +2234,10 @@ export default function App() {
         button, input, select, textarea { font-family: inherit; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .shell { height: 100vh; height: 100dvh; background: transparent; font-family: ${FONT_BODY}; display: flex; flex-direction: column; overflow: hidden; }
-        .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); border-bottom: 1px solid ${C.lineSoft}; flex-shrink: 0; background: rgba(14,14,14,0.55); -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%); box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04); position: relative; z-index: 5; }
+        .topbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; padding-top: calc(env(safe-area-inset-top, 0px) + 10px); padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); border-bottom: 1px solid ${C.lineSoft}; flex-shrink: 0; background: rgba(14,14,14,0.55); -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%); box-shadow: inset 0 -1px 0 rgba(255,255,255,0.04); position: relative; z-index: 5; }
+        .topbar > * { flex-shrink: 0; }
+        .topbar .brand { flex-shrink: 1; }
+        @media (max-width: 480px) { .topbar { gap: 6px; } .brand-ws, .wifi-ok { display: none !important; } }
         .body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
         @media (min-width: 900px) {
           .body { display: grid; grid-template-columns: 340px 1fr; }
@@ -2259,13 +2263,13 @@ export default function App() {
       `}</style>
 
       <div className="topbar">
-        <ShotlistLogo size={26} />
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, letterSpacing: 1, color: C.paper }}>
+        <span style={{ flexShrink: 0, display: "inline-flex" }}><ShotlistLogo size={26} /></span>
+        <div className="brand" style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, letterSpacing: 1, color: C.paper, whiteSpace: "nowrap" }}>
             SHOTLIST
           </div>
           {workspaceName && (
-            <div style={{ fontSize: 10.5, color: C.faint, fontFamily: FONT_MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div className="brand-ws" style={{ fontSize: 10.5, color: C.faint, fontFamily: FONT_MONO, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {workspaceName}
             </div>
           )}
@@ -2295,7 +2299,7 @@ export default function App() {
             })}
           </div>
         )}
-        {online ? <Wifi size={15} color={C.sage} /> : <WifiOff size={15} color={C.brick} />}
+        {online ? <span className="wifi-ok" style={{ display: "inline-flex" }}><Wifi size={15} color={C.sage} /></span> : <WifiOff size={15} color={C.brick} />}
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
         {isGestor && (
           <IconButton onClick={() => setShowAccounts(true)} title="Contas da equipe">
@@ -2348,6 +2352,7 @@ export default function App() {
         {showList && (
           <div className="sidebar">
             <div className="pane-list">
+              {!fieldMode && <PushPrompt workspaceId={workspaceId} />}
               {!fieldMode && (
                 <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, letterSpacing: 0.3, color: C.paper, margin: "0 2px 22px" }}>
                   {activeTab === "clientes" ? "Clientes" : "Próximas produções"}
