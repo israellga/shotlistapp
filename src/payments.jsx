@@ -147,6 +147,17 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
     setAsaasBusy("");
   }
 
+  // Se a parcela já tem cobrança no Asaas, leva a mudança de valor/vencimento para lá.
+  async function syncCharge(pc) {
+    if (!pc.asaasId || pc.pago || !asaasOn) return;
+    setAsaasMsg("Atualizando a cobrança no Asaas…");
+    try {
+      await onSave();
+      await callAsaas({ action: "update_charge", plan_id: plan.id, parcela_id: pc.id });
+      setAsaasMsg("Cobrança atualizada no Asaas.");
+      setTimeout(() => setAsaasMsg(""), 3000);
+    } catch (e) { setAsaasMsg(e.message || "Falha ao atualizar a cobrança no Asaas."); }
+  }
   function updateParcela(id, fields) {
     patch({ parcelas: parcelas.map((p) => (p.id === id ? { ...p, ...fields } : p)) });
   }
@@ -254,12 +265,12 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
               </button>
               <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, width: 20 }}>{String(p.numero).padStart(2, "0")}</span>
               <input
-                type="number" value={p.valor} onChange={(e) => updateParcela(p.id, { valor: e.target.value })}
+                type="number" value={p.valor} onChange={(e) => updateParcela(p.id, { valor: e.target.value })} onBlur={() => syncCharge(p)}
                 placeholder="Valor"
                 style={{ flex: 1, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 6, padding: "7px 9px", color: C.paper, fontSize: 12.5, outline: "none" }}
               />
               <input
-                type="date" value={p.vencimento} onChange={(e) => updateParcela(p.id, { vencimento: e.target.value })}
+                type="date" value={p.vencimento} onChange={(e) => updateParcela(p.id, { vencimento: e.target.value })} onBlur={() => syncCharge(p)}
                 style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 6, padding: "7px 9px", color: C.paper, fontSize: 12.5, outline: "none", colorScheme: "dark" }}
               />
               {p.pago && (

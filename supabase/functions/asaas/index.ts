@@ -121,6 +121,23 @@ Deno.serve(async (req) => {
     return json({ ok: applied, canais: c });
   }
 
+  if (input.action === "update_charge") {
+    const plan = (await rest(`payment_plans?id=eq.${encodeURIComponent(input.plan_id)}&select=*`))?.[0];
+    if (!plan) return json({ error: "Plano não encontrado." }, 404);
+    if (!(await gestorOf(plan.workspace_id))) return json({ error: "Sem permissão." }, 403);
+    const cfg = await wsConfig(plan.workspace_id);
+    if (!cfg) return json({ error: "Conecte sua conta do Asaas em Minha conta." }, 400);
+    useCfg(cfg);
+    const pc = (plan.parcelas || []).find((p: any) => p.id === input.parcela_id);
+    if (!pc?.asaasId) return json({ ok: true, skipped: true });
+    if (pc.pago) return json({ error: "Parcela já está paga." }, 400);
+    if (!(Number(pc.valor) > 0) || !pc.vencimento) return json({ error: "Informe valor e vencimento." }, 400);
+    const today = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+    const r = await asaas(ctx, `/payments/${pc.asaasId}`, "PUT", { value: Number(pc.valor), dueDate: pc.vencimento < today ? today : pc.vencimento });
+    if (!r.ok) return json({ error: errMsg(r.data) }, 400);
+    return json({ ok: true });
+  }
+
   if (input.action === "create_charge") {
     const { plan_id, parcela_id } = input;
     const plans = await rest(`payment_plans?id=eq.${encodeURIComponent(plan_id)}&select=*`);
