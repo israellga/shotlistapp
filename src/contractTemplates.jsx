@@ -51,7 +51,7 @@ export function buildContext({ client, production, plan, issuer }) {
   const total = plan ? Number(plan.valor_total) || (plan.parcelas || []).reduce((a, x) => a + (Number(x.valor) || 0), 0) : 0;
   const parcelas = (plan?.parcelas || []).map((x) => `${x.numero}ª parcela: ${formatBRL(Number(x.valor) || 0)}${x.vencimento ? ` com vencimento em ${dataBR(x.vencimento)}` : ""}`).join("\n");
   return {
-    cliente: c.name || p.cliente || "", documento: c.cnpj || "", email_cliente: c.email || "", telefone_cliente: c.phone || "", endereco_cliente: end, emissor: issuer || "",
+    cliente: c.name || "", documento: c.cnpj || "", email_cliente: c.email || "", telefone_cliente: c.phone || "", endereco_cliente: end, emissor: issuer || "",
     producao: p.cliente || plan?.titulo || "", data: formatIntervaloDatas(p.data, p.dataFim) || "", horario: p.horaInicio || p.horaFim ? `${p.horaInicio || "?"} às ${p.horaFim || "?"}` : "",
     local: p.endereco || "", demanda: p.objetivoDia || "",
     equipe: (p.equipe || []).map((m) => [m.funcao, m.responsavel].filter(Boolean).join(": ")).filter(Boolean).join("; "),
@@ -214,12 +214,16 @@ export function TemplatesManager({ workspaceId }) {
 }
 
 // Gera o contrato do cliente a partir de um modelo, confere/edita o texto e envia para assinatura.
-export function GenerateContractDialog({ workspaceId, client, productions, plans, issuerName, onClose, onSent }) {
+export function GenerateContractDialog({ workspaceId, client: clientFixed, clientOptions, productions, plans: plansIn, issuerName, onClose, onSent }) {
+  const [cid, setCid] = useState(clientFixed?.id || "");
+  const client = clientFixed || (clientOptions || []).find((c) => c.id === cid) || null;
+  const plans = (plansIn || []).filter((p) => !clientOptions || !client || p.client_id === client.id);
   const [templates] = useContractTemplates(workspaceId);
   const [zs] = useZapsignStatus(workspaceId);
   const [tid, setTid] = useState("");
   const [pid, setPid] = useState(productions?.[0]?.id || "");
   const [planId, setPlanId] = useState(plans?.[0]?.id || "");
+  useEffect(() => { if (!plans.some((p) => p.id === planId)) setPlanId(plans[0]?.id || ""); }, [client?.id]); // eslint-disable-line
   const [texto, setTexto] = useState("");
   const [info, setInfo] = useState({ faltando: [], desconhecidos: [] });
   const [sending, setSending] = useState(null);
@@ -237,6 +241,7 @@ export function GenerateContractDialog({ workspaceId, client, productions, plans
   const tpl = templates.find((x) => x.id === tid);
   const prod = (productions || []).find((x) => x.id === pid);
   const titulo = `Contrato - ${client?.name || ""}${prod?.cliente && prod.cliente !== client?.name ? " - " + prod.cliente : ""}`;
+  const semCliente = !client;
   const nome = (id) => CAMPOS.find(([k]) => k === id)?.[1] || id;
 
   async function toPdf(download) {
@@ -266,6 +271,14 @@ export function GenerateContractDialog({ workspaceId, client, productions, plans
               <label style={{ fontSize: 12, color: C.faint }}>Modelo
                 <select value={tid} onChange={(e) => setTid(e.target.value)} style={{ ...inputSt, marginTop: 4, colorScheme: "dark" }}>{templates.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}</select>
               </label>
+              {!clientFixed && (
+                <label style={{ fontSize: 12, color: C.faint }}>Cliente (quem assina o contrato)
+                  <select value={cid} onChange={(e) => setCid(e.target.value)} style={{ ...inputSt, marginTop: 4, colorScheme: "dark" }}>
+                    <option value="">Escolha o cliente…</option>
+                    {(clientOptions || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </label>
+              )}
               {(productions || []).length > 0 && (
                 <label style={{ fontSize: 12, color: C.faint }}>Produção (data, local, equipe)
                   <select value={pid} onChange={(e) => setPid(e.target.value)} style={{ ...inputSt, marginTop: 4, colorScheme: "dark" }}>
@@ -282,6 +295,7 @@ export function GenerateContractDialog({ workspaceId, client, productions, plans
                   </select>
                 </label>
               )}
+              {semCliente && <div style={{ fontSize: 12.5, color: C.brick }}>Escolha o cliente para preencher os dados dele no contrato.</div>}
               {(info.faltando.length > 0 || info.desconhecidos.length > 0) && (
                 <div style={{ background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 10, padding: "9px 12px", fontSize: 12.5, color: C.paper, lineHeight: 1.5 }}>
                   {info.faltando.length > 0 && <div><b style={{ color: C.amber }}>Sem dados:</b> {info.faltando.map(nome).join(", ")}. Aparecem como ________ no texto; preencha abaixo ou complete o cadastro.</div>}
@@ -291,15 +305,15 @@ export function GenerateContractDialog({ workspaceId, client, productions, plans
               <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO }}>CONFIRA E EDITE O TEXTO ANTES DE ENVIAR</div>
               <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={16} style={{ ...inputSt, fontFamily: FONT_BODY, lineHeight: 1.5, resize: "vertical" }} />
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {zs?.connected && <button disabled={busy || !tpl} onClick={() => toPdf(false)} style={{ ...btn, flex: 1, minHeight: 44, background: C.amberDim, borderColor: C.amber, color: C.amber, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}><PenLine size={14} /> {busy ? "Gerando…" : "Enviar para assinatura"}</button>}
-                <button disabled={busy || !tpl} onClick={() => toPdf(true)} style={{ ...btn, minHeight: 44, display: "inline-flex", alignItems: "center", gap: 6 }}><Download size={14} /> Baixar PDF</button>
+                {zs?.connected && <button disabled={busy || !tpl || semCliente} onClick={() => toPdf(false)} style={{ ...btn, flex: 1, minHeight: 44, background: C.amberDim, borderColor: C.amber, color: C.amber, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}><PenLine size={14} /> {busy ? "Gerando…" : "Enviar para assinatura"}</button>}
+                <button disabled={busy || !tpl || semCliente} onClick={() => toPdf(true)} style={{ ...btn, minHeight: 44, display: "inline-flex", alignItems: "center", gap: 6 }}><Download size={14} /> Baixar PDF</button>
               </div>
               {zs && !zs.connected && <div style={{ fontSize: 12, color: C.faint }}>Conecte o ZapSign em Configurações &gt; Assinaturas para enviar direto.</div>}
             </>
           )}
         </div>
       </div>
-      {sending && <SendContractDialog workspaceId={workspaceId} client={client} productionId={pid || null} titulo={titulo} pdfBase64={sending} issuerName={issuerName} onClose={() => setSending(null)} onSent={() => { onSent?.(); onClose(); }} />}
+      {sending && client && <SendContractDialog workspaceId={workspaceId} client={client} productionId={pid || null} titulo={titulo} pdfBase64={sending} issuerName={issuerName} onClose={() => setSending(null)} onSent={() => { onSent?.(); onClose(); }} />}
     </div>
   );
 }

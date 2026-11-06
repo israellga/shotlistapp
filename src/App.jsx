@@ -816,7 +816,7 @@ function ProductionDetail({ workspaceId, onImportPdf, onSaveTemplate, recentAddr
 
   async function handleProposal() {
     const { exportProposalPDF } = await import("./proposalPdf");
-    const client = production.clienteId ? clients?.[production.clienteId] : null;
+    const client = production.clienteId ? (clients || []).find((c) => c.id === production.clienteId) : null;
     const plan = (paymentPlans || []).find((p) => p.client_id === production.clienteId);
     exportProposalPDF({ production, client, finance, plan, issuer: issuerName });
   }
@@ -940,9 +940,10 @@ function ProductionDetail({ workspaceId, onImportPdf, onSaveTemplate, recentAddr
       {contractOpen && (
         <GenerateContractDialog
           workspaceId={workspaceId}
-          client={(production.clienteId && clients?.[production.clienteId]) || { name: production.cliente || "" }}
+          client={(production.clienteId && (clients || []).find((c) => c.id === production.clienteId)) || undefined}
+          clientOptions={(clients || []).filter((c) => c && c.name).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))}
           productions={[production]}
-          plans={(paymentPlans || []).filter((pl) => pl.client_id === production.clienteId)}
+          plans={paymentPlans || []}
           issuerName={issuerName}
           onClose={() => setContractOpen(false)}
         />
