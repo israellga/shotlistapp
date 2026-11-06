@@ -1991,6 +1991,23 @@ export default function App() {
     });
   }
 
+  async function convertProposal(pr, client) {
+    const p = emptyProduction();
+    p.clienteId = client.id;
+    p.cliente = client.name;
+    p.objetivoDia = [pr.titulo, pr.payload?.escopo].filter(Boolean).join(" — ");
+    p.shots = (pr.payload?.itens || []).filter((i) => i.desc).map((i, n) => { const sh = emptyShot(n + 1); sh.nome = i.desc; return sh; });
+    setProductions((prev) => ({ ...prev, [p.id]: p }));
+    setOrder((prev) => [p.id, ...prev]);
+    const total = (pr.payload?.itens || []).reduce((a, i) => a + (Number(i.valor) || 0), 0);
+    setFinanceMap((prev) => ({ ...prev, [p.id]: { orcamento: total, custos: [], imposto_pct: "" } }));
+    saveDraft("productions", p.id, p);
+    await supabase.from(TABLE).upsert({ id: p.id, workspace_id: workspaceId, payload: p, updated_at: new Date().toISOString() });
+    await supabase.from("production_finance").upsert({ production_id: p.id, workspace_id: workspaceId, orcamento: total, custos: [], imposto_pct: null, updated_at: new Date().toISOString() });
+    setCurrentId(p.id);
+    setActiveTab("producoes");
+  }
+
   function updateProduction(id, next) {
     next = { ...next, atualizadoPor: myName || "", atualizadoEm: new Date().toISOString() };
     const isShared = !!sharedProductions[id];
@@ -2444,6 +2461,9 @@ export default function App() {
                 onChangePaymentPlan={updatePaymentPlan}
                 onSavePaymentPlan={savePaymentPlanNow}
                 onDeletePaymentPlan={deletePaymentPlan}
+                workspaceId={workspaceId}
+                issuerName={myName || workspaceName}
+                onConvertProposal={(pr) => convertProposal(pr, currentClient)}
               />
             ) : isGestor ? (
               <ClientsDashboard

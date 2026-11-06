@@ -8,6 +8,7 @@ import { Field, DateField, IconButton, EditableTitle, ConfirmIconButton, Confirm
 import { formatBRL } from "./finance";
 import { ClientBalanceSummary, FinanceSection } from "./finance";
 import { PaymentPlansSection } from "./payments";
+import { ProposalsSection } from "./proposals";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
 export const FUNIL = [
@@ -121,6 +122,7 @@ export function ClientDetail({
   client, onChange, onSaveNow, onBack, onDelete, productions, onOpenProduction, onAddProduction, showBack, isGestor, financeMap,
   financeRecords, onAddFinanceRecord, onChangeFinanceRecord, onSaveFinanceRecord, onDeleteFinanceRecord,
   paymentPlans, onAddPaymentPlan, onChangePaymentPlan, onSavePaymentPlan, onDeletePaymentPlan,
+  workspaceId, issuerName, onConvertProposal,
 }) {
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
@@ -349,6 +351,10 @@ export function ClientDetail({
             ))}
           </div>
         </div>
+      )}
+
+      {isGestor && workspaceId && (
+        <ProposalsSection client={client} workspaceId={workspaceId} issuer={issuerName} onConvert={onConvertProposal} />
       )}
 
       {isGestor && (

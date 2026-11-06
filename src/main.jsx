@@ -5,14 +5,17 @@ import App from './App.jsx'
 import ClientView from './ClientView.jsx'
 import PaymentView from './PaymentView.jsx'
 import IntakeView from './IntakeView.jsx'
+import ProposalView from './ProposalView.jsx'
 
 const params = new URLSearchParams(window.location.search)
 const clientId = params.get('client')
 const paymentId = params.get('payment')
 const intakeToken = params.get('cadastro')
+const proposalId = params.get('proposta')
 
 function Root() {
   if (clientId) return <ClientView id={clientId} />
+  if (proposalId) return <ProposalView id={proposalId} />
   if (intakeToken) return <IntakeView token={intakeToken} />
   if (paymentId) return <PaymentView id={paymentId} />
   return <App />
