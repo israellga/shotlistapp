@@ -122,6 +122,19 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
     if (data?.error) throw new Error(data.error);
     return data;
   }
+  const avisos = plan.pagamento?.avisos || {};
+  const [avisoMsg, setAvisoMsg] = useState("");
+  async function setAviso(k, v) {
+    const next = { ...avisos, [k]: v };
+    patch({ pagamento: { ...(plan.pagamento || {}), avisos: next } });
+    setAvisoMsg("");
+    try {
+      await onSave();
+      await callAsaas({ action: "set_plan_notifications", plan_id: plan.id, canais: next });
+      setAvisoMsg("Salvo.");
+      setTimeout(() => setAvisoMsg(""), 2500);
+    } catch (e) { setAvisoMsg(e.message || "Falha ao salvar."); }
+  }
   async function createCharge(pc) {
     setAsaasBusy(pc.id); setAsaasMsg("");
     try {
@@ -288,6 +301,22 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
             </div>
           ))}
           {asaasMsg && <div style={{ fontSize: 12, marginBottom: 10, color: /Falha|Cadastre|Informe|Chave|permiss|Erro|inv|Conecte/i.test(asaasMsg) ? C.brick : C.sage }}>{asaasMsg}</div>}
+          {asaasOn && parcelas.length > 0 && (
+            <div style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: C.paper, marginBottom: 2 }}>Avisar o cliente pelo Asaas</div>
+              <div style={{ fontSize: 11.5, color: C.muted, lineHeight: 1.45, marginBottom: 6 }}>
+                Desligado por padrão. Combine com o cliente antes de ativar. Até 3 avisos por cobrança (criação, vencimento, atraso); WhatsApp e SMS têm custo, descontado do que você recebe (veja os valores em Minha conta).
+              </div>
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                {[["email", "E-mail"], ["whatsapp", "WhatsApp"], ["sms", "SMS"]].map(([k, l]) => (
+                  <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.paper, cursor: "pointer" }}>
+                    <input type="checkbox" checked={!!avisos[k]} onChange={(e) => setAviso(k, e.target.checked)} style={{ width: 16, height: 16 }} /> {l}
+                  </label>
+                ))}
+              </div>
+              {avisoMsg && <div style={{ fontSize: 12, marginTop: 6, color: /Falha|Erro|permiss|Conecte/i.test(avisoMsg) ? C.brick : C.sage }}>{avisoMsg}</div>}
+            </div>
+          )}
           {!asaasOn && asaasSt && parcelas.length > 0 && <div style={{ fontSize: 12, color: C.faint, marginBottom: 10 }}>Para gerar Pix, boleto e cartão automáticos, conecte o Asaas em Minha conta.</div>}
           <button
             onClick={addParcela}
