@@ -261,8 +261,6 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
           {next.endereco && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 18px 12px", fontSize: 13, color: C.muted }}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {next.endereco}</span>
-              <a href={wazeUrl(next.endereco)} target="_blank" rel="noreferrer" style={{ color: C.amber, textDecoration: "none", fontWeight: 600 }}>Waze</a>
-              <a href={mapsUrl(next.endereco)} target="_blank" rel="noreferrer" style={{ color: C.amber, textDecoration: "none", fontWeight: 600 }}>Maps</a>
             </div>
           )}
           {next.data && (
