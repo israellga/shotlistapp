@@ -1,3 +1,4 @@
+import { mapsUrl, wazeUrl } from "./maps";
 import React from "react";
 import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
@@ -181,7 +182,8 @@ function gcalLink(p) {
   const d = (s) => (s || "").replace(/-/g, "");
   const end = new Date((p.dataFim || p.data) + "T00:00:00"); end.setDate(end.getDate() + 1);
   const e = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, "0")}${String(end.getDate()).padStart(2, "0")}`;
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Produção: " + (p.cliente || ""))}&dates=${d(p.data)}/${e}`;
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Produção: " + (p.cliente || ""))}&dates=${d(p.data)}/${e}`
+    + (p.endereco ? `&location=${encodeURIComponent(p.endereco)}&details=${encodeURIComponent("Waze: " + wazeUrl(p.endereco) + "\nGoogle Maps: " + mapsUrl(p.endereco))}` : "");
 }
 
 export function ProductionsDashboard({ order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate, onCopyCalendar }) {
@@ -256,6 +258,13 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
               <span style={{ color: C.amber, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>Abrir <ChevronRight size={15} /></span>
             </span>
           </button>
+          {next.endereco && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 18px 12px", fontSize: 13, color: C.muted }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📍 {next.endereco}</span>
+              <a href={wazeUrl(next.endereco)} target="_blank" rel="noreferrer" style={{ color: C.amber, textDecoration: "none", fontWeight: 600 }}>Waze</a>
+              <a href={mapsUrl(next.endereco)} target="_blank" rel="noreferrer" style={{ color: C.amber, textDecoration: "none", fontWeight: 600 }}>Maps</a>
+            </div>
+          )}
           {next.data && (
             <a href={gcalLink(next)} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", minHeight: 44, padding: "0 18px", borderTop: "1px solid rgba(255,255,255,0.08)", color: C.muted, fontSize: 13, textDecoration: "none" }}>
               + Adicionar ao Google Agenda

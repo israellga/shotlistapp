@@ -1,3 +1,4 @@
+import { mapsUrl, wazeUrl } from "./maps";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronRight, Users, Clock,
@@ -48,6 +49,7 @@ function emptyProduction() {
     clienteId: null,
     data: "",
     dataFim: "",
+    endereco: "",
     responsavel: "",
     horaInicio: "",
     horaFim: "",
@@ -991,6 +993,18 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
         )
       )}
 
+      <div style={{ marginBottom: 10 }}>
+        {!fieldMode && (
+          <Field label="Local (endereço)" value={production.endereco || ""} onChange={(v) => patch({ endereco: v })} placeholder="Rua, número, bairro, cidade" />
+        )}
+        {production.endereco && (
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <a href={mapsUrl(production.endereco)} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", minHeight: 44, display: "grid", placeItems: "center", border: `1px solid ${C.line}`, borderRadius: 12, color: C.paper, fontSize: 13.5, fontWeight: 600, textDecoration: "none" }}>Abrir no Google Maps</a>
+            <a href={wazeUrl(production.endereco)} target="_blank" rel="noreferrer" style={{ flex: 1, textAlign: "center", minHeight: 44, display: "grid", placeItems: "center", border: `1px solid ${C.line}`, borderRadius: 12, color: C.paper, fontSize: 13.5, fontWeight: 600, textDecoration: "none" }}>Abrir no Waze</a>
+          </div>
+        )}
+      </div>
+
       {!fieldMode && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           <LabeledHorarioInput label="Horário de início" value={production.horaInicio} onCommit={(v) => patch({ horaInicio: v })} />
@@ -1832,6 +1846,7 @@ export default function App() {
     p.responsavel = d.responsavel || "";
     p.data = /^\d{4}-\d{2}-\d{2}$/.test(d.data || "") ? d.data : "";
     p.dataFim = /^\d{4}-\d{2}-\d{2}$/.test(d.dataFim || "") ? d.dataFim : "";
+    p.endereco = d.endereco || "";
     p.horaInicio = d.horaInicio || "";
     p.horaFim = d.horaFim || "";
     p.objetivoDia = d.objetivoDia || "";

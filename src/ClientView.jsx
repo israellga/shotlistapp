@@ -1,3 +1,4 @@
+import { mapsUrl, wazeUrl } from "./maps";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, AlertCircle, ExternalLink, RefreshCw, CheckCircle2, PlayCircle, Circle, MessageSquare, Send, ThumbsUp } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
@@ -378,6 +379,15 @@ export default function ClientView({ id }) {
             {formatIntervaloDatas(data.data, data.dataFim)}
             {data.objetivoDia && <span> · {data.objetivoDia}</span>}
           </div>
+          {data.endereco && (
+            <div style={{ fontSize: 13.5, color: C.muted, marginTop: 8, lineHeight: 1.45 }}>
+              📍 {data.endereco}
+              <span style={{ display: "inline-flex", gap: 12, marginLeft: 10 }}>
+                <a href={wazeUrl(data.endereco)} target="_blank" rel="noreferrer" style={{ color: C.amber, textDecoration: "none", fontWeight: 600 }}>Waze</a>
+                <a href={mapsUrl(data.endereco)} target="_blank" rel="noreferrer" style={{ color: C.amber, textDecoration: "none", fontWeight: 600 }}>Maps</a>
+              </span>
+            </div>
+          )}
         </div>
         <button
           onClick={load}

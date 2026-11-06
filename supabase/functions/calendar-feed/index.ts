@@ -8,7 +8,7 @@ async function rest(path: string) {
   return await r.json();
 }
 
-const esc = (t: string) => String(t || "").replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const esc = (t: string) => String(t || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 const d8 = (iso: string) => iso.replace(/-/g, "");
 function nextDay(iso: string) {
   const d = new Date(iso + "T00:00:00Z");
@@ -29,10 +29,10 @@ Deno.serve(async (req) => {
     const p = row.payload || {};
     if (!p.data || p.arquivada) continue;
     const end = p.dataFim && p.dataFim >= p.data ? p.dataFim : p.data;
-    const desc = [p.objetivoDia && `Demanda: ${p.objetivoDia}`, (p.horaInicio || p.horaFim) && `Horário: ${p.horaInicio || "?"}–${p.horaFim || "?"}`, p.responsavel && `Responsável: ${p.responsavel}`, `${(p.shots || []).length} shots`].filter(Boolean).join("\n");
+    const desc = [p.objetivoDia && `Demanda: ${p.objetivoDia}`, (p.horaInicio || p.horaFim) && `Horário: ${p.horaInicio || "?"}–${p.horaFim || "?"}`, p.responsavel && `Responsável: ${p.responsavel}`, p.endereco && `Waze: https://waze.com/ul?q=${encodeURIComponent(p.endereco)}&navigate=yes`, `${(p.shots || []).length} shots`].filter(Boolean).join("\n");
     lines.push("BEGIN:VEVENT", `UID:${row.id}@shotlist`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
       `DTSTART;VALUE=DATE:${d8(p.data)}`, `DTEND;VALUE=DATE:${nextDay(end)}`, `SUMMARY:${esc("Produção: " + (p.cliente || "Sem nome"))}`,
-      `DESCRIPTION:${esc(desc)}`, "END:VEVENT");
+      `DESCRIPTION:${esc(desc)}`, ...(p.endereco ? [`LOCATION:${esc(p.endereco)}`] : []), "END:VEVENT");
   }
   lines.push("END:VCALENDAR");
   return new Response(lines.join("\r\n"), { headers: { "content-type": "text/calendar; charset=utf-8", "cache-control": "max-age=900" } });

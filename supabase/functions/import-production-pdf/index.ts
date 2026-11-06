@@ -16,6 +16,7 @@ Responda APENAS com um JSON válido (sem markdown, sem texto fora do JSON) neste
   "responsavel": "pessoa responsável pelo lado do cliente, se houver, senão vazio",
   "data": "YYYY-MM-DD ou vazio se não houver data definida",
   "dataFim": "YYYY-MM-DD ou vazio",
+  "endereco": "endereço/local da gravação ou sessão, se houver, senão vazio",
   "horaInicio": "HH:MM ou vazio",
   "horaFim": "HH:MM ou vazio",
   "objetivoDia": "demanda/objetivo do trabalho em 1 ou 2 frases",
