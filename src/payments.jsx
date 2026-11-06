@@ -139,7 +139,9 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
     try {
       await onSave();
       const r = await callAsaas({ action: "create_charge", plan_id: plan.id, parcela_id: pc.id });
-      setAsaasMsg(`Cobrança criada${r.env === "sandbox" ? " (ambiente de testes)" : ""}. Atualizando…`);
+      const { data: fresh } = await supabase.from("payment_plans").select("*").eq("id", plan.id).maybeSingle();
+      if (fresh) onChange(fresh);
+      setAsaasMsg(`Cobrança ${r.reused ? "já existia no Asaas e foi vinculada" : "criada"}${r.env === "sandbox" ? " (ambiente de testes)" : ""}.`);
       setTimeout(() => setAsaasMsg(""), 4000);
     } catch (e) { setAsaasMsg(e.message || "Falha ao criar a cobrança."); }
     setAsaasBusy("");

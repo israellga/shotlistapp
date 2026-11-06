@@ -174,6 +174,14 @@ Deno.serve(async (req) => {
     // cobrança (UNDEFINED = cliente escolhe Pix, boleto ou cartão na fatura)
     let chargeId = pc.asaasId as string | undefined;
     let invoiceUrl = pc.asaasUrl as string | undefined;
+    let reused = false;
+    if (!chargeId) {
+      // evita duplicar: se já existe cobrança ativa desta parcela no Asaas, reaproveita
+      const ref = `${plan.id}:${pc.id}`;
+      const ex = await asaas(ctx, `/payments?externalReference=${encodeURIComponent(ref)}&limit=10`);
+      const alive = (ex.data?.data || []).find((x: any) => !x.deleted && x.status !== "REFUNDED");
+      if (alive) { chargeId = alive.id; invoiceUrl = alive.invoiceUrl; reused = true; }
+    }
     if (!chargeId) {
       const ch = await asaas(ctx, "/payments", "POST", {
         customer, billingType: "UNDEFINED", value: Number(pc.valor), dueDate: due,
@@ -191,11 +199,15 @@ Deno.serve(async (req) => {
       pixCopia: pix.ok ? pix.data.payload : p.pixCopia,
       boleto: bol.ok && bol.data.identificationField ? bol.data.identificationField : p.boleto,
     });
-    await rest(`payment_plans?id=eq.${encodeURIComponent(plan.id)}`, {
-      method: "PATCH", headers: { ...SH, prefer: "return=minimal" },
-      body: JSON.stringify({ parcelas: next, pagamento: { ...pagamento, asaasCustomer: customer, asaasNotif: notifApplied }, updated_at: new Date().toISOString() }),
+    // relê o plano antes de gravar, para não sobrescrever alterações feitas durante a chamada
+    const cur = (await rest(`payment_plans?id=eq.${encodeURIComponent(plan.id)}&select=parcelas,pagamento`))?.[0] || plan;
+    const fresh = (cur.parcelas || []).map((p: any) => p.id !== pc.id ? p : { ...p, ...next[idx], pago: p.pago, pagoEm: p.pagoEm });
+    const saved = await rest(`payment_plans?id=eq.${encodeURIComponent(plan.id)}`, {
+      method: "PATCH", headers: { ...SH, prefer: "return=representation" },
+      body: JSON.stringify({ parcelas: fresh, pagamento: { ...(cur.pagamento || {}), asaasCustomer: customer, asaasNotif: notifApplied }, updated_at: new Date().toISOString() }),
     });
-    return json({ ok: true, invoiceUrl, boleto: !!(bol.ok && bol.data.identificationField), pix: !!pix.ok, env: cfg.env });
+    if (!saved?.length) return json({ error: "A cobrança foi criada no Asaas, mas não consegui gravar no Shotlist. Clique em Gerar cobrança de novo (ela será vinculada, sem duplicar)." }, 500);
+    return json({ ok: true, reused, invoiceUrl, boleto: !!(bol.ok && bol.data.identificationField), pix: !!pix.ok, env: cfg.env });
   }
 
   return json({ error: "Ação desconhecida." }, 400);

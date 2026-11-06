@@ -1911,9 +1911,29 @@ export default function App() {
     setPaymentPlans((prev) => ({ ...prev, [id]: next }));
   }
 
+  // Campos que só o servidor escreve (cobrança do Asaas). O salvamento do navegador nunca pode apagá-los.
+  function mergeServerManaged(local, server) {
+    if (!server) return local;
+    const sp = new Map((server.parcelas || []).map((p) => [p.id, p]));
+    const parcelas = (local.parcelas || []).map((p) => {
+      const s = sp.get(p.id);
+      if (!s) return p;
+      const m = { ...p };
+      for (const k of ["asaasId", "asaasUrl", "pixCopia", "boleto"]) if (!m[k] && s[k]) m[k] = s[k];
+      if (s.pago && !m.pago) { m.pago = true; m.pagoEm = s.pagoEm; m.pagoVia = s.pagoVia; }
+      return m;
+    });
+    const pagamento = { ...(local.pagamento || {}) };
+    for (const k of ["asaasCustomer", "asaasNotif"]) if (!pagamento[k] && server.pagamento?.[k]) pagamento[k] = server.pagamento[k];
+    return { ...local, parcelas, pagamento };
+  }
+
   async function savePaymentPlanNow(id) {
-    const plan = paymentPlans[id];
-    if (!plan) return;
+    const local = paymentPlans[id];
+    if (!local) return;
+    const { data: server } = await supabase.from("payment_plans").select("parcelas,pagamento").eq("id", id).maybeSingle();
+    const plan = mergeServerManaged(local, server);
+    if (plan !== local) setPaymentPlans((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], parcelas: plan.parcelas, pagamento: plan.pagamento } } : prev));
     const { error } = await supabase.from("payment_plans").upsert({
       ...plan,
       workspace_id: workspaceId,
