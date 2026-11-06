@@ -25,10 +25,12 @@ async function suggest(q, signal) {
   }).filter((v, i, a) => v && a.indexOf(v) === i);
 }
 
-export default function AddressField({ label, value, onChange, placeholder }) {
+export default function AddressField({ label, value, onChange, placeholder, recent = [] }) {
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
   const typed = useRef(false);
+  const q = (value || "").trim().toLowerCase();
+  const locais = recent.filter((r) => r.toLowerCase() !== q && (!q || r.toLowerCase().includes(q))).slice(0, 4);
   const box = useRef(null);
 
   useEffect(() => {
@@ -48,14 +50,17 @@ export default function AddressField({ label, value, onChange, placeholder }) {
 
   return (
     <div ref={box} style={{ position: "relative" }}>
-      <Field label={label} value={value} placeholder={placeholder} onChange={(v) => { typed.current = true; onChange(v); }} />
-      {open && items.length > 0 && (
+      <div onFocus={() => { if (!(value || "").trim() && recent.length) setOpen(true); }}>
+        <Field label={label} value={value} placeholder={placeholder} onChange={(v) => { typed.current = true; onChange(v); }} />
+      </div>
+      {open && (items.length > 0 || locais.length > 0) && (
         <div className="glass-blur" style={{ position: "absolute", left: 0, right: 0, top: "calc(100% + 4px)", zIndex: 30, borderRadius: 14, overflow: "hidden", background: "rgba(28,28,30,0.96)", border: `1px solid ${C.line}`, boxShadow: "0 12px 32px rgba(0,0,0,0.5)" }}>
-          {items.map((it) => (
+          {[...locais.map((t) => ({ t, saved: true })), ...items.filter((t) => !locais.includes(t)).map((t) => ({ t }))].map(({ t: it, saved }) => (
             <button key={it} type="button" onClick={() => { typed.current = false; onChange(it); setOpen(false); setItems([]); }}
               style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", minHeight: 46, padding: "8px 14px", background: "transparent", border: "none", borderBottom: `1px solid ${C.line}`, color: C.paper, fontFamily: FONT_BODY, fontSize: 13.5, textAlign: "left", cursor: "pointer" }}>
-              <MapPin size={15} color={C.faint} style={{ flexShrink: 0 }} />
+              <MapPin size={15} color={saved ? C.amber : C.faint} style={{ flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0 }}>{it}</span>
+              {saved && <span style={{ fontSize: 11, color: C.faint }}>usado antes</span>}
             </button>
           ))}
         </div>

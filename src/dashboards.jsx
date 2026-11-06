@@ -1,6 +1,6 @@
 import { mapsUrl, wazeUrl } from "./maps";
 import React from "react";
-import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight, Truck } from "lucide-react";
+import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight, Truck, MessageCircle } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
 import { etapaLabel } from "./productionExtras";
 import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto } from "./datetime";
@@ -44,6 +44,18 @@ function daysFrom(todayISO, iso) {
   const a = new Date(todayISO + "T00:00:00");
   const b = new Date(iso + "T00:00:00");
   return Math.round((b - a) / 86400000);
+}
+
+function waDigits2(phone) {
+  const d = (phone || "").replace(/\D/g, "");
+  return d.length >= 10 ? (d.length <= 11 ? "55" + d : d) : "";
+}
+function reminderText(p, diff, forClient, first) {
+  const quando = diff === 0 ? "hoje" : "amanhã";
+  const hora = p.horaInicio ? ` às ${p.horaInicio}` : "";
+  const local = p.endereco ? `\nLocal: ${p.endereco}` : "";
+  if (forClient) return `Olá${first ? ", " + first : ""}! Passando para lembrar da nossa captação ${quando}${hora}.${local}\nQualquer dúvida é só me chamar!`;
+  return `Pessoal, lembrete: ${p.cliente || "produção"} ${quando}${hora}.${local}${p.objetivoDia ? "\nDemanda: " + p.objetivoDia : ""}\nConfiram o checklist de equipamento no Shotlist.`;
 }
 
 function whenLabel(diff) {
@@ -233,6 +245,10 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
 
   const next = upcoming[0];
   const nextDiff = next ? daysFrom(today, next.data || today) : 0;
+  const lembretes = all
+    .filter((p) => p.data)
+    .map((p) => ({ p, diff: daysFrom(today, p.data) }))
+    .filter((x) => x.diff === 0 || x.diff === 1);
   const entregas = all
     .filter((p) => p.entrega && p.entrega.etapa !== "entregue" && (p.entrega.etapa !== "captacao" || p.entrega.prazo))
     .map((p) => ({ p, diff: p.entrega.prazo ? daysFrom(today, p.entrega.prazo) : null }))
@@ -306,6 +322,29 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
           )}
         </div>
       ) : null}
+
+      {lembretes.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={MessageCircle}>Lembretes</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {lembretes.map(({ p, diff }) => {
+              const cl = p.clienteId ? clients[p.clienteId] : null;
+              const phone = waDigits2(cl?.phone);
+              const first = (cl?.name || p.cliente || "").trim().split(" ")[0];
+              const chip = { display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: "0 14px", borderRadius: 20, fontSize: 13, fontWeight: 600, textDecoration: "none", color: C.paper, border: `1px solid ${C.line}` };
+              return (
+                <div key={p.id} className="glass" style={{ borderRadius: 16, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 600, color: C.paper }}>{p.cliente || "Sem nome"} <span style={{ color: C.amber, fontWeight: 600, fontSize: 12.5 }}>· {diff === 0 ? "hoje" : "amanhã"}{p.horaInicio ? ` às ${p.horaInicio}` : ""}</span></div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                    {phone && <a href={`https://wa.me/${phone}?text=${encodeURIComponent(reminderText(p, diff, true, first))}`} target="_blank" rel="noreferrer" style={chip}><MessageCircle size={15} color={C.sage} /> Avisar cliente</a>}
+                    <a href={`https://wa.me/?text=${encodeURIComponent(reminderText(p, diff, false))}`} target="_blank" rel="noreferrer" style={chip}><MessageCircle size={15} color={C.sage} /> Avisar equipe</a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {entregas.length > 0 && (
         <div style={{ marginBottom: 24 }}>

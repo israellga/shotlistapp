@@ -783,7 +783,7 @@ function PauseTimer() {
   );
 }
 
-function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
+function ProductionDetail({ recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -998,7 +998,7 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
 
       {!fieldMode && (
         <div style={{ marginBottom: 10 }}>
-          <AddressField label="Local (endereço)" value={production.endereco || ""} onChange={(v) => patch({ endereco: v })} placeholder="Digite o endereço ou nome do lugar" />
+          <AddressField recent={recentAddresses} label="Local (endereço)" value={production.endereco || ""} onChange={(v) => patch({ endereco: v })} placeholder="Digite o endereço ou nome do lugar" />
         </div>
       )}
       {!fieldMode && (
@@ -1107,6 +1107,12 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           <Section title="Compartilhar com colaborador" icon={<Users size={15} color={C.faint} />}>
             <CollaboratorShareControl productionId={production.id} />
           </Section>
+        </div>
+      )}
+
+      {!fieldMode && production.atualizadoEm && (
+        <div style={{ fontSize: 12, color: C.faint, margin: "14px 4px 0" }}>
+          Última edição{production.atualizadoPor ? ` por ${production.atualizadoPor}` : ""} · {new Date(production.atualizadoEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
         </div>
       )}
 
@@ -1850,6 +1856,22 @@ export default function App() {
 
   function addProduction() { setTplOpen(true); }
 
+  function exportBackup() {
+    const dump = {
+      exportadoEm: new Date().toISOString(), workspace: workspaceName || "",
+      producoes: order.map((id) => productions[id]).filter(Boolean),
+      clientes: clientList,
+      financeiro: financeMap,
+      parcelamentos: paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean),
+    };
+    const blob = new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `shotlist-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
   function createFromTemplate(key) {
     setTplOpen(false);
     const p = applyTemplate(emptyProduction(), key, { emptyShot, emptyTake });
@@ -1970,6 +1992,7 @@ export default function App() {
   }
 
   function updateProduction(id, next) {
+    next = { ...next, atualizadoPor: myName || "", atualizadoEm: new Date().toISOString() };
     const isShared = !!sharedProductions[id];
     if (isShared) {
       setSharedProductions((prev) => ({ ...prev, [id]: next }));
@@ -2341,6 +2364,11 @@ export default function App() {
                     Importar de um PDF
                   </button>
                 )}
+                {isGestor && (
+                  <button onClick={exportBackup} style={{ width: "100%", minHeight: 44, background: "transparent", border: "none", color: C.faint, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                    Exportar backup (JSON)
+                  </button>
+                )}
                 </>
               ) : (
                 <button className="btn-glass-primary" onClick={() => setCurrentClientId(addClient())} style={addButtonStyle}>
@@ -2356,6 +2384,7 @@ export default function App() {
             {showingProductions ? (
               current ? (
                 <ProductionDetail
+                  recentAddresses={[...new Set(Object.values(productions).map((x) => (x.endereco || "").trim()).filter(Boolean))]}
                   key={current.id}
                   production={current}
                   fieldMode={fieldMode}
