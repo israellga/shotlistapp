@@ -4,6 +4,7 @@ import AccountPanel from "./AccountPanel";
 import AccountsPanel from "./AccountsPanel";
 import { AsaasConnect } from "./asaas";
 import { ZapsignConnect } from "./zapsign";
+import { TemplatesManager } from "./contractTemplates";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
 // Janela única de configurações da conta: senha, equipe (nome, membros, permissões) e cobranças (Asaas).
@@ -48,7 +49,7 @@ export default function SettingsPanel({ onClose, email, myUserId, workspaceId, w
           {tab === "cobrancas" && isGestor && workspaceId && (
             <div style={{ marginTop: -22 }}><AsaasConnect workspaceId={workspaceId} email={email} /></div>
           )}
-          {tab === "assinaturas" && isGestor && workspaceId && <ZapsignConnect workspaceId={workspaceId} />}
+          {tab === "assinaturas" && isGestor && workspaceId && (<><ZapsignConnect workspaceId={workspaceId} /><TemplatesManager workspaceId={workspaceId} /></>)}
         </div>
       </div>
     </div>

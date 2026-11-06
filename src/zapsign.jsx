@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { PenLine, Loader2, CheckCircle2, AlertCircle, X, FileUp, RefreshCw, Download, Copy, Plus, Trash2, FileSignature } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_BODY, FONT_MONO, FONT_DISPLAY } from "./theme";
+import { GenerateContractDialog } from "./contractTemplates";
 
 export function useZapsignStatus(workspaceId) {
   const [st, setSt] = useState(null);
@@ -221,13 +222,14 @@ export function SendProposalContract({ workspaceId, client, titulo, texto, issue
 const STATUS = { pending: ["Aguardando assinatura", C.amber], signed: ["Assinado", C.sage], refused: ["Recusado", C.brick] };
 
 // Lista de contratos do cliente + envio de um PDF próprio.
-export function ContractsSection({ client, workspaceId, issuerName }) {
+export function ContractsSection({ client, workspaceId, issuerName, productions, plans }) {
   const [st] = useZapsignStatus(workspaceId);
   const [list, setList] = useState([]);
   const [busyId, setBusyId] = useState("");
   const [dlg, setDlg] = useState(null);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState("");
+  const [gen, setGen] = useState(false);
   const input = useRef(null);
 
   const load = useCallback(async () => {
@@ -265,12 +267,17 @@ export function ContractsSection({ client, workspaceId, issuerName }) {
     setList((p) => p.filter((x) => x.id !== c.id));
   }
 
-  if (!st?.connected && list.length === 0) return null;
+  if (!st?.connected && list.length === 0 && !(st && (productions || plans))) return null;
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <PenLine size={16} color={C.faint} />
         <span style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, flex: 1 }}>CONTRATOS PARA ASSINATURA ({list.length})</span>
+        {st?.connected && (
+          <button onClick={() => setGen(true)} style={{ display: "flex", alignItems: "center", gap: 6, minHeight: 40, background: "transparent", border: `1px solid ${C.amber}`, borderRadius: 20, padding: "0 14px", color: C.amber, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT_BODY }}>
+            <FileSignature size={14} /> Usar modelo
+          </button>
+        )}
         {st?.connected && (
           <button onClick={() => input.current?.click()} style={{ display: "flex", alignItems: "center", gap: 6, minHeight: 40, background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 20, padding: "0 14px", color: C.amber, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT_BODY }}>
             <FileUp size={14} /> Enviar PDF
@@ -312,6 +319,7 @@ export function ContractsSection({ client, workspaceId, issuerName }) {
           );
         })}
       </div>
+      {gen && <GenerateContractDialog workspaceId={workspaceId} client={client} productions={productions || []} plans={plans || []} issuerName={issuerName} onClose={() => setGen(false)} onSent={load} />}
       {dlg && <SendContractDialog workspaceId={workspaceId} client={client} titulo={dlg.titulo} pdfBase64={dlg.pdf} fileName={dlg.name} issuerName={issuerName} onClose={() => setDlg(null)} onSent={load} />}
     </div>
   );

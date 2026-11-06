@@ -359,7 +359,7 @@ export function ClientDetail({
       )}
 
       {isGestor && workspaceId && (
-        <ContractsSection client={client} workspaceId={workspaceId} issuerName={issuerName} />
+        <ContractsSection client={client} workspaceId={workspaceId} issuerName={issuerName} productions={productions} plans={paymentPlans || []} />
       )}
 
       {isGestor && (
