@@ -241,27 +241,28 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
           )}
         </div>
       ) : next ? (
-        <button
-          className="glass hover-row"
-          onClick={() => onOpenProduction && onOpenProduction(next.id)}
-          style={{ ...rowBtn, flexDirection: "column", alignItems: "flex-start", gap: 6, padding: "16px 18px", borderRadius: 16, marginBottom: 20, borderColor: nextHappening ? C.amber : undefined }}
-        >
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: nextHappening ? C.amber : C.muted }}>
-            {nextHappening ? "Acontecendo agora" : `Próxima sessão · ${whenLabel(nextDiff)}`}
-          </span>
-          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: C.paper }}>{next.cliente || "Sem nome"}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: C.muted, width: "100%" }}>
-            <span style={{ flex: 1 }}>{formatIntervaloDatas(next.data, next.dataFim)}</span>
-            <span style={{ color: C.amber, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>Abrir <ChevronRight size={15} /></span>
-          </span>
-        </button>
+        <div className="glass" style={{ borderRadius: 16, marginBottom: 20, overflow: "hidden", borderColor: nextHappening ? C.amber : undefined }}>
+          <button
+            className="hover-row"
+            onClick={() => onOpenProduction && onOpenProduction(next.id)}
+            style={{ ...rowBtn, background: "transparent", border: "none", borderRadius: 0, boxShadow: "none", flexDirection: "column", alignItems: "flex-start", gap: 6, padding: "16px 18px" }}
+          >
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: nextHappening ? C.amber : C.muted }}>
+              {nextHappening ? "Acontecendo agora" : `Próxima sessão · ${whenLabel(nextDiff)}`}
+            </span>
+            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: C.paper }}>{next.cliente || "Sem nome"}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: C.muted, width: "100%" }}>
+              <span style={{ flex: 1 }}>{formatIntervaloDatas(next.data, next.dataFim)}</span>
+              <span style={{ color: C.amber, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}>Abrir <ChevronRight size={15} /></span>
+            </span>
+          </button>
+          {next.data && (
+            <a href={gcalLink(next)} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", minHeight: 44, padding: "0 18px", borderTop: "1px solid rgba(255,255,255,0.08)", color: C.muted, fontSize: 13, textDecoration: "none" }}>
+              + Adicionar ao Google Agenda
+            </a>
+          )}
+        </div>
       ) : null}
-
-      {next && next.data && (
-        <a href={gcalLink(next)} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", minHeight: 44, marginTop: -8, marginBottom: 14, color: C.muted, fontSize: 13, textDecoration: "none" }}>
-          + Adicionar ao Google Agenda
-        </a>
-      )}
 
       {all.length > 0 && <MonthCalendar productions={all} today={today} onOpenProduction={onOpenProduction} onCopyCalendar={onCopyCalendar} />}
 
