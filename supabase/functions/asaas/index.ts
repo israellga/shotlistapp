@@ -2,7 +2,7 @@
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const API_KEY = Deno.env.get("ASAAS_API_KEY") || "";
+let API_KEY = Deno.env.get("ASAAS_API_KEY") || "";
 const SH = { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, "content-type": "application/json" };
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type", "access-control-allow-methods": "POST, OPTIONS" };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, "content-type": "application/json" } });
@@ -33,10 +33,11 @@ const errMsg = (d: any) => d?.errors?.[0]?.description || d?.error || "Erro no A
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (!API_KEY) return json({ error: "Chave do Asaas ainda não configurada." }, 400);
   let input: any;
   try { input = await req.json(); } catch { return json({ error: "Pedido inválido." }, 400); }
   const sec = await secrets();
+  if (sec.asaas_api_key) API_KEY = sec.asaas_api_key;
+  if (!API_KEY) return json({ error: "Chave do Asaas ainda não configurada." }, 400);
   const base = sec.asaas_env === "production" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
   const auth = req.headers.get("authorization") || "";
 
