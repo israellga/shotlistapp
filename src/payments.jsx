@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Paperclip } from "lucide-react";
+import { Paperclip, Zap, ExternalLink } from "lucide-react";
 import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail, MessageCircle, FileDown } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
@@ -106,6 +106,35 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
   function patch(fields) { onChange({ ...plan, ...fields }); }
   const parcelas = plan.parcelas || [];
   const t = planTotals(plan);
+  const [asaasBusy, setAsaasBusy] = useState("");
+  const [asaasMsg, setAsaasMsg] = useState("");
+
+  async function callAsaas(body) {
+    const { data, error } = await supabase.functions.invoke("asaas", { body });
+    if (error) {
+      let detail = "";
+      try { detail = (await error.context?.json?.())?.error || ""; } catch { /* ignore */ }
+      throw new Error(detail || error.message);
+    }
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+  async function createCharge(pc) {
+    setAsaasBusy(pc.id); setAsaasMsg("");
+    try {
+      await onSave();
+      const r = await callAsaas({ action: "create_charge", plan_id: plan.id, parcela_id: pc.id });
+      setAsaasMsg(`Cobrança criada${r.env === "sandbox" ? " (ambiente de testes)" : ""}. Atualizando…`);
+      setTimeout(() => setAsaasMsg(""), 4000);
+    } catch (e) { setAsaasMsg(e.message || "Falha ao criar a cobrança."); }
+    setAsaasBusy("");
+  }
+  async function enableWebhook() {
+    setAsaasBusy("webhook"); setAsaasMsg("");
+    try { await callAsaas({ action: "setup_webhook", workspace_id: plan.workspace_id }); setAsaasMsg("Baixa automática ativada."); }
+    catch (e) { setAsaasMsg(e.message || "Falha ao ativar."); }
+    setAsaasBusy("");
+  }
 
   function updateParcela(id, fields) {
     patch({ parcelas: parcelas.map((p) => (p.id === id ? { ...p, ...fields } : p)) });
@@ -246,8 +275,27 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
                 </button>
               )}
             </div>
+            {!p.pago && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center", paddingLeft: 52, marginTop: 6, flexWrap: "wrap" }}>
+                {p.asaasUrl ? (
+                  <>
+                    <a href={p.asaasUrl} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 5, minHeight: 32, padding: "0 10px", borderRadius: 16, border: `1px solid ${C.sage}`, background: C.sageDim, color: C.sage, fontSize: 12, fontWeight: 600, textDecoration: "none" }}><Zap size={12} /> Cobrança Asaas <ExternalLink size={11} /></a>
+                  </>
+                ) : (
+                  <button disabled={asaasBusy === p.id} onClick={() => createCharge(p)} style={{ display: "inline-flex", alignItems: "center", gap: 5, minHeight: 32, padding: "0 12px", borderRadius: 16, border: `1px solid ${C.line}`, background: "transparent", color: C.muted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    <Zap size={12} /> {asaasBusy === p.id ? "Criando…" : "Gerar cobrança (Pix, boleto, cartão)"}
+                  </button>
+                )}
+              </div>
+            )}
             </div>
           ))}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+            <button disabled={asaasBusy === "webhook"} onClick={enableWebhook} style={{ minHeight: 34, padding: "0 12px", borderRadius: 17, border: `1px dashed ${C.line}`, background: "transparent", color: C.muted, fontSize: 12, cursor: "pointer" }}>
+              {asaasBusy === "webhook" ? "Ativando…" : "Ativar baixa automática do Asaas"}
+            </button>
+            {asaasMsg && <span style={{ fontSize: 12, color: /Falha|Cadastre|Informe|Chave|permiss|Erro|inv/i.test(asaasMsg) ? C.brick : C.sage }}>{asaasMsg}</span>}
+          </div>
           <button
             onClick={addParcela}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 7, padding: "7px 11px", color: C.muted, fontSize: 12.5, cursor: "pointer", marginBottom: 14 }}

@@ -209,6 +209,17 @@ export default function PaymentView({ id }) {
                 <span style={{ fontSize: 12, color: C.faint, fontFamily: FONT_MONO }}>{p.vencimento.split("-").reverse().join("/")}</span>
               )}
             </div>
+            {!p.pago && p.asaasUrl && (
+              <a href={p.asaasUrl} target="_blank" rel="noreferrer" className="btn-glass-primary" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 46, padding: "0 20px", borderRadius: 23, marginTop: 10, textDecoration: "none", fontSize: 14, fontWeight: 700 }}>
+                Pagar agora (Pix, boleto ou cartão)
+              </a>
+            )}
+            {!p.pago && p.pixCopia && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.lineSoft}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, marginBottom: 6 }}><QrCode size={13} /> PIX COPIA E COLA</div>
+                <CopyBtn text={p.pixCopia} label="Copiar código Pix" />
+              </div>
+            )}
             {!p.pago && p.boleto && (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.lineSoft}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, marginBottom: 4 }}><Barcode size={13} /> LINHA DIGITÁVEL DO BOLETO</div>
