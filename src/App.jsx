@@ -807,7 +807,7 @@ function SaveTemplateButton({ production, onSave }) {
   );
 }
 
-function ProductionDetail({ workspaceId, onImportPdf, onSaveTemplate, recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
+function ProductionDetail({ onAddPaymentPlan, onChangePaymentPlan, onSavePaymentPlan, onDeletePaymentPlan, workspaceId, onImportPdf, onSaveTemplate, recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1197,6 +1197,27 @@ function ProductionDetail({ workspaceId, onImportPdf, onSaveTemplate, recentAddr
               equipe={production.equipe || []}
             />
             <SaveFinanceButton onSave={onFinanceSaveNow} />
+            {(() => {
+              const cl = production.clienteId ? (clients || []).find((c) => c.id === production.clienteId) : null;
+              if (!cl) return <div style={{ marginTop: 16, fontSize: 12.5, color: C.faint, lineHeight: 1.5 }}>Vincule esta produção a um cliente cadastrado para criar o plano de parcelamento aqui.</div>;
+              const plans = (paymentPlans || []).filter((p) => p.production_id === production.id);
+              return (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}` }}>
+                  <PaymentPlansSection
+                    plans={plans}
+                    clientEmail={cl.email || ""}
+                    clientPhone={cl.phone || ""}
+                    clientName={cl.name || ""}
+                    clientDoc={cl.cnpj || ""}
+                    issuer={issuerName}
+                    onAdd={() => onAddPaymentPlan(cl.id, production.id, production.cliente || "")}
+                    onChange={onChangePaymentPlan}
+                    onSave={onSavePaymentPlan}
+                    onDelete={onDeletePaymentPlan}
+                  />
+                </div>
+              );
+            })()}
           </Section>
         </div>
       )}
@@ -1877,8 +1898,8 @@ export default function App() {
     setOnline(!error);
   }
 
-  function addPaymentPlan(clientId) {
-    const plan = emptyPaymentPlan(clientId);
+  function addPaymentPlan(clientId, productionId = null, titulo = "") {
+    const plan = emptyPaymentPlan(clientId, productionId, titulo);
     const prev = Object.values(paymentPlans).find((x) => x.pagamento?.pix);
     if (prev) plan.pagamento = { pix: prev.pagamento.pix, favorecido: prev.pagamento.favorecido || "", instrucoes: prev.pagamento.instrucoes || "" };
     setPaymentPlans((prev) => ({ ...prev, [plan.id]: plan }));
@@ -2583,6 +2604,10 @@ export default function App() {
                   onSaveTemplate={isGestor ? saveAsTemplate : undefined}
                   onImportPdf={() => setImportTarget(current.id)}
                   workspaceId={workspaceId}
+                  onAddPaymentPlan={addPaymentPlan}
+                  onChangePaymentPlan={updatePaymentPlan}
+                  onSavePaymentPlan={savePaymentPlanNow}
+                  onDeletePaymentPlan={deletePaymentPlan}
                   finance={financeMap[current.id]}
                   onFinanceChange={(next) => updateFinance(current.id, next)}
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}

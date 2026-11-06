@@ -228,7 +228,11 @@ export function GenerateContractDialog({ workspaceId, client: clientFixed, clien
   const [tid, setTid] = useState("");
   const [pid, setPid] = useState(productions?.[0]?.id || "");
   const [planId, setPlanId] = useState(plans?.[0]?.id || "");
-  useEffect(() => { if (!plans.some((p) => p.id === planId)) setPlanId(plans[0]?.id || ""); }, [client?.id]);
+  // o plano ligado à produção escolhida entra por padrão
+  useEffect(() => {
+    const linked = plans.find((p) => pid && p.production_id === pid);
+    setPlanId(linked?.id || (plans.some((p) => p.id === planId) ? planId : plans[0]?.id || ""));
+  }, [client?.id, pid, plansIn?.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const [texto, setTexto] = useState("");
   const [info, setInfo] = useState({ faltando: [], desconhecidos: [] });
   const [sending, setSending] = useState(null);
@@ -296,7 +300,7 @@ export function GenerateContractDialog({ workspaceId, client: clientFixed, clien
                 <label style={{ fontSize: 12, color: C.faint }}>Plano de pagamento (valor e parcelas)
                   <select value={planId} onChange={(e) => setPlanId(e.target.value)} style={{ ...inputSt, marginTop: 4, colorScheme: "dark" }}>
                     <option value="">Nenhum</option>
-                    {plans.map((p) => <option key={p.id} value={p.id}>{p.titulo || "Plano"}</option>)}
+                    {plans.map((p) => <option key={p.id} value={p.id}>{p.titulo || "Plano"}{p.production_id && p.production_id === pid ? " (desta produção)" : ""}</option>)}
                   </select>
                 </label>
               )}

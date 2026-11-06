@@ -11,8 +11,8 @@ import { useAsaasStatus } from "./asaas";
 
 const uid = () => secureUid();
 
-export function emptyPaymentPlan(clientId) {
-  return { id: uid(), client_id: clientId, titulo: "", valor_total: "", parcelas: [], share_enabled: false, notify_enabled: false, notify_days_before: 3, pagamento: {} };
+export function emptyPaymentPlan(clientId, productionId = null, titulo = "") {
+  return { id: uid(), client_id: clientId, production_id: productionId, titulo, valor_total: "", parcelas: [], share_enabled: false, notify_enabled: false, notify_days_before: 3, pagamento: {} };
 }
 
 function addMonths(dateStr, n) {
