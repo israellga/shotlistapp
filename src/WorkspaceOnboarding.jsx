@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Loader2, AlertCircle, Building2, Mail, Check } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import ShotlistMark from "./ShotlistMark";
+import ShotlistLogo from "./ShotlistLogo";
 import { C, FONT_DISPLAY, FONT_BODY } from "./theme";
 
 export default function WorkspaceOnboarding({ onCreated, userEmail, onSignOut, pendingInvites = [], onAcceptInvite }) {
@@ -44,7 +45,7 @@ export default function WorkspaceOnboarding({ onCreated, userEmail, onSignOut, p
     <div style={{ minHeight: "100vh", background: C.ink, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
       <div style={{ width: "100%", maxWidth: 380 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 30, justifyContent: "center" }}>
-          <ShotlistMark size={26} lit />
+          <ShotlistLogo size={34} />
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, letterSpacing: 1, color: C.paper }}>
             SHOTLIST
           </div>

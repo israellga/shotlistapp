@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import ShotlistMark from "./ShotlistMark";
+import ShotlistLogo from "./ShotlistLogo";
 import { C, FONT_DISPLAY, FONT_BODY } from "./theme";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
@@ -58,7 +59,7 @@ export default function IntakeView({ token }) {
   return (
     <div style={{ minHeight: "100vh", fontFamily: FONT_BODY, padding: "24px 16px 60px", paddingTop: "max(24px, env(safe-area-inset-top))" }}>
       <div style={{ maxWidth: 520, margin: "0 auto 20px", display: "flex", alignItems: "center", gap: 10 }}>
-        <ShotlistMark size={18} lit />
+        <ShotlistLogo size={24} />
         <div style={{ fontSize: 13, fontWeight: 600, color: C.muted }}>Cadastro de cliente</div>
       </div>
       <div style={{ maxWidth: 520, margin: "0 auto" }}>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Loader2, AlertCircle, CheckCircle2, Circle, RefreshCw } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import ShotlistMark from "./ShotlistMark";
+import ShotlistLogo from "./ShotlistLogo";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { formatBRL } from "./finance";
 
@@ -167,7 +168,7 @@ function Shell({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: "transparent", fontFamily: FONT_BODY, padding: "24px 16px 60px", paddingTop: "max(24px, env(safe-area-inset-top))", paddingBottom: "max(60px, env(safe-area-inset-bottom))" }}>
       <div style={{ maxWidth: 560, margin: "0 auto 20px", display: "flex", alignItems: "center", gap: 10 }}>
-        <ShotlistMark size={18} lit />
+        <ShotlistLogo size={24} />
         <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, letterSpacing: 0.5, color: C.faint }}>
           Acompanhamento de pagamento
         </div>

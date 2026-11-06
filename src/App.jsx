@@ -9,6 +9,7 @@ import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
 import AccountPanel from "./AccountPanel";
 import ShotlistMark from "./ShotlistMark";
+import ShotlistLogo from "./ShotlistLogo";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto, formatHorario, horarioMinutos } from "./datetime";
 import {
@@ -2170,7 +2171,7 @@ export default function App() {
       `}</style>
 
       <div className="topbar">
-        <ShotlistMark size={22} lit />
+        <ShotlistLogo size={26} />
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, letterSpacing: 1, color: C.paper }}>
             SHOTLIST
