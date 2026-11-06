@@ -1,3 +1,4 @@
+import { uid as secureUid } from "./uid";
 import React, { useEffect, useState } from "react";
 import { Plus, Trash2, Copy, Check, MessageCircle, FileSignature, ChevronDown, ExternalLink } from "lucide-react";
 import { supabase } from "./supabaseClient";
@@ -6,7 +7,7 @@ import { Field, DateField, IconButton } from "./ui";
 import { formatBRL } from "./finance";
 import { SendProposalContract } from "./zapsign";
 
-const uid = () => Math.random().toString(36).slice(2, 9);
+const uid = () => secureUid();
 
 export const CONTRATO_PADRAO = `CONTRATO DE PRESTAÇÃO DE SERVIÇOS FOTOGRÁFICOS E AUDIOVISUAIS
 

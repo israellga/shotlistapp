@@ -16,6 +16,16 @@ async function fetchViaServer(url) {
   }
 }
 
+// oEmbed oficial (Vimeo, TikTok): devolve a miniatura ou null
+async function fetchOEmbedThumb(endpoint) {
+  try {
+    const r = await fetch(endpoint);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j?.thumbnail_url || null;
+  } catch { return null; }
+}
+
 export async function fetchThumbnail(url) {
   lastIssue = "";
   if (!url || !/^https?:\/\//i.test(url.trim())) return null;

@@ -1,3 +1,4 @@
+import { uid as secureUid } from "./uid";
 import React, { useState } from "react";
 import { Paperclip, Zap, ExternalLink } from "lucide-react";
 import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail, MessageCircle, FileDown } from "lucide-react";
@@ -8,9 +9,7 @@ import { formatBRL } from "./finance";
 import { exportReceiptPDF } from "./receiptPdf";
 import { useAsaasStatus } from "./asaas";
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
+const uid = () => secureUid();
 
 export function emptyPaymentPlan(clientId) {
   return { id: uid(), client_id: clientId, titulo: "", valor_total: "", parcelas: [], share_enabled: false, notify_enabled: false, notify_days_before: 3, pagamento: {} };

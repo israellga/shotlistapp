@@ -1,3 +1,4 @@
+import { uid as secureUid } from "./uid";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { FileText, Plus, Trash2, FileUp, X, Loader2, AlertCircle, Download, PenLine } from "lucide-react";
 import { supabase } from "./supabaseClient";
@@ -6,7 +7,7 @@ import { formatBRL } from "./finance";
 import { formatIntervaloDatas } from "./datetime";
 import { SendContractDialog, textToPdfBase64, useZapsignStatus } from "./zapsign";
 
-const uid = () => Math.random().toString(36).slice(2, 9) + Math.random().toString(36).slice(2, 9);
+const uid = () => secureUid();
 
 // Campos que o modelo pode usar. Escreva {{campo}} no texto.
 export const CAMPOS = [
@@ -227,7 +228,7 @@ export function GenerateContractDialog({ workspaceId, client: clientFixed, clien
   const [tid, setTid] = useState("");
   const [pid, setPid] = useState(productions?.[0]?.id || "");
   const [planId, setPlanId] = useState(plans?.[0]?.id || "");
-  useEffect(() => { if (!plans.some((p) => p.id === planId)) setPlanId(plans[0]?.id || ""); }, [client?.id]); // eslint-disable-line
+  useEffect(() => { if (!plans.some((p) => p.id === planId)) setPlanId(plans[0]?.id || ""); }, [client?.id]);
   const [texto, setTexto] = useState("");
   const [info, setInfo] = useState({ faltando: [], desconhecidos: [] });
   const [sending, setSending] = useState(null);

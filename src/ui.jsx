@@ -1,10 +1,11 @@
 import React from "react";
+import { uid as secureUid } from "./uid";
 import { Check, Pencil } from "lucide-react";
 import { C, FONT_MONO, FONT_BODY, FONT_DISPLAY } from "./theme";
 import { formatDataComDiaSemana } from "./datetime";
 
 export function uid() {
-  return Math.random().toString(36).slice(2, 10);
+  return secureUid(14);
 }
 
 export function IconButton({ onClick, title, children, tone = "muted", size = 34 }) {
