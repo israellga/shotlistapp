@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { X, Settings, User, Users, Zap } from "lucide-react";
+import { X, Settings, User, Users, Zap, PenLine } from "lucide-react";
 import AccountPanel from "./AccountPanel";
 import AccountsPanel from "./AccountsPanel";
 import { AsaasConnect } from "./asaas";
+import { ZapsignConnect } from "./zapsign";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
 // Janela única de configurações da conta: senha, equipe (nome, membros, permissões) e cobranças (Asaas).
@@ -12,6 +13,7 @@ export default function SettingsPanel({ onClose, email, myUserId, workspaceId, w
     ...(isGestor ? [
       { key: "equipe", label: "Equipe", icon: <Users size={14} /> },
       { key: "cobrancas", label: "Cobranças", icon: <Zap size={14} /> },
+      { key: "assinaturas", label: "Assinaturas", icon: <PenLine size={14} /> },
     ] : []),
   ];
   const [tab, setTab] = useState("conta");
@@ -46,6 +48,7 @@ export default function SettingsPanel({ onClose, email, myUserId, workspaceId, w
           {tab === "cobrancas" && isGestor && workspaceId && (
             <div style={{ marginTop: -22 }}><AsaasConnect workspaceId={workspaceId} email={email} /></div>
           )}
+          {tab === "assinaturas" && isGestor && workspaceId && <ZapsignConnect workspaceId={workspaceId} />}
         </div>
       </div>
     </div>

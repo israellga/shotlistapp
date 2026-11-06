@@ -8,6 +8,7 @@ import { Field, DateField, IconButton, EditableTitle, ConfirmIconButton, Confirm
 import { formatBRL } from "./finance";
 import { ClientBalanceSummary, FinanceSection } from "./finance";
 import { PaymentPlansSection } from "./payments";
+import { ContractsSection } from "./zapsign";
 import { ProposalsSection } from "./proposals";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
@@ -355,6 +356,10 @@ export function ClientDetail({
 
       {isGestor && workspaceId && (
         <ProposalsSection client={client} workspaceId={workspaceId} issuer={issuerName} onConvert={onConvertProposal} />
+      )}
+
+      {isGestor && workspaceId && (
+        <ContractsSection client={client} workspaceId={workspaceId} issuerName={issuerName} />
       )}
 
       {isGestor && (

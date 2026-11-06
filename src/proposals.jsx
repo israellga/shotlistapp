@@ -4,6 +4,7 @@ import { supabase } from "./supabaseClient";
 import { C, FONT_MONO, FONT_BODY } from "./theme";
 import { Field, DateField, IconButton } from "./ui";
 import { formatBRL } from "./finance";
+import { SendProposalContract } from "./zapsign";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
@@ -185,6 +186,22 @@ export function ProposalsSection({ client, workspaceId, issuer, onConvert }) {
                     <Field label="Contrato (use {{cliente}}, {{emissor}}, {{titulo}}, {{total}})" value={pr.payload.contrato || ""} onChange={(v) => patchPayload(pr, { contrato: v })} multiline autoGrow />
                   </fieldset>
                   <div style={{ fontSize: 12, color: C.faint, lineHeight: 1.5 }}>O contrato acima é um modelo geral. Revise com seu advogado antes de usar.</div>
+                  {pr.status !== "recusada" && (
+                    <SendProposalContract
+                      workspaceId={workspaceId}
+                      client={client}
+                      titulo={pr.titulo || "Proposta"}
+                      issuerName={issuer}
+                      texto={(() => {
+                        const pl = pr.payload || {};
+                        const emissor = pl.emissor || issuer;
+                        const itens = (pl.itens || []).filter((i) => i.desc || i.valor).map((i) => `- ${i.desc || "Item"}: ${formatBRL(Number(i.valor) || 0)}`).join("\n");
+                        return fillContrato(pl.contrato, { cliente: pl.cliente_nome, emissor, titulo: pr.titulo, total: formatBRL(totalProposta(pl)) })
+                          + `\n\nANEXO - PROPOSTA "${pr.titulo || ""}"\n\n${itens}\nTotal: ${formatBRL(totalProposta(pl))}`
+                          + (pl.escopo ? `\n\nEscopo: ${pl.escopo}` : "") + (pl.condicoes ? `\n\nPagamento: ${pl.condicoes}` : "") + (pl.prazoEntrega ? `\n\nPrazo de entrega: ${pl.prazoEntrega}` : "");
+                      })()}
+                    />
+                  )}
                   {pr.status === "recusada" && pr.decline_note && <div style={{ fontSize: 13, color: C.brick }}>Motivo informado: {pr.decline_note}</div>}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {editable && <button onClick={() => save(pr)} style={actBtn}>{saving === pr.id ? "Salvando…" : "Salvar"}</button>}
