@@ -6,13 +6,14 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
-  Settings, FileUp, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
+  Settings, FileUp, PenLine, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
   Truck, ClipboardCheck, Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles, Archive, ArchiveRestore,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
 import AccountPanel from "./AccountPanel";
 import SettingsPanel from "./SettingsPanel";
+import { GenerateContractDialog } from "./contractTemplates";
 import ShotlistMark from "./ShotlistMark";
 import ShotlistLogo from "./ShotlistLogo";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
@@ -806,11 +807,12 @@ function SaveTemplateButton({ production, onSave }) {
   );
 }
 
-function ProductionDetail({ onImportPdf, onSaveTemplate, recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
+function ProductionDetail({ workspaceId, onImportPdf, onSaveTemplate, recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [contractOpen, setContractOpen] = useState(false);
 
   async function handleProposal() {
     const { exportProposalPDF } = await import("./proposalPdf");
@@ -888,6 +890,15 @@ function ProductionDetail({ onImportPdf, onSaveTemplate, recentAddresses, produc
             />
           )}
         </div>
+        {!fieldMode && isGestor && workspaceId && !production.__shared && (
+          <button
+            onClick={() => setContractOpen(true)}
+            title="Gerar contrato desta produção a partir de um modelo"
+            style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 12px", color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          >
+            <PenLine size={14} /> Contrato
+          </button>
+        )}
         {!fieldMode && isGestor && (
           <button
             onClick={handleProposal}
@@ -925,6 +936,17 @@ function ProductionDetail({ onImportPdf, onSaveTemplate, recentAddresses, produc
           {saved ? "Salvo" : "Salvar"}
         </button>
       </div>
+
+      {contractOpen && (
+        <GenerateContractDialog
+          workspaceId={workspaceId}
+          client={(production.clienteId && clients?.[production.clienteId]) || { name: production.cliente || "" }}
+          productions={[production]}
+          plans={(paymentPlans || []).filter((pl) => pl.client_id === production.clienteId)}
+          issuerName={issuerName}
+          onClose={() => setContractOpen(false)}
+        />
+      )}
 
       {!fieldMode && onImportPdf && !production.__shared && (
         <button onClick={onImportPdf} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 8, padding: "7px 12px", marginBottom: 14, color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
@@ -2558,6 +2580,7 @@ export default function App() {
                   issuerName={myName || workspaceName}
                   onSaveTemplate={isGestor ? saveAsTemplate : undefined}
                   onImportPdf={() => setImportTarget(current.id)}
+                  workspaceId={workspaceId}
                   finance={financeMap[current.id]}
                   onFinanceChange={(next) => updateFinance(current.id, next)}
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}
