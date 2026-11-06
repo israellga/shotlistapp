@@ -1,7 +1,8 @@
 import { mapsUrl, wazeUrl } from "./maps";
 import React from "react";
-import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight } from "lucide-react";
+import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight, Truck } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
+import { etapaLabel } from "./productionExtras";
 import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto } from "./datetime";
 import { productionStatus } from "./productionStatus";
 import { formatBRL, totalCustos, valorImposto } from "./finance";
@@ -232,6 +233,10 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
 
   const next = upcoming[0];
   const nextDiff = next ? daysFrom(today, next.data || today) : 0;
+  const entregas = all
+    .filter((p) => p.entrega && p.entrega.etapa !== "entregue" && (p.entrega.etapa !== "captacao" || p.entrega.prazo))
+    .map((p) => ({ p, diff: p.entrega.prazo ? daysFrom(today, p.entrega.prazo) : null }))
+    .sort((a, b) => (a.diff ?? 9999) - (b.diff ?? 9999));
   const nextHappening = next && next.data && next.data <= today;
 
   // Parcelas em aberto (somente gestor)
@@ -301,6 +306,22 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
           )}
         </div>
       ) : null}
+
+      {entregas.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={Truck}>Entregas pendentes</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {entregas.map(({ p, diff }) => (
+              <button key={p.id} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(p.id)} style={rowBtn}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
+                <span style={{ fontSize: 12.5, color: C.amber, fontWeight: 600 }}>{etapaLabel(p.entrega?.etapa)}</span>
+                {diff !== null && <span style={{ fontSize: 12.5, color: diff < 0 ? C.brick : C.muted }}>{diff < 0 ? `atrasada ${whenLabel(diff)}` : whenLabel(diff)}</span>}
+                <ChevronRight size={15} color={C.faint} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {all.length > 0 && <MonthCalendar productions={all} today={today} onOpenProduction={onOpenProduction} onCopyCalendar={onCopyCalendar} />}
 

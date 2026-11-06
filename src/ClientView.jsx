@@ -5,6 +5,7 @@ import ShotlistMark from "./ShotlistMark";
 import ShotlistLogo from "./ShotlistLogo";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { formatIntervaloDatas } from "./datetime";
+import { ETAPAS } from "./productionExtras";
 
 const STATUS = {
   afazer: { label: "A fazer", color: C.muted, bg: "transparent", border: C.line },
@@ -80,6 +81,60 @@ const pillBtn = {
 
 function fmtWhen(iso) {
   try { return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; }
+}
+
+// Entrega: etapa atual, prazo e link (quando entregue). O cliente pode pedir ajuste na entrega.
+function EntregaCard({ entrega, onSend }) {
+  const [mode, setMode] = useState(false);
+  const [name, setName] = useState(getSavedName());
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const idx = Math.max(0, ETAPAS.findIndex((x) => x.key === entrega.etapa));
+  const prazo = entrega.prazo ? new Date(entrega.prazo + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long" }) : "";
+  async function send() {
+    setBusy(true); saveName(name);
+    const ok = await onSend({ shot: null, kind: "adjust", author: name, message: "[Entrega] " + msg });
+    setBusy(false);
+    if (ok) { setSent(true); setMode(false); setMsg(""); }
+  }
+  return (
+    <div className="glass" style={{ borderRadius: 18, padding: "16px 18px", marginBottom: 14 }}>
+      <div style={{ fontSize: 15, fontWeight: 600, color: C.paper, marginBottom: 12 }}>Andamento da entrega</div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+        {ETAPAS.map((e, i) => (
+          <div key={e.key} style={{ flex: 1 }}>
+            <div style={{ height: 5, borderRadius: 3, background: i <= idx ? (idx === ETAPAS.length - 1 ? C.sage : C.amber) : C.lineSoft, marginBottom: 6 }} />
+            <div style={{ fontSize: 11, textAlign: "center", color: i === idx ? C.paper : C.faint, fontWeight: i === idx ? 700 : 400 }}>{e.label}</div>
+          </div>
+        ))}
+      </div>
+      {prazo && entrega.etapa !== "entregue" && <div style={{ fontSize: 13.5, color: C.muted }}>Previsão de entrega: <b style={{ color: C.paper }}>{prazo}</b></div>}
+      {entrega.nota && <div style={{ fontSize: 13.5, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{entrega.nota}</div>}
+      {entrega.link && (
+        <a href={entrega.link} target="_blank" rel="noreferrer" className="btn-glass-primary" style={{ ...pillBtn, display: "inline-flex", marginTop: 12, textDecoration: "none" }}>
+          Abrir material <ExternalLink size={15} />
+        </a>
+      )}
+      {entrega.etapa === "entregue" && (
+        <div style={{ marginTop: 12 }}>
+          {sent && <div style={{ fontSize: 13.5, color: C.sage, marginBottom: 8 }}>Pedido enviado.</div>}
+          {mode ? (
+            <>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" style={{ ...fieldStyle, marginBottom: 8 }} />
+              <textarea value={msg} onChange={(e) => setMsg(e.target.value)} rows={3} placeholder="O que precisa ajustar?" style={{ ...fieldStyle, marginBottom: 8 }} />
+              <div style={{ display: "flex", gap: 10 }}>
+                <button disabled={busy || !msg.trim()} onClick={send} className="btn-glass-primary" style={{ ...pillBtn, border: "none", opacity: msg.trim() ? 1 : 0.5 }}><Send size={15} /> Enviar</button>
+                <button onClick={() => setMode(false)} style={{ ...pillBtn, background: "transparent", border: `1px solid ${C.line}`, color: C.muted }}>Cancelar</button>
+              </div>
+            </>
+          ) : (
+            <button onClick={() => setMode(true)} style={{ ...pillBtn, background: "transparent", border: `1px solid ${C.line}`, color: C.paper }}>Pedir ajuste na entrega</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Approval block: client approves the shotlist or asks for adjustments.
@@ -404,6 +459,8 @@ export default function ClientView({ id }) {
           </div>
         </div>
       )}
+
+      {data.entrega && (data.entrega.etapa !== "captacao" || data.entrega.prazo) && <EntregaCard entrega={data.entrega} onSend={sendFeedback} />}
 
       {totalShots > 0 && <ApprovalCard feedback={feedback} onSend={sendFeedback} />}
 

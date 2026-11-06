@@ -1,10 +1,11 @@
 import AddressField from "./AddressField";
+import { EntregaSection, ChecklistSection, TemplatePicker, applyTemplate, etapaLabel } from "./productionExtras";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
   Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
-  Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles, Archive, ArchiveRestore,
+  Truck, ClipboardCheck, Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles, Archive, ArchiveRestore,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
@@ -58,6 +59,8 @@ function emptyProduction() {
     cronograma: [],
     shots: [],
     clientShareEnabled: false,
+    entrega: { etapa: "captacao", prazo: "", link: "", nota: "" },
+    checklist: [],
   };
 }
 
@@ -1036,6 +1039,12 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
       </div>
 
       <div style={{ marginBottom: 12 }}>
+        <Section title="Checklist de equipamento" icon={<ClipboardCheck size={15} color={C.faint} />} count={(production.checklist || []).length}>
+          <ChecklistSection checklist={production.checklist} onChange={(checklist) => patch({ checklist })} fieldMode={fieldMode} />
+        </Section>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
         <Section
           title="Shots"
           icon={<Film size={15} color={C.faint} />}
@@ -1075,6 +1084,14 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
         <div style={{ marginBottom: 12 }}>
           <Section title="Ordem do dia" icon={<Clock size={15} color={C.faint} />} count={production.cronograma.length}>
             <CronogramaSection cronograma={production.cronograma} onChange={(cronograma) => patch({ cronograma })} shots={production.shots} />
+          </Section>
+        </div>
+      )}
+
+      {!fieldMode && (
+        <div style={{ marginBottom: 12 }}>
+          <Section title={`Entrega e pós-produção · ${etapaLabel(production.entrega?.etapa)}`} icon={<Truck size={15} color={C.faint} />}>
+            <EntregaSection entrega={production.entrega} onChange={(entrega) => patch({ entrega })} />
           </Section>
         </div>
       )}
@@ -1329,6 +1346,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("producoes"); // producoes | clientes
   const [statusFilter, setStatusFilter] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [tplOpen, setTplOpen] = useState(false);
   const [fieldMode, setFieldMode] = useState(false);
   const [status, setStatus] = useState("boot"); // boot | loading | ready
   const [online, setOnline] = useState(true);
@@ -1830,8 +1848,11 @@ export default function App() {
     });
   }
 
-  function addProduction() {
-    const p = emptyProduction();
+  function addProduction() { setTplOpen(true); }
+
+  function createFromTemplate(key) {
+    setTplOpen(false);
+    const p = applyTemplate(emptyProduction(), key, { emptyShot, emptyTake });
     setProductions((prev) => ({ ...prev, [p.id]: p }));
     setOrder((prev) => [p.id, ...prev]);
     setCurrentId(p.id);
@@ -2240,6 +2261,7 @@ export default function App() {
         </IconButton>
       </div>
 
+      {tplOpen && <TemplatePicker onPick={createFromTemplate} onClose={() => setTplOpen(false)} />}
       {importOpen && <ImportPdfDialog onClose={() => setImportOpen(false)} onCreate={importProduction} clients={clients} />}
 
       {showAccounts && (
