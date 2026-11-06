@@ -1,8 +1,9 @@
 import { mapsUrl, wazeUrl } from "./maps";
 import React from "react";
-import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight, Truck, MessageCircle } from "lucide-react";
+import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight, Truck, MessageCircle, Users } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
 import { etapaLabel } from "./productionExtras";
+import { YearReport } from "./reports";
 import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto } from "./datetime";
 import { productionStatus } from "./productionStatus";
 import { formatBRL, totalCustos, valorImposto } from "./finance";
@@ -245,6 +246,21 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
 
   const next = upcoming[0];
   const nextDiff = next ? daysFrom(today, next.data || today) : 0;
+  const teamOwed = {};
+  if (isGestor) {
+    for (const p of all) {
+      const f = financeMap[p.id];
+      for (const c of f?.custos || []) {
+        if (c.pago || !(Number(c.valor) > 0)) continue;
+        if (!c.equipeId && c.categoria !== "Equipe") continue;
+        const m = c.equipeId ? (p.equipe || []).find((x) => x.id === c.equipeId) : null;
+        const nome = (m?.responsavel || (c.responsavel || "").split(" — ")[0] || "Sem nome").trim() || "Sem nome";
+        const e = teamOwed[nome] || (teamOwed[nome] = { nome, total: 0, itens: [] });
+        e.total += Number(c.valor); e.itens.push(p);
+      }
+    }
+  }
+  const teamList = Object.values(teamOwed).sort((a, b) => b.total - a.total);
   const lembretes = all
     .filter((p) => p.data)
     .map((p) => ({ p, diff: daysFrom(today, p.data) }))
@@ -322,6 +338,22 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
           )}
         </div>
       ) : null}
+
+      {isGestor && teamList.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={Users}>A pagar à equipe</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {teamList.slice(0, 5).map((t) => (
+              <button key={t.nome} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(t.itens[0].id)} style={rowBtn}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.nome}</span>
+                <span style={{ fontSize: 12.5, color: C.muted }}>{t.itens.length} produç{t.itens.length === 1 ? "ão" : "ões"}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>{formatBRL(t.total)}</span>
+                <ChevronRight size={15} color={C.faint} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {lembretes.length > 0 && (
         <div style={{ marginBottom: 24 }}>
@@ -491,6 +523,8 @@ export function ClientsDashboard({ clients, productions, financeMap, financeReco
       <div style={{ fontSize: 13, color: C.muted, marginBottom: 22 }}>
         Selecione um cliente à esquerda, ou cadastre um novo.
       </div>
+
+      <YearReport productions={productions} financeMap={financeMap} clients={clients} paymentPlans={paymentPlans} />
 
       <div style={{ display: "flex", gap: 12, marginBottom: 26, flexWrap: "wrap" }}>
         <StatCard label="FATURAMENTO TOTAL" value={formatBRL(totalFaturamento)} tone={C.sage} />

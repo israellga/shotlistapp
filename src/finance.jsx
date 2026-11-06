@@ -120,6 +120,13 @@ export function FinanceSection({ finance, onChange, equipe = null }) {
                 placeholder="0,00"
                 style={inputInlineStyle(1)}
               />
+              <button
+                onClick={() => updateCusto(c.id, { pago: !c.pago })}
+                title="Marcar como pago"
+                style={{ minHeight: 36, padding: "0 10px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, background: c.pago ? C.sageDim : "transparent", border: `1px solid ${c.pago ? C.sage : C.line}`, color: c.pago ? C.sage : C.muted }}
+              >
+                {c.pago ? "Pago" : "A pagar"}
+              </button>
               <IconButton onClick={() => removeCusto(c.id)} tone="brick" size={30}><Trash2 size={14} /></IconButton>
             </div>
             {m && (m.responsavel || "").trim() ? (
