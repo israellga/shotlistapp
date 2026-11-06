@@ -2335,7 +2335,7 @@ export default function App() {
                   clients={clientList}
                   onSelectClient={(sel) => handleSelectClient(current, sel)}
                   onOpenClient={openClientFromProduction}
-                  showBack={!isWide}
+                  showBack
                   isGestor={isGestor}
                   paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean)}
                   issuerName={myName || workspaceName}
@@ -2370,7 +2370,7 @@ export default function App() {
                 productions={order.map((id) => productions[id]).filter((p) => p && p.clienteId === currentClient.id)}
                 onOpenProduction={openProductionFromClient}
                 onAddProduction={() => addProductionForClient(currentClient)}
-                showBack={!isWide}
+                showBack
                 isGestor={isGestor}
                 financeMap={financeMap}
                 financeRecords={financeRecordOrder.map((id) => financeRecords[id]).filter((r) => r && r.client_id === currentClient.id)}
