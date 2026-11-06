@@ -85,7 +85,7 @@ export function Cobrancas({ paymentPlans, clients, today, issuer }) {
   rows.sort((a, b) => b.dias - a.dias);
   return (
     <div style={{ marginBottom: 24 }}>
-      <Title icon={HandCoins}>Cobranças atrasadas</Title>
+      <Title icon={HandCoins}>Clientes inadimplentes</Title>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.slice(0, 6).map(({ id, cl, pl, pc, dias }) => {
           const first = (cl?.responsavel || cl?.name || "").trim().split(" ")[0];

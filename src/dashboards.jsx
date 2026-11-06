@@ -349,44 +349,23 @@ export function ProductionsDashboard({ workspaceId, order, productions, userName
         </div>
       ) : null}
 
-      {isGestor && funil.length > 0 && (
+      {entregas.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <SectionTitle icon={Award}>Funil de clientes</SectionTitle>
-          <div style={{ display: "flex", gap: 10, marginBottom: semResposta.length ? 10 : 0, flexWrap: "wrap" }}>
-            <StatCard label="LEADS" value={String(funil.filter((c) => c.etapa === "lead").length)} small />
-            <StatCard label="ORÇAMENTOS ENVIADOS" value={String(funil.filter((c) => c.etapa === "orcamento").length)} dot={C.amber} small />
-            <StatCard label="EM NEGOCIAÇÃO" value={formatBRL(valorFunil)} small />
-          </div>
-          {semResposta.map(({ c, dias }) => (
-            <button key={c.id} className="glass hover-row" onClick={() => onOpenClient && onOpenClient(c.id)} style={{ ...rowBtn, marginBottom: 8 }}>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || "Sem nome"}</span>
-              <span style={{ fontSize: 12.5, color: C.brick }}>{dias === null ? "sem contato registrado" : `sem resposta há ${dias} dias`}</span>
-              <ChevronRight size={15} color={C.faint} />
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isGestor && <Cobrancas paymentPlans={paymentPlans} clients={clients} today={today} issuer={issuerName} />}
-      {isGestor && <CashForecast paymentPlans={paymentPlans} productions={all} financeMap={financeMap} today={today} />}
-      {isGestor && <MargemLista productions={all} financeMap={financeMap} onOpen={onOpenProduction} />}
-      {isGestor && onUpdateProduction && <PosVenda productions={all} clients={clients} today={today} onMark={(p) => onUpdateProduction(p.id, { ...p, posVendaEm: new Date().toISOString() })} />}
-
-      {isGestor && teamList.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <SectionTitle icon={Users}>A pagar à equipe</SectionTitle>
+          <SectionTitle icon={Truck}>Entregas pendentes</SectionTitle>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {teamList.slice(0, 5).map((t) => (
-              <button key={t.nome} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(t.itens[0].id)} style={rowBtn}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.nome}</span>
-                <span style={{ fontSize: 12.5, color: C.muted }}>{t.itens.length} produç{t.itens.length === 1 ? "ão" : "ões"}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>{formatBRL(t.total)}</span>
+            {entregas.map(({ p, diff }) => (
+              <button key={p.id} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(p.id)} style={rowBtn}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
+                <span style={{ fontSize: 12.5, color: C.amber, fontWeight: 600 }}>{etapaLabel(p.entrega?.etapa)}</span>
+                {diff !== null && <span style={{ fontSize: 12.5, color: diff < 0 ? C.brick : C.muted }}>{diff < 0 ? `atrasada ${whenLabel(diff)}` : whenLabel(diff)}</span>}
                 <ChevronRight size={15} color={C.faint} />
               </button>
             ))}
           </div>
         </div>
       )}
+
+      {isGestor && <Cobrancas paymentPlans={paymentPlans} clients={clients} today={today} issuer={issuerName} />}
 
       {lembretes.length > 0 && (
         <div style={{ marginBottom: 24 }}>
@@ -408,47 +387,6 @@ export function ProductionsDashboard({ workspaceId, order, productions, userName
               );
             })}
           </div>
-        </div>
-      )}
-
-      {entregas.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <SectionTitle icon={Truck}>Entregas pendentes</SectionTitle>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {entregas.map(({ p, diff }) => (
-              <button key={p.id} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(p.id)} style={rowBtn}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
-                <span style={{ fontSize: 12.5, color: C.amber, fontWeight: 600 }}>{etapaLabel(p.entrega?.etapa)}</span>
-                {diff !== null && <span style={{ fontSize: 12.5, color: diff < 0 ? C.brick : C.muted }}>{diff < 0 ? `atrasada ${whenLabel(diff)}` : whenLabel(diff)}</span>}
-                <ChevronRight size={15} color={C.faint} />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {all.length > 0 && <MonthCalendar productions={all} today={today} onOpenProduction={onOpenProduction} onCopyCalendar={onCopyCalendar} />}
-
-      {isGestor && all.length > 0 && <MonthResult productions={all} financeMap={financeMap} today={today} />}
-
-      {isGestor && (overdue.length > 0 || week.length > 0 || monthTotal > 0) && (
-        <div style={{ marginBottom: 24 }}>
-          <SectionTitle icon={Wallet}>Dinheiro</SectionTitle>
-          <div style={{ display: "flex", gap: 10, marginBottom: moneyList.length ? 10 : 0, flexWrap: "wrap" }}>
-            <StatCard label="ATRASADO" value={formatBRL(sum(overdue))} dot={overdue.length ? C.brick : C.faint} small />
-            <StatCard label="PRÓXIMOS 7 DIAS" value={formatBRL(sum(week))} dot={C.amber} small />
-            <StatCard label="A RECEBER NO MÊS" value={formatBRL(monthTotal)} dot={C.sage} small />
-          </div>
-          {moneyList.map(({ plan, parc, diff, valor }) => (
-            <button key={parc.id} className="glass hover-row" onClick={() => onOpenClient && onOpenClient(plan.client_id)} style={{ ...rowBtn, marginBottom: 8 }}>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {clients[plan.client_id]?.name || "Cliente"}
-              </span>
-              <span style={{ fontSize: 12.5, color: diff < 0 ? C.brick : C.muted }}>{diff < 0 ? `atrasada ${whenLabel(diff)}` : whenLabel(diff)}</span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>{formatBRL(valor)}</span>
-              <ChevronRight size={15} color={C.faint} />
-            </button>
-          ))}
         </div>
       )}
 
@@ -500,6 +438,73 @@ export function ProductionsDashboard({ workspaceId, order, productions, userName
           )}
         </>
       )}
+      {all.length > 0 && <MonthCalendar productions={all} today={today} onOpenProduction={onOpenProduction} onCopyCalendar={onCopyCalendar} />}
+
+      {isGestor && onUpdateProduction && <PosVenda productions={all} clients={clients} today={today} onMark={(p) => onUpdateProduction(p.id, { ...p, posVendaEm: new Date().toISOString() })} />}
+
+      {isGestor && funil.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={Award}>Funil de clientes</SectionTitle>
+          <div style={{ display: "flex", gap: 10, marginBottom: semResposta.length ? 10 : 0, flexWrap: "wrap" }}>
+            <StatCard label="LEADS" value={String(funil.filter((c) => c.etapa === "lead").length)} small />
+            <StatCard label="ORÇAMENTOS ENVIADOS" value={String(funil.filter((c) => c.etapa === "orcamento").length)} dot={C.amber} small />
+            <StatCard label="EM NEGOCIAÇÃO" value={formatBRL(valorFunil)} small />
+          </div>
+          {semResposta.map(({ c, dias }) => (
+            <button key={c.id} className="glass hover-row" onClick={() => onOpenClient && onOpenClient(c.id)} style={{ ...rowBtn, marginBottom: 8 }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || "Sem nome"}</span>
+              <span style={{ fontSize: 12.5, color: C.brick }}>{dias === null ? "sem contato registrado" : `sem resposta há ${dias} dias`}</span>
+              <ChevronRight size={15} color={C.faint} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isGestor && all.length > 0 && (
+        <div style={{ margin: "8px 0 18px", paddingTop: 18, borderTop: `1px solid ${C.lineSoft}`, fontFamily: FONT_MONO, fontSize: 11.5, letterSpacing: 1, color: C.faint }}>FINANCEIRO</div>
+      )}
+
+      {isGestor && <CashForecast paymentPlans={paymentPlans} productions={all} financeMap={financeMap} today={today} />}
+      {isGestor && <MargemLista productions={all} financeMap={financeMap} onOpen={onOpenProduction} />}
+      {isGestor && all.length > 0 && <MonthResult productions={all} financeMap={financeMap} today={today} />}
+
+      {isGestor && (overdue.length > 0 || week.length > 0 || monthTotal > 0) && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={Wallet}>Dinheiro</SectionTitle>
+          <div style={{ display: "flex", gap: 10, marginBottom: moneyList.length ? 10 : 0, flexWrap: "wrap" }}>
+            <StatCard label="ATRASADO" value={formatBRL(sum(overdue))} dot={overdue.length ? C.brick : C.faint} small />
+            <StatCard label="PRÓXIMOS 7 DIAS" value={formatBRL(sum(week))} dot={C.amber} small />
+            <StatCard label="A RECEBER NO MÊS" value={formatBRL(monthTotal)} dot={C.sage} small />
+          </div>
+          {moneyList.map(({ plan, parc, diff, valor }) => (
+            <button key={parc.id} className="glass hover-row" onClick={() => onOpenClient && onOpenClient(plan.client_id)} style={{ ...rowBtn, marginBottom: 8 }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {clients[plan.client_id]?.name || "Cliente"}
+              </span>
+              <span style={{ fontSize: 12.5, color: diff < 0 ? C.brick : C.muted }}>{diff < 0 ? `atrasada ${whenLabel(diff)}` : whenLabel(diff)}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>{formatBRL(valor)}</span>
+              <ChevronRight size={15} color={C.faint} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isGestor && teamList.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={Users}>A pagar à equipe</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {teamList.slice(0, 5).map((t) => (
+              <button key={t.nome} className="glass hover-row" onClick={() => onOpenProduction && onOpenProduction(t.itens[0].id)} style={rowBtn}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.nome}</span>
+                <span style={{ fontSize: 12.5, color: C.muted }}>{t.itens.length} produç{t.itens.length === 1 ? "ão" : "ões"}</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>{formatBRL(t.total)}</span>
+                <ChevronRight size={15} color={C.faint} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
