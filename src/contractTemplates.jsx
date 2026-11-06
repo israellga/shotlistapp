@@ -11,7 +11,8 @@ const uid = () => Math.random().toString(36).slice(2, 9) + Math.random().toStrin
 // Campos que o modelo pode usar. Escreva {{campo}} no texto.
 export const CAMPOS = [
   ["cliente", "Nome do cliente"], ["documento", "CPF/CNPJ do cliente"], ["email_cliente", "E-mail do cliente"], ["telefone_cliente", "Telefone do cliente"],
-  ["endereco_cliente", "Endereço do cliente"], ["emissor", "Seu nome / empresa"],
+  ["endereco_cliente", "Endereço do cliente"],
+  ["responsavel", "Nome do responsável"], ["email_responsavel", "E-mail do responsável"], ["telefone_responsavel", "Telefone do responsável"], ["emissor", "Seu nome / empresa"],
   ["producao", "Nome da produção"], ["data", "Data da produção"], ["horario", "Horário"], ["local", "Local"], ["demanda", "Demanda do dia"], ["equipe", "Equipe"], ["qtd_shots", "Qtd. de shots"],
   ["total", "Valor total"], ["total_extenso", "Valor por extenso"], ["parcelas", "Parcelas (lista)"], ["qtd_parcelas", "Qtd. de parcelas"],
   ["hoje", "Data de hoje"],
@@ -51,7 +52,8 @@ export function buildContext({ client, production, plan, issuer }) {
   const total = plan ? Number(plan.valor_total) || (plan.parcelas || []).reduce((a, x) => a + (Number(x.valor) || 0), 0) : 0;
   const parcelas = (plan?.parcelas || []).map((x) => `${x.numero}ª parcela: ${formatBRL(Number(x.valor) || 0)}${x.vencimento ? ` com vencimento em ${dataBR(x.vencimento)}` : ""}`).join("\n");
   return {
-    cliente: c.name || "", documento: c.cnpj || "", email_cliente: c.email || "", telefone_cliente: c.phone || "", endereco_cliente: end, emissor: issuer || "",
+    cliente: c.name || "", documento: c.cnpj || "", email_cliente: c.email || "", telefone_cliente: c.phone || "", endereco_cliente: end,
+    responsavel: c.responsavel || p.responsavel || "", email_responsavel: c.email || "", telefone_responsavel: c.phone || "", emissor: issuer || "",
     producao: p.cliente || plan?.titulo || "", data: formatIntervaloDatas(p.data, p.dataFim) || "", horario: p.horaInicio || p.horaFim ? `${p.horaInicio || "?"} às ${p.horaFim || "?"}` : "",
     local: p.endereco || "", demanda: p.objetivoDia || "",
     equipe: (p.equipe || []).map((m) => [m.funcao, m.responsavel].filter(Boolean).join(": ")).filter(Boolean).join("; "),
