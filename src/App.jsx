@@ -2432,6 +2432,7 @@ export default function App() {
                 />
               ) : (
                 <ProductionsDashboard
+                  workspaceId={workspaceId}
                   order={order}
                   productions={productions}
                   userName={myName}

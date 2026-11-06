@@ -1,5 +1,5 @@
 // Shotlist service worker: keeps the app shell available with no connection.
-const CACHE = "shotlist-shell-v1";
+const CACHE = "shotlist-shell-v2";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/manifest.webmanifest", "/icon-192.png"])).then(() => self.skipWaiting()));
@@ -35,4 +35,22 @@ self.addEventListener("fetch", (e) => {
       return res;
     }))
   );
+});
+
+// Avisos push (enviados pela function send-daily-push)
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Shotlist", {
+    body: d.body || "", icon: "/icon-192.png", badge: "/favicon-48.png", data: { url: d.url || "/" },
+  }));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    for (const c of list) { if ("focus" in c) return c.focus(); }
+    return self.clients.openWindow(url);
+  }));
 });

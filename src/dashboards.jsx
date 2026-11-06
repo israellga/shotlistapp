@@ -4,6 +4,7 @@ import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight, Tr
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
 import { etapaLabel } from "./productionExtras";
 import { YearReport } from "./reports";
+import PushPrompt from "./PushPrompt";
 import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto } from "./datetime";
 import { productionStatus } from "./productionStatus";
 import { formatBRL, totalCustos, valorImposto } from "./finance";
@@ -231,7 +232,7 @@ export function gcalLink(p) {
     + (details ? `&details=${encodeURIComponent(details)}` : "");
 }
 
-export function ProductionsDashboard({ order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate, onCopyCalendar }) {
+export function ProductionsDashboard({ workspaceId, order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate, onCopyCalendar }) {
   const today = localISO();
   const all = order.map((id) => productions[id]).filter(Boolean).filter((p) => !p.arquivada);
   const counts = { afazer: 0, andamento: 0, concluido: 0 };
@@ -300,6 +301,8 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 700, letterSpacing: 0.3, color: C.paper, marginBottom: 18 }}>
         {firstName ? `Olá, ${firstName}!` : "Visão geral"}
       </div>
+
+      <PushPrompt workspaceId={workspaceId} />
 
       {all.length === 0 ? (
         <div className="glass" style={{ borderRadius: 16, padding: "20px 18px", marginBottom: 24 }}>
