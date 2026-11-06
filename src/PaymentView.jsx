@@ -59,6 +59,12 @@ export default function PaymentView({ id }) {
   const [errorDetail, setErrorDetail] = useState("");
   const [live, setLive] = useState(false);
   const [lastFetch, setLastFetch] = useState(null);
+  const [more, setMore] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    if (data?.titulo) document.title = `${data.titulo} · Pagamento`;
+  }, [data?.titulo]);
 
   const load = useCallback(async () => {
     if (!supabaseConfigured) {
@@ -142,103 +148,113 @@ export default function PaymentView({ id }) {
   const parcelas = [...(data.parcelas || [])].sort((a, b) => (a.numero || 0) - (b.numero || 0));
   const total = Number(data.valorTotal) || parcelas.reduce((a, p) => a + (Number(p.valor) || 0), 0);
   const pago = parcelas.filter((p) => p.pago).reduce((a, p) => a + (Number(p.valor) || 0), 0);
-  const restante = total - pago;
+  const restante = Math.max(0, total - pago);
   const countPagas = parcelas.filter((p) => p.pago).length;
   const proxima = parcelas.filter((p) => !p.pago).sort((a, b) => (a.vencimento || "").localeCompare(b.vencimento || ""))[0];
   const pct = total > 0 ? Math.min(100, (pago / total) * 100) : 0;
+  const hoje = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+  const atrasada = proxima && proxima.vencimento && proxima.vencimento < hoje;
+  const br = (iso) => (iso || "").split("-").reverse().join("/");
+  const pg = data.pagamento || {};
 
   return (
     <Shell>
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: C.paper }}>
-          {data.titulo || "Pagamento"}
-        </div>
-        <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, marginTop: 4 }}>
-          {countPagas}/{parcelas.length} parcelas pagas
-        </div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, color: C.paper, lineHeight: 1.2, marginBottom: 14 }}>
+        {data.titulo || "Pagamento"}
       </div>
 
-      <div className="glass" style={{ borderRadius: 18, padding: "16px 18px", marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-          <div>
-            <div style={{ fontSize: 11, color: C.faint, fontFamily: FONT_MONO }}>PAGO</div>
-            <div style={{ fontSize: 18, color: C.sage, fontWeight: 700 }}>{formatBRL(pago)}</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: C.faint, fontFamily: FONT_MONO }}>RESTANTE</div>
-            <div style={{ fontSize: 18, color: C.paper, fontWeight: 700 }}>{formatBRL(restante)}</div>
-          </div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, color: C.muted, marginBottom: 8 }}>
+          <span>{countPagas} de {parcelas.length} parcelas pagas</span>
+          {restante > 0 && <span>Falta {formatBRL(restante)}</span>}
         </div>
-        <div style={{ height: 8, borderRadius: 4, background: C.lineSoft, overflow: "hidden", marginBottom: 8 }}>
+        <div style={{ height: 6, borderRadius: 3, background: C.lineSoft, overflow: "hidden" }}>
           <div style={{ height: "100%", width: `${pct}%`, background: C.sage, transition: "width 0.3s" }} />
         </div>
-        <div style={{ fontSize: 11.5, color: C.faint, textAlign: "right" }}>de {formatBRL(total)} no total</div>
       </div>
 
-      {proxima && (
-        <div style={{ background: C.amberDim, border: `1px solid ${C.amber}`, borderRadius: 10, padding: "12px 16px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 13, color: C.amber }}>Próxima parcela</span>
-          <span style={{ fontSize: 13, color: C.amber, fontFamily: FONT_MONO, fontWeight: 600 }}>
-            {formatBRL(proxima.valor)}{proxima.vencimento && ` · vence ${proxima.vencimento.split("-").reverse().join("/")}`}
-          </span>
+      {!proxima ? (
+        <div className="glass" style={{ borderRadius: 20, padding: "22px 20px", textAlign: "center", marginBottom: 22 }}>
+          <CheckCircle2 size={28} color={C.sage} />
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.paper, marginTop: 8 }}>Tudo pago</div>
+          <div style={{ fontSize: 14, color: C.muted, marginTop: 4 }}>Obrigado!</div>
         </div>
-      )}
-
-      {data.pagamento?.pix && (
-        <div className="glass" style={{ borderRadius: 18, padding: "14px 16px", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <QrCode size={16} color={C.amber} /><span style={{ fontSize: 14, fontWeight: 600, color: C.paper }}>Pagar por Pix</span>
+      ) : (
+        <div className="glass glass-edge" style={{ borderRadius: 22, padding: "20px 20px 18px", marginBottom: 22 }}>
+          <div style={{ fontSize: 13, color: atrasada ? C.brick : C.muted, marginBottom: 4 }}>
+            {atrasada ? "Parcela em atraso" : "Próxima parcela"} · {String(proxima.numero).padStart(2, "0")} de {String(parcelas.length).padStart(2, "0")}
           </div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 14, color: C.paper, wordBreak: "break-all", marginBottom: 4 }}>{data.pagamento.pix}</div>
-          {data.pagamento.favorecido && <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 10 }}>Favorecido: {data.pagamento.favorecido}</div>}
-          <CopyBtn text={data.pagamento.pix} label="Copiar chave Pix" />
-          {data.pagamento.instrucoes && <div style={{ fontSize: 12.5, color: C.muted, marginTop: 10, lineHeight: 1.5 }}>{data.pagamento.instrucoes}</div>}
-        </div>
-      )}
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 36, fontWeight: 700, color: C.paper, lineHeight: 1.1 }}>{formatBRL(proxima.valor)}</div>
+          {proxima.vencimento && <div style={{ fontSize: 14, color: atrasada ? C.brick : C.muted, marginTop: 4 }}>{atrasada ? "Venceu em" : "Vence em"} {br(proxima.vencimento)}</div>}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {parcelas.map((p) => (
-          <div key={p.numero} className="glass" style={{ borderRadius: 14, padding: "12px 14px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {p.pago ? <CheckCircle2 size={17} color={C.sage} /> : <Circle size={17} color={C.faint} />}
-              <span style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.faint, width: 24 }}>{String(p.numero).padStart(2, "0")}</span>
-              <span style={{ flex: 1, fontSize: 13.5, color: p.pago ? C.faint : C.paper, textDecoration: p.pago ? "line-through" : "none" }}>
-                {formatBRL(p.valor)}
-              </span>
-              {p.vencimento && (
-                <span style={{ fontSize: 12, color: C.faint, fontFamily: FONT_MONO }}>{p.vencimento.split("-").reverse().join("/")}</span>
+          {proxima.asaasUrl ? (
+            <a href={proxima.asaasUrl} target="_blank" rel="noreferrer" className="btn-glass-primary" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 52, borderRadius: 26, marginTop: 18, textDecoration: "none", fontSize: 16, fontWeight: 700 }}>
+              Pagar agora
+            </a>
+          ) : pg.pix ? (
+            <div style={{ marginTop: 18 }}><CopyBtn text={pg.pix} label="Copiar chave Pix" /></div>
+          ) : null}
+          {proxima.asaasUrl && <div style={{ fontSize: 12.5, color: C.faint, textAlign: "center", marginTop: 8 }}>Pix, boleto ou cartão</div>}
+
+          <button onClick={() => setMore((v) => !v)} style={{ display: "block", width: "100%", minHeight: 44, marginTop: 10, background: "transparent", border: "none", color: C.muted, fontSize: 13.5, cursor: "pointer" }}>
+            {more ? "Ocultar" : "Outras formas de pagar e comprovante"}
+          </button>
+
+          {more && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 4, paddingTop: 14, borderTop: `1px solid ${C.lineSoft}` }}>
+              {proxima.pixCopia && (
+                <div>
+                  <div style={miniLabel}><QrCode size={13} /> PIX COPIA E COLA</div>
+                  <CopyBtn text={proxima.pixCopia} label="Copiar código Pix" />
+                </div>
               )}
+              {pg.pix && (
+                <div>
+                  <div style={miniLabel}><QrCode size={13} /> CHAVE PIX</div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 13.5, color: C.paper, wordBreak: "break-all", marginBottom: 6 }}>{pg.pix}</div>
+                  {pg.favorecido && <div style={{ fontSize: 12.5, color: C.muted, marginBottom: 8 }}>Favorecido: {pg.favorecido}</div>}
+                  <CopyBtn text={pg.pix} label="Copiar chave Pix" />
+                  {pg.instrucoes && <div style={{ fontSize: 12.5, color: C.muted, marginTop: 8, lineHeight: 1.5 }}>{pg.instrucoes}</div>}
+                </div>
+              )}
+              {proxima.boleto && (
+                <div>
+                  <div style={miniLabel}><Barcode size={13} /> BOLETO</div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.paper, wordBreak: "break-all", marginBottom: 8 }}>{proxima.boleto}</div>
+                  <CopyBtn text={proxima.boleto.replace(/[^\d]/g, "")} label="Copiar linha digitável" />
+                </div>
+              )}
+              <div>
+                <div style={miniLabel}><Upload size={13} /> JÁ PAGOU?</div>
+                <ComprovanteBtn planId={id} parcela={proxima} onDone={load} />
+                {Number(proxima.comprovantes) > 0 && <div style={{ fontSize: 12.5, color: C.sage, marginTop: 8 }}>{proxima.comprovantes} comprovante{proxima.comprovantes > 1 ? "s" : ""} enviado{proxima.comprovantes > 1 ? "s" : ""}, aguardando confirmação.</div>}
+              </div>
             </div>
-            {!p.pago && p.asaasUrl && (
-              <a href={p.asaasUrl} target="_blank" rel="noreferrer" className="btn-glass-primary" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: 46, padding: "0 20px", borderRadius: 23, marginTop: 10, textDecoration: "none", fontSize: 14, fontWeight: 700 }}>
-                Pagar agora (Pix, boleto ou cartão)
-              </a>
-            )}
-            {!p.pago && p.pixCopia && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.lineSoft}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, marginBottom: 6 }}><QrCode size={13} /> PIX COPIA E COLA</div>
-                <CopyBtn text={p.pixCopia} label="Copiar código Pix" />
-              </div>
-            )}
-            {!p.pago && p.boleto && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.lineSoft}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, marginBottom: 4 }}><Barcode size={13} /> LINHA DIGITÁVEL DO BOLETO</div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 13, color: C.paper, wordBreak: "break-all", marginBottom: 8 }}>{p.boleto}</div>
-                <CopyBtn text={p.boleto.replace(/[^\d]/g, "")} label="Copiar linha digitável" />
-              </div>
-            )}
-            {!p.pago && (
-              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <ComprovanteBtn planId={id} parcela={p} onDone={load} />
-                {Number(p.comprovantes) > 0 && <span style={{ fontSize: 12.5, color: C.sage }}>{p.comprovantes} comprovante{p.comprovantes > 1 ? "s" : ""} enviado{p.comprovantes > 1 ? "s" : ""}, aguardando confirmação</span>}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
+
+      {parcelas.length > 1 && (
+        <div>
+          <button onClick={() => setShowAll((v) => !v)} style={{ display: "block", width: "100%", minHeight: 44, background: "transparent", border: "none", color: C.muted, fontSize: 13.5, cursor: "pointer", textAlign: "left", padding: 0 }}>
+            {showAll ? "Ocultar parcelas" : `Ver todas as parcelas (${parcelas.length})`}
+          </button>
+          {showAll && (
+            <div style={{ display: "flex", flexDirection: "column", marginTop: 4 }}>
+              {parcelas.map((p) => (
+                <div key={p.numero} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, borderBottom: `1px solid ${C.lineSoft}`, opacity: p.pago ? 0.55 : 1 }}>
+                  {p.pago ? <CheckCircle2 size={16} color={C.sage} /> : <Circle size={16} color={C.faint} />}
+                  <span style={{ flex: 1, fontSize: 14, color: C.paper }}>{formatBRL(p.valor)}</span>
+                  <span style={{ fontSize: 13, color: C.muted }}>{p.pago ? "Pago" : p.vencimento ? br(p.vencimento) : ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {lastFetch && (
-        <div style={{ textAlign: "center", marginTop: 24, fontSize: 11, color: C.faint, fontFamily: FONT_MONO, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <div style={{ textAlign: "center", marginTop: 28, fontSize: 11, color: C.faint, fontFamily: FONT_MONO, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <span className={live ? "live-dot" : ""} style={{ width: 6, height: 6, borderRadius: "50%", background: live ? C.sage : C.faint, display: "inline-block" }} />
           {live ? "Ao vivo" : "Atualizado"} às {lastFetch.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
         </div>
@@ -247,13 +263,15 @@ export default function PaymentView({ id }) {
   );
 }
 
+const miniLabel = { display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO, letterSpacing: 0.4, marginBottom: 8 };
+
 function Shell({ children }) {
   return (
     <div style={{ minHeight: "100vh", background: "transparent", fontFamily: FONT_BODY, padding: "24px 16px 60px", paddingTop: "max(24px, env(safe-area-inset-top))", paddingBottom: "max(60px, env(safe-area-inset-bottom))" }}>
       <div style={{ maxWidth: 560, margin: "0 auto 20px", display: "flex", alignItems: "center", gap: 10 }}>
         <ShotlistLogo size={24} />
         <div style={{ fontFamily: FONT_MONO, fontSize: 11.5, letterSpacing: 0.5, color: C.faint }}>
-          Acompanhamento de pagamento
+          Pagamento
         </div>
       </div>
       <div style={{ maxWidth: 560, margin: "0 auto" }}>{children}</div>
