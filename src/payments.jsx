@@ -131,7 +131,11 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
   }
   async function enableWebhook() {
     setAsaasBusy("webhook"); setAsaasMsg("");
-    try { await callAsaas({ action: "setup_webhook", workspace_id: plan.workspace_id }); setAsaasMsg("Baixa automática ativada."); }
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      await callAsaas({ action: "setup_webhook", workspace_id: plan.workspace_id, email: u?.user?.email || "" });
+      setAsaasMsg("Baixa automática ativada.");
+    }
     catch (e) { setAsaasMsg(e.message || "Falha ao ativar."); }
     setAsaasBusy("");
   }
