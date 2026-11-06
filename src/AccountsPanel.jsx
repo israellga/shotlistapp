@@ -7,7 +7,7 @@ import { ConfirmIconButton } from "./ui";
 const STATUS_LABEL = { pending: "Pendente", approved: "Aprovado", rejected: "Recusado" };
 const STATUS_COLOR = { pending: C.amber, approved: C.sage, rejected: C.brick };
 
-export default function AccountsPanel({ onClose, myUserId, workspaceId, workspaceName, onRenameWorkspace }) {
+export default function AccountsPanel({ onClose, myUserId, workspaceId, workspaceName, onRenameWorkspace, embedded }) {
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [status, setStatus] = useState("loading");
@@ -124,12 +124,12 @@ export default function AccountsPanel({ onClose, myUserId, workspaceId, workspac
   const regulares = others.filter((m) => m.role !== "gestor").sort(byEmail);
 
   return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 55, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
-      <div className="modal-card" style={{ width: "100%", maxWidth: 480, maxHeight: "80vh", display: "flex", flexDirection: "column", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 18px", borderBottom: `1px solid ${C.line}` }}>
-          <ShieldCheck size={17} color={C.amber} />
+    <div className={embedded ? undefined : "modal-backdrop"} style={embedded ? { fontFamily: FONT_BODY } : { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 55, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
+      <div className={embedded ? undefined : "modal-card"} style={embedded ? { display: "flex", flexDirection: "column" } : { width: "100%", maxWidth: 480, maxHeight: "80vh", display: "flex", flexDirection: "column", background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: embedded ? "0 0 12px" : "16px 18px", borderBottom: embedded ? "none" : `1px solid ${C.line}` }}>
+          {!embedded && <ShieldCheck size={17} color={C.amber} />}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, color: C.paper }}>CONTAS DA EQUIPE</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, color: C.paper }}>{embedded ? "NOME DA EQUIPE" : "CONTAS DA EQUIPE"}</div>
             {editingName ? (
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                 <input
@@ -160,12 +160,14 @@ export default function AccountsPanel({ onClose, myUserId, workspaceId, workspac
             )}
             {nameError && <div style={{ fontSize: 10.5, color: C.brick, marginTop: 3 }}>{nameError}</div>}
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer" }}>
-            <X size={18} />
-          </button>
+          {!embedded && (
+            <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer" }}>
+              <X size={18} />
+            </button>
+          )}
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
+        <div style={embedded ? {} : { flex: 1, overflowY: "auto", padding: 14 }}>
           {status === "loading" ? (
             <div style={{ display: "grid", placeItems: "center", padding: 40 }}>
               <Loader2 size={20} color={C.faint} style={{ animation: "spin 1s linear infinite" }} />

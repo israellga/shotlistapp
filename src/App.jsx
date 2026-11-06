@@ -6,12 +6,13 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
-  Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
+  Settings, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
   Truck, ClipboardCheck, Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles, Archive, ArchiveRestore,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import AuthScreen from "./AuthScreen";
 import AccountPanel from "./AccountPanel";
+import SettingsPanel from "./SettingsPanel";
 import ShotlistMark from "./ShotlistMark";
 import ShotlistLogo from "./ShotlistLogo";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
@@ -23,7 +24,6 @@ import {
 import { ClientsList, ClientDetail, ClientPickerInline } from "./ClientsPanel";
 import { fetchThumbnail, getLastThumbnailIssue } from "./thumbnail";
 import { analyzeReferenceFrames } from "./aiAnalysis";
-import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard, gcalLink } from "./dashboards";
 import ClientFeedback from "./ClientFeedback";
@@ -1408,7 +1408,6 @@ export default function App() {
   const [workspaceId, setWorkspaceId] = useState(undefined); // undefined = checking, null = none yet
   const [workspaceName, setWorkspaceName] = useState("");
   const [pendingInvites, setPendingInvites] = useState([]);
-  const [showAccounts, setShowAccounts] = useState(false);
   const [financeMap, setFinanceMap] = useState({});
   const [financeRecords, setFinanceRecords] = useState({});
   const [financeRecordOrder, setFinanceRecordOrder] = useState([]);
@@ -2374,13 +2373,8 @@ export default function App() {
         )}
         {online ? <span className="wifi-ok" style={{ display: "inline-flex" }}><Wifi size={15} color={C.sage} /></span> : <WifiOff size={15} color={C.brick} />}
         <FieldModeToggle value={fieldMode} onChange={setFieldMode} />
-        {isGestor && (
-          <IconButton onClick={() => setShowAccounts(true)} title="Contas da equipe">
-            <ShieldCheck size={17} />
-          </IconButton>
-        )}
-        <IconButton onClick={() => setShowAccount(true)} title="Minha conta">
-          <KeyRound size={17} />
+        <IconButton onClick={() => setShowAccount(true)} title="Configurações">
+          <Settings size={17} />
         </IconButton>
         <IconButton onClick={() => setConfirmLogout(true)} title="Sair">
           <LogOut size={17} />
@@ -2389,16 +2383,6 @@ export default function App() {
 
       {tplOpen && <TemplatePicker onPick={createFromTemplate} onClose={() => setTplOpen(false)} custom={wsTemplates} onDeleteCustom={deleteWsTemplate} />}
       {importOpen && <ImportPdfDialog onClose={() => setImportOpen(false)} onCreate={importProduction} clients={clients} />}
-
-      {showAccounts && (
-        <AccountsPanel
-          onClose={() => setShowAccounts(false)}
-          myUserId={session.user.id}
-          workspaceId={workspaceId}
-          workspaceName={workspaceName}
-          onRenameWorkspace={setWorkspaceName}
-        />
-      )}
 
       {confirmLogout && (
         <ConfirmDialog
@@ -2412,7 +2396,15 @@ export default function App() {
       )}
 
       {showAccount && (
-        <AccountPanel email={session.user?.email} onClose={() => setShowAccount(false)} workspaceId={workspaceId} isGestor={isGestor} />
+        <SettingsPanel
+          onClose={() => setShowAccount(false)}
+          email={session.user?.email}
+          myUserId={session.user.id}
+          workspaceId={workspaceId}
+          workspaceName={workspaceName}
+          onRenameWorkspace={setWorkspaceName}
+          isGestor={isGestor}
+        />
       )}
 
       {!online && (

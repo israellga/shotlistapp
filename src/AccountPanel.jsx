@@ -4,7 +4,7 @@ import { supabase } from "./supabaseClient";
 import { AsaasConnect } from "./asaas";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
-export default function AccountPanel({ email, onClose, forced, onDone, workspaceId, isGestor }) {
+export default function AccountPanel({ email, onClose, forced, onDone, workspaceId, isGestor, embedded }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,6 +30,7 @@ export default function AccountPanel({ email, onClose, forced, onDone, workspace
       return;
     }
     setDone(true);
+    if (embedded) { setPassword(""); setConfirm(""); setTimeout(() => setDone(false), 2500); return; }
     setTimeout(() => {
       if (forced) onDone?.();
       else onClose?.();
@@ -37,12 +38,12 @@ export default function AccountPanel({ email, onClose, forced, onDone, workspace
   }
 
   return (
-    <div className="modal-backdrop" style={{
+    <div className={embedded ? undefined : "modal-backdrop"} style={embedded ? { fontFamily: FONT_BODY } : {
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 50,
       display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY,
     }}>
-      <div className="modal-card" style={{ width: "100%", maxWidth: 380, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 22, position: "relative" }}>
-        {!forced && (
+      <div className={embedded ? undefined : "modal-card"} style={embedded ? {} : { width: "100%", maxWidth: 380, background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 22, position: "relative" }}>
+        {!forced && !embedded && (
           <button
             onClick={onClose}
             style={{ position: "absolute", top: 14, right: 14, background: "transparent", border: "none", color: C.muted, cursor: "pointer" }}
@@ -105,7 +106,7 @@ export default function AccountPanel({ email, onClose, forced, onDone, workspace
             </button>
           </form>
         )}
-        {!forced && workspaceId && isGestor && <AsaasConnect workspaceId={workspaceId} email={email} />}
+        {!forced && !embedded && workspaceId && isGestor && <AsaasConnect workspaceId={workspaceId} email={email} />}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
