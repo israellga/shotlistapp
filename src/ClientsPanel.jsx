@@ -10,11 +10,33 @@ import { ClientBalanceSummary, FinanceSection } from "./finance";
 import { PaymentPlansSection } from "./payments";
 import { maskPhone, maskCEP, maskCNPJ, lookupCEP } from "./masks";
 
+export const FUNIL = [
+  { key: "lead", label: "Lead" },
+  { key: "orcamento", label: "Orçamento enviado" },
+  { key: "cliente", label: "Cliente" },
+  { key: "perdido", label: "Perdido" },
+];
+export const funilLabel = (k) => FUNIL.find((f) => f.key === k)?.label || "Cliente";
+
 export function ClientsList({ clients, onOpen, onDelete, currentClientId, onCopyIntake }) {
   const [copied, setCopied] = React.useState(false);
-  const sorted = [...clients].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const [filtro, setFiltro] = React.useState("todos");
+  const sorted = [...clients].filter((c) => filtro === "todos" || (c.etapa || "cliente") === filtro).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const count = (k) => clients.filter((c) => (c.etapa || "cliente") === k).length;
   return (
     <div style={{ paddingBottom: 10 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "0 0 12px" }}>
+        {[{ key: "todos", label: "Todos" }, ...FUNIL].map((f) => {
+          const on = filtro === f.key;
+          const n = f.key === "todos" ? clients.length : count(f.key);
+          if (f.key !== "todos" && n === 0 && !on) return null;
+          return (
+            <button key={f.key} onClick={() => setFiltro(f.key)} style={{ minHeight: 36, padding: "0 12px", borderRadius: 18, border: `1px solid ${on ? C.amber : C.line}`, background: on ? C.amberDim : "transparent", color: on ? C.amber : C.muted, fontSize: 12.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}>
+              {f.label} · {n}
+            </button>
+          );
+        })}
+      </div>
       <div style={{ fontFamily: FONT_MONO, fontSize: 12.5, color: C.muted, letterSpacing: 0.5, margin: "0 4px 14px" }}>
         CLIENTES ({clients.length})
       </div>
@@ -57,6 +79,9 @@ export function ClientsList({ clients, onOpen, onDelete, currentClientId, onCopy
               <div style={{ fontSize: 14.5, color: C.paper, fontWeight: 600, fontFamily: FONT_BODY, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {c.name || "Sem nome"}
               </div>
+              {(c.etapa && c.etapa !== "cliente") && (
+                <div style={{ fontSize: 12, color: c.etapa === "perdido" ? C.brick : C.amber, marginTop: 2, fontWeight: 600 }}>{funilLabel(c.etapa)}</div>
+              )}
               {c.responsavel && (
                 <div style={{ fontSize: 12, color: C.faint, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   Responsável: {c.responsavel}
@@ -160,6 +185,28 @@ export function ClientDetail({
         <Field label="Responsável" value={client.responsavel || ""} onChange={(v) => patch({ responsavel: v })} placeholder="Nome de quem responde por esse cliente" />
         <Field label="Telefone" value={client.phone || ""} onChange={(v) => patch({ phone: maskPhone(v) })} placeholder="(11) 99999-9999" mono />
         <Field label="Email" value={client.email || ""} onChange={(v) => patch({ email: v })} placeholder="contato@cliente.com" mono />
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {FUNIL.map((f) => {
+            const on = (client.etapa || "cliente") === f.key;
+            return (
+              <button
+                key={f.key}
+                onClick={() => patch(f.key === "orcamento" && !client.ultimo_contato ? { etapa: f.key, ultimo_contato: todayLocalISO() } : { etapa: f.key })}
+                style={{ minHeight: 40, padding: "0 14px", borderRadius: 20, border: `1px solid ${on ? (f.key === "perdido" ? C.brick : C.amber) : C.line}`, background: on ? (f.key === "perdido" ? C.brickDim : C.amberDim) : "transparent", color: on ? (f.key === "perdido" ? C.brick : C.amber) : C.muted, fontSize: 13.5, fontWeight: 600, fontFamily: FONT_BODY, cursor: "pointer" }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        {["lead", "orcamento"].includes(client.etapa) && (
+          <div style={{ marginTop: 10, maxWidth: 260 }}>
+            <Field label="Valor da proposta (R$)" value={client.valor_proposta ?? ""} onChange={(v) => patch({ valor_proposta: v === "" ? null : Number(v) })} placeholder="0,00" mono />
+          </div>
+        )}
       </div>
 
       <div className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 16 }}>

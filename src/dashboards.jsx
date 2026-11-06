@@ -261,6 +261,12 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
     }
   }
   const teamList = Object.values(teamOwed).sort((a, b) => b.total - a.total);
+  const funil = Object.values(clients).filter((c) => c.etapa === "lead" || c.etapa === "orcamento");
+  const semResposta = funil
+    .map((c) => ({ c, dias: c.ultimo_contato ? daysFrom(c.ultimo_contato, today) : null }))
+    .filter((x) => x.c.etapa === "orcamento" && (x.dias === null || x.dias >= 5))
+    .sort((a, b) => (b.dias ?? 999) - (a.dias ?? 999));
+  const valorFunil = funil.reduce((a, c) => a + (Number(c.valor_proposta) || 0), 0);
   const lembretes = all
     .filter((p) => p.data)
     .map((p) => ({ p, diff: daysFrom(today, p.data) }))
@@ -338,6 +344,24 @@ export function ProductionsDashboard({ order, productions, userName, financeMap 
           )}
         </div>
       ) : null}
+
+      {isGestor && funil.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <SectionTitle icon={Award}>Funil de clientes</SectionTitle>
+          <div style={{ display: "flex", gap: 10, marginBottom: semResposta.length ? 10 : 0, flexWrap: "wrap" }}>
+            <StatCard label="LEADS" value={String(funil.filter((c) => c.etapa === "lead").length)} small />
+            <StatCard label="ORÇAMENTOS ENVIADOS" value={String(funil.filter((c) => c.etapa === "orcamento").length)} dot={C.amber} small />
+            <StatCard label="EM NEGOCIAÇÃO" value={formatBRL(valorFunil)} small />
+          </div>
+          {semResposta.map(({ c, dias }) => (
+            <button key={c.id} className="glass hover-row" onClick={() => onOpenClient && onOpenClient(c.id)} style={{ ...rowBtn, marginBottom: 8 }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: C.paper, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || "Sem nome"}</span>
+              <span style={{ fontSize: 12.5, color: C.brick }}>{dias === null ? "sem contato registrado" : `sem resposta há ${dias} dias`}</span>
+              <ChevronRight size={15} color={C.faint} />
+            </button>
+          ))}
+        </div>
+      )}
 
       {isGestor && teamList.length > 0 && (
         <div style={{ marginBottom: 24 }}>
