@@ -23,15 +23,22 @@ Deno.serve(async (req) => {
   if (!ws?.[0]) return new Response("Not found", { status: 404 });
   const prods = (await rest(`productions?workspace_id=eq.${ws[0].id}&select=id,payload`)) || [];
 
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Shotlist//PT-BR//", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Shotlist//PT-BR//", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-TIMEZONE:America/Sao_Paulo",
     `X-WR-CALNAME:${esc("Shotlist · " + ws[0].name)}`, "REFRESH-INTERVAL;VALUE=DURATION:PT6H", "X-PUBLISHED-TTL:PT6H"];
   for (const row of prods) {
     const p = row.payload || {};
     if (!p.data || p.arquivada) continue;
     const end = p.dataFim && p.dataFim >= p.data ? p.dataFim : p.data;
     const desc = [p.objetivoDia && `Demanda: ${p.objetivoDia}`, (p.horaInicio || p.horaFim) && `Horário: ${p.horaInicio || "?"}–${p.horaFim || "?"}`, p.responsavel && `Responsável: ${p.responsavel}`, p.endereco && `Waze: https://waze.com/ul?q=${encodeURIComponent(p.endereco)}&navigate=yes`, `${(p.shots || []).length} shots`].filter(Boolean).join("\n");
+    const hm = (h: string) => { const m = /^(\d{1,2}):?(\d{2})?/.exec(h || ""); return m ? String(m[1]).padStart(2, "0") + (m[2] || "00") : ""; };
+    const ini = hm(p.horaInicio), fim = hm(p.horaFim);
+    let when: string[];
+    if (ini) {
+      const endStr = fim ? `${d8(end)}T${fim}00` : `${d8(p.data)}T${String(Math.min(23, parseInt(ini.slice(0, 2), 10) + 1)).padStart(2, "0")}${ini.slice(2)}00`;
+      when = [`DTSTART;TZID=America/Sao_Paulo:${d8(p.data)}T${ini}00`, `DTEND;TZID=America/Sao_Paulo:${endStr}`];
+    } else when = [`DTSTART;VALUE=DATE:${d8(p.data)}`, `DTEND;VALUE=DATE:${nextDay(end)}`];
     lines.push("BEGIN:VEVENT", `UID:${row.id}@shotlist`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
-      `DTSTART;VALUE=DATE:${d8(p.data)}`, `DTEND;VALUE=DATE:${nextDay(end)}`, `SUMMARY:${esc("Produção: " + (p.cliente || "Sem nome"))}`,
+      ...when, `SUMMARY:${esc("Produção: " + (p.cliente || "Sem nome"))}`,
       `DESCRIPTION:${esc(desc)}`, ...(p.endereco ? [`LOCATION:${esc(p.endereco)}`] : []), "END:VEVENT");
   }
   lines.push("END:VCALENDAR");

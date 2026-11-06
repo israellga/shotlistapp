@@ -2,7 +2,7 @@ import { mapsUrl, wazeUrl } from "./maps";
 import React from "react";
 import { CalendarClock, AlertTriangle, Award, PieChart, Wallet, ChevronRight } from "lucide-react";
 import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
-import { formatDataComDiaSemana, formatIntervaloDatas } from "./datetime";
+import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto } from "./datetime";
 import { productionStatus } from "./productionStatus";
 import { formatBRL, totalCustos, valorImposto } from "./finance";
 
@@ -94,6 +94,7 @@ function MonthCalendar({ productions, today, onOpenProduction, onCopyCalendar })
   for (let i = 0; i < first; i++) cells.push(null);
   for (let d = 1; d <= days; d++) cells.push(d);
   const list = sel ? productions.filter((p) => on(p, sel)) : [];
+  const monthList = productions.filter((p) => p.data && p.data.slice(0, 7) <= ym && ym <= (p.dataFim || p.data).slice(0, 7)).sort((a, b) => a.data.localeCompare(b.data));
   return (
     <div className="glass glass-edge" style={{ borderRadius: 18, padding: "10px 12px 14px", marginBottom: 24 }}>
       <MonthNav ym={ym} onChange={(v) => { setYm(v); setSel(null); }} />
@@ -110,13 +111,13 @@ function MonthCalendar({ productions, today, onOpenProduction, onCopyCalendar })
               onClick={() => setSel(isSel ? null : iso(d))}
               style={{
                 minHeight: 40, borderRadius: 12, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 14,
-                background: isSel ? "rgba(253,223,75,0.22)" : "transparent",
-                color: isToday ? C.amber : C.paper, fontWeight: isToday ? 700 : 400,
+                background: isSel ? "rgba(253,223,75,0.30)" : has ? "rgba(253,223,75,0.14)" : "transparent",
+                color: isToday ? C.amber : C.paper, fontWeight: isToday || has ? 700 : 400,
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
               }}
             >
               {d}
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: has ? C.amber : "transparent" }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: has ? C.amber : "transparent" }} />
             </button>
           );
         })}
@@ -128,6 +129,17 @@ function MonthCalendar({ productions, today, onOpenProduction, onCopyCalendar })
         >
           {copied ? "Link copiado. No Google Agenda: Outras agendas, Por URL, colar" : "Sincronizar com Google/Apple Agenda (copiar link)"}
         </button>
+      )}
+      {!sel && monthList.length > 0 && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+          {monthList.map((p) => (
+            <button key={p.id} onClick={() => onOpenProduction && onOpenProduction(p.id)} style={{ ...rowBtn, background: "rgba(255,255,255,0.05)", border: "none", minHeight: 44 }}>
+              <span style={{ fontSize: 12.5, color: C.amber, fontWeight: 600, minWidth: 74 }}>{formatIntervaloCurto(p.data, p.dataFim)}{p.horaInicio ? ` · ${p.horaInicio}` : ""}</span>
+              <span style={{ flex: 1, fontSize: 14, color: C.paper, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.cliente || "Sem nome"}</span>
+              <ChevronRight size={15} color={C.faint} />
+            </button>
+          ))}
+        </div>
       )}
       {sel && (
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -179,11 +191,30 @@ function MonthResult({ productions, financeMap, today }) {
 }
 
 function gcalLink(p) {
-  const d = (s) => (s || "").replace(/-/g, "");
-  const end = new Date((p.dataFim || p.data) + "T00:00:00"); end.setDate(end.getDate() + 1);
-  const e = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, "0")}${String(end.getDate()).padStart(2, "0")}`;
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Produção: " + (p.cliente || ""))}&dates=${d(p.data)}/${e}`
-    + (p.endereco ? `&location=${encodeURIComponent(p.endereco)}&details=${encodeURIComponent("Waze: " + wazeUrl(p.endereco) + "\nGoogle Maps: " + mapsUrl(p.endereco))}` : "");
+  const d8 = (iso) => (iso || "").replace(/-/g, "");
+  const hm = (h) => { const m = /^(\d{1,2}):?(\d{2})?/.exec(h || ""); return m ? String(m[1]).padStart(2, "0") + (m[2] || "00") : ""; };
+  const ini = hm(p.horaInicio), fim = hm(p.horaFim);
+  const endDay = p.dataFim || p.data;
+  let dates, extra = "";
+  if (ini) {
+    // evento com horário: início no dia da captação, fim no último dia (ou +1h se não houver horário de fim)
+    let endStr;
+    if (fim) endStr = `${d8(endDay)}T${fim}00`;
+    else {
+      const h = Math.min(23, parseInt(ini.slice(0, 2), 10) + 1);
+      endStr = `${d8(p.data)}T${String(h).padStart(2, "0")}${ini.slice(2)}00`;
+    }
+    dates = `${d8(p.data)}T${ini}00/${endStr}`;
+    extra = "&ctz=America/Sao_Paulo";
+  } else {
+    const end = new Date(endDay + "T00:00:00"); end.setDate(end.getDate() + 1);
+    const e = `${end.getFullYear()}${String(end.getMonth() + 1).padStart(2, "0")}${String(end.getDate()).padStart(2, "0")}`;
+    dates = `${d8(p.data)}/${e}`;
+  }
+  const details = [p.objetivoDia, p.endereco && "Waze: " + wazeUrl(p.endereco) + "\nGoogle Maps: " + mapsUrl(p.endereco)].filter(Boolean).join("\n\n");
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Produção: " + (p.cliente || ""))}&dates=${dates}${extra}`
+    + (p.endereco ? `&location=${encodeURIComponent(p.endereco)}` : "")
+    + (details ? `&details=${encodeURIComponent(details)}` : "");
 }
 
 export function ProductionsDashboard({ order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate, onCopyCalendar }) {
