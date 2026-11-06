@@ -11,8 +11,6 @@ async function rest(path: string, init?: RequestInit) {
 }
 
 Deno.serve(async (req) => {
-  const secrets = Object.fromEntries(((await rest("app_secrets?select=name,value")) || []).map((r: any) => [r.name, r.value]));
-  if (!secrets.asaas_webhook_token || req.headers.get("asaas-access-token") !== secrets.asaas_webhook_token) return new Response("forbidden", { status: 403 });
   let body: any;
   try { body = await req.json(); } catch { return new Response("bad", { status: 400 }); }
   const ev = body?.event as string;
@@ -21,8 +19,11 @@ Deno.serve(async (req) => {
   const [planId, parcelaId] = ref.split(":");
   if (!pay || !planId || !parcelaId) return new Response("ignored", { status: 200 });
 
-  const plan = (await rest(`payment_plans?id=eq.${encodeURIComponent(planId)}&select=parcelas`))?.[0];
+  const plan = (await rest(`payment_plans?id=eq.${encodeURIComponent(planId)}&select=parcelas,workspace_id`))?.[0];
   if (!plan) return new Response("ignored", { status: 200 });
+  const cfg = (await rest(`workspace_asaas?workspace_id=eq.${encodeURIComponent(plan.workspace_id)}&select=webhook_token`))?.[0];
+  const sent = req.headers.get("asaas-access-token");
+  if (!cfg || !sent || sent !== cfg.webhook_token) return new Response("forbidden", { status: 403 });
   const paidEvent = ev === "PAYMENT_RECEIVED" || (ev === "PAYMENT_CONFIRMED" && pay.billingType === "CREDIT_CARD");
   const undo = ev === "PAYMENT_REFUNDED";
   if (!paidEvent && !undo) return new Response("ok", { status: 200 });

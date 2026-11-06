@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { X, Loader2, AlertCircle, CheckCircle2, KeyRound } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { AsaasConnect } from "./asaas";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 
-export default function AccountPanel({ email, onClose, forced, onDone }) {
+export default function AccountPanel({ email, onClose, forced, onDone, workspaceId, isGestor }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -104,6 +105,7 @@ export default function AccountPanel({ email, onClose, forced, onDone }) {
             </button>
           </form>
         )}
+        {!forced && workspaceId && isGestor && <AsaasConnect workspaceId={workspaceId} email={email} />}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

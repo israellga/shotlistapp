@@ -2412,7 +2412,7 @@ export default function App() {
       )}
 
       {showAccount && (
-        <AccountPanel email={session.user?.email} onClose={() => setShowAccount(false)} />
+        <AccountPanel email={session.user?.email} onClose={() => setShowAccount(false)} workspaceId={workspaceId} isGestor={isGestor} />
       )}
 
       {!online && (

@@ -2,7 +2,6 @@
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-let API_KEY = Deno.env.get("ASAAS_API_KEY") || "";
 const SH = { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, "content-type": "application/json" };
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type", "access-control-allow-methods": "POST, OPTIONS" };
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { ...CORS, "content-type": "application/json" } });
@@ -14,14 +13,14 @@ async function rest(path: string, init?: RequestInit) {
   return t ? JSON.parse(t) : [];
 }
 
-async function secrets() {
-  return Object.fromEntries(((await rest("app_secrets?select=name,value")) || []).map((r: any) => [r.name, r.value]));
+async function wsConfig(ws: string) {
+  return (await rest(`workspace_asaas?workspace_id=eq.${encodeURIComponent(ws)}&select=*`))?.[0] || null;
 }
 
-async function asaas(base: string, path: string, method = "GET", body?: unknown) {
-  const r = await fetch(`${base}${path}`, {
+async function asaas(ctx: { key: string; base: string }, path: string, method = "GET", body?: unknown) {
+  const r = await fetch(`${ctx.base}${path}`, {
     method,
-    headers: { access_token: API_KEY, "content-type": "application/json", "user-agent": "Shotlist" },
+    headers: { access_token: ctx.key, "content-type": "application/json", "user-agent": "Shotlist" },
     body: body ? JSON.stringify(body) : undefined,
   });
   const t = await r.text();
@@ -35,10 +34,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   let input: any;
   try { input = await req.json(); } catch { return json({ error: "Pedido inválido." }, 400); }
-  const sec = await secrets();
-  if (sec.asaas_api_key) API_KEY = sec.asaas_api_key;
-  if (!API_KEY) return json({ error: "Chave do Asaas ainda não configurada." }, 400);
-  const base = sec.asaas_env === "production" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
+  const ctx = { key: "", base: "" };
+  const useCfg = (cfg: any) => { ctx.key = cfg.api_key; ctx.base = cfg.env === "production" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3"; };
   const auth = req.headers.get("authorization") || "";
 
   async function gestorOf(ws: string) {
@@ -51,15 +48,17 @@ Deno.serve(async (req) => {
   if (input.action === "setup_webhook") {
     const wsId = input.workspace_id;
     if (!wsId || !(await gestorOf(wsId))) return json({ error: "Sem permissão." }, 403);
-    const token = sec.asaas_webhook_token;
-    if (!token) return json({ error: "Token do webhook ausente." }, 400);
+    const cfg = await wsConfig(wsId);
+    if (!cfg) return json({ error: "Conecte sua conta do Asaas em Minha conta." }, 400);
+    useCfg(cfg);
+    const token = cfg.webhook_token;
     const url = `${SUPABASE_URL}/functions/v1/asaas-webhook`;
-    const r = await asaas(base, "/webhooks", "POST", {
+    const r = await asaas(ctx, "/webhooks", "POST", {
       name: "Shotlist", url, email: input.email || undefined, enabled: true, interrupted: false, apiVersion: 3, authToken: token, sendType: "SEQUENTIALLY",
       events: ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE", "PAYMENT_REFUNDED", "PAYMENT_DELETED"],
     });
     if (!r.ok) return json({ error: errMsg(r.data) }, 400);
-    return json({ ok: true, env: sec.asaas_env || "sandbox" });
+    return json({ ok: true, env: cfg.env });
   }
 
   if (input.action === "create_charge") {
@@ -68,6 +67,9 @@ Deno.serve(async (req) => {
     const plan = plans?.[0];
     if (!plan) return json({ error: "Plano não encontrado." }, 404);
     if (!(await gestorOf(plan.workspace_id))) return json({ error: "Sem permissão." }, 403);
+    const cfg = await wsConfig(plan.workspace_id);
+    if (!cfg) return json({ error: "Conecte sua conta do Asaas em Minha conta." }, 400);
+    useCfg(cfg);
     const parcelas: any[] = plan.parcelas || [];
     const idx = parcelas.findIndex((p) => p.id === parcela_id);
     if (idx < 0) return json({ error: "Parcela não encontrada." }, 404);
@@ -87,11 +89,11 @@ Deno.serve(async (req) => {
     const pagamento = plan.pagamento || {};
     let customer = pagamento.asaasCustomer as string | undefined;
     if (!customer) {
-      const found = await asaas(base, `/customers?cpfCnpj=${doc}&limit=1`);
+      const found = await asaas(ctx, `/customers?cpfCnpj=${doc}&limit=1`);
       customer = found.data?.data?.[0]?.id;
     }
     if (!customer) {
-      const c = await asaas(base, "/customers", "POST", {
+      const c = await asaas(ctx, "/customers", "POST", {
         name: cl.name || "Cliente", cpfCnpj: doc, email: cl.email || undefined,
         mobilePhone: (cl.phone || "").replace(/\D/g, "") || undefined, postalCode: (cl.cep || "").replace(/\D/g, "") || undefined,
         address: cl.logradouro || undefined, addressNumber: cl.numero || undefined, complement: cl.complemento || undefined, province: cl.bairro || undefined,
@@ -105,7 +107,7 @@ Deno.serve(async (req) => {
     let chargeId = pc.asaasId as string | undefined;
     let invoiceUrl = pc.asaasUrl as string | undefined;
     if (!chargeId) {
-      const ch = await asaas(base, "/payments", "POST", {
+      const ch = await asaas(ctx, "/payments", "POST", {
         customer, billingType: "UNDEFINED", value: Number(pc.valor), dueDate: due,
         description: `${plan.titulo || "Pagamento"} - parcela ${pc.numero}`,
         externalReference: `${plan.id}:${pc.id}`, fine: { value: 2 }, interest: { value: 1 },
@@ -114,8 +116,8 @@ Deno.serve(async (req) => {
       chargeId = ch.data.id; invoiceUrl = ch.data.invoiceUrl;
     }
 
-    const pix = await asaas(base, `/payments/${chargeId}/pixQrCode`);
-    const bol = await asaas(base, `/payments/${chargeId}/identificationField`);
+    const pix = await asaas(ctx, `/payments/${chargeId}/pixQrCode`);
+    const bol = await asaas(ctx, `/payments/${chargeId}/identificationField`);
     const next = parcelas.map((p, i) => i !== idx ? p : {
       ...p, asaasId: chargeId, asaasUrl: invoiceUrl,
       pixCopia: pix.ok ? pix.data.payload : p.pixCopia,
@@ -125,7 +127,7 @@ Deno.serve(async (req) => {
       method: "PATCH", headers: { ...SH, prefer: "return=minimal" },
       body: JSON.stringify({ parcelas: next, pagamento: { ...pagamento, asaasCustomer: customer }, updated_at: new Date().toISOString() }),
     });
-    return json({ ok: true, invoiceUrl, boleto: !!(bol.ok && bol.data.identificationField), pix: !!pix.ok, env: sec.asaas_env || "sandbox" });
+    return json({ ok: true, invoiceUrl, boleto: !!(bol.ok && bol.data.identificationField), pix: !!pix.ok, env: cfg.env });
   }
 
   return json({ error: "Ação desconhecida." }, 400);

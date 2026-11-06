@@ -6,6 +6,7 @@ import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { IconButton, ConfirmDialog } from "./ui";
 import { formatBRL } from "./finance";
 import { exportReceiptPDF } from "./receiptPdf";
+import { useAsaasStatus } from "./asaas";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -106,6 +107,8 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
   function patch(fields) { onChange({ ...plan, ...fields }); }
   const parcelas = plan.parcelas || [];
   const t = planTotals(plan);
+  const [asaasSt] = useAsaasStatus(plan.workspace_id);
+  const asaasOn = !!asaasSt?.connected;
   const [asaasBusy, setAsaasBusy] = useState("");
   const [asaasMsg, setAsaasMsg] = useState("");
 
@@ -127,16 +130,6 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
       setAsaasMsg(`Cobrança criada${r.env === "sandbox" ? " (ambiente de testes)" : ""}. Atualizando…`);
       setTimeout(() => setAsaasMsg(""), 4000);
     } catch (e) { setAsaasMsg(e.message || "Falha ao criar a cobrança."); }
-    setAsaasBusy("");
-  }
-  async function enableWebhook() {
-    setAsaasBusy("webhook"); setAsaasMsg("");
-    try {
-      const { data: u } = await supabase.auth.getUser();
-      await callAsaas({ action: "setup_webhook", workspace_id: plan.workspace_id, email: u?.user?.email || "" });
-      setAsaasMsg("Baixa automática ativada.");
-    }
-    catch (e) { setAsaasMsg(e.message || "Falha ao ativar."); }
     setAsaasBusy("");
   }
 
@@ -279,7 +272,7 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
                 </button>
               )}
             </div>
-            {!p.pago && (
+            {!p.pago && (asaasOn || p.asaasUrl) && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", paddingLeft: 52, marginTop: 6, flexWrap: "wrap" }}>
                 {p.asaasUrl ? (
                   <>
@@ -294,12 +287,8 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, cli
             )}
             </div>
           ))}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-            <button disabled={asaasBusy === "webhook"} onClick={enableWebhook} style={{ minHeight: 34, padding: "0 12px", borderRadius: 17, border: `1px dashed ${C.line}`, background: "transparent", color: C.muted, fontSize: 12, cursor: "pointer" }}>
-              {asaasBusy === "webhook" ? "Ativando…" : "Ativar baixa automática do Asaas"}
-            </button>
-            {asaasMsg && <span style={{ fontSize: 12, color: /Falha|Cadastre|Informe|Chave|permiss|Erro|inv/i.test(asaasMsg) ? C.brick : C.sage }}>{asaasMsg}</span>}
-          </div>
+          {asaasMsg && <div style={{ fontSize: 12, marginBottom: 10, color: /Falha|Cadastre|Informe|Chave|permiss|Erro|inv|Conecte/i.test(asaasMsg) ? C.brick : C.sage }}>{asaasMsg}</div>}
+          {!asaasOn && asaasSt && parcelas.length > 0 && <div style={{ fontSize: 12, color: C.faint, marginBottom: 10 }}>Para gerar Pix, boleto e cartão automáticos, conecte o Asaas em Minha conta.</div>}
           <button
             onClick={addParcela}
             style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 7, padding: "7px 11px", color: C.muted, fontSize: 12.5, cursor: "pointer", marginBottom: 14 }}
