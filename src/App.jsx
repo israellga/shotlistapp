@@ -1,4 +1,5 @@
 import AddressField from "./AddressField";
+import BriefingSection from "./BriefingSection";
 import { EntregaSection, ChecklistSection, TemplatePicker, applyTemplate, etapaLabel } from "./productionExtras";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -1084,6 +1085,14 @@ function ProductionDetail({ recentAddresses, production, fieldMode, onChange, on
         <div style={{ marginBottom: 12 }}>
           <Section title="Ordem do dia" icon={<Clock size={15} color={C.faint} />} count={production.cronograma.length}>
             <CronogramaSection cronograma={production.cronograma} onChange={(cronograma) => patch({ cronograma })} shots={production.shots} />
+          </Section>
+        </div>
+      )}
+
+      {!fieldMode && (
+        <div style={{ marginBottom: 12 }}>
+          <Section title="Briefing do cliente" icon={<FileText size={15} color={C.faint} />}>
+            <BriefingSection production={production} onEnableShare={() => patch({ clientShareEnabled: true })} />
           </Section>
         </div>
       )}
