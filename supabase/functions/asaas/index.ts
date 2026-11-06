@@ -28,6 +28,35 @@ async function asaas(ctx: { key: string; base: string }, path: string, method = 
   try { data = t ? JSON.parse(t) : {}; } catch { data = { raw: t }; }
   return { ok: r.ok, status: r.status, data };
 }
+type Canais = { email?: boolean; sms?: boolean; whatsapp?: boolean };
+
+// Liga/desliga os avisos do Asaas para um cliente. Só os avisos essenciais ficam ativos (nova cobrança, vencimento e atraso),
+// para limitar o custo por cobrança.
+async function applyNotifications(ctx: { key: string; base: string }, customer: string, c: Canais) {
+  const any = !!(c.email || c.sms || c.whatsapp);
+  const up = await asaas(ctx, `/customers/${customer}`, "PUT", { notificationDisabled: !any });
+  if (!up.ok || !any) return up.ok;
+  const list = await asaas(ctx, `/customers/${customer}/notifications`);
+  const items: any[] = list.data?.data || [];
+  if (!items.length) return false;
+  const wanted = (n: any) =>
+    n.event === "PAYMENT_CREATED" ||
+    (n.event === "PAYMENT_DUEDATE_WARNING" && n.scheduleOffset === 0) ||
+    (n.event === "PAYMENT_OVERDUE" && n.scheduleOffset === 0);
+  const notifications = items.map((n) => {
+    const on = wanted(n);
+    return {
+      id: n.id, enabled: on,
+      emailEnabledForProvider: false, smsEnabledForProvider: false,
+      emailEnabledForCustomer: on && !!c.email, smsEnabledForCustomer: on && !!c.sms,
+      whatsappEnabledForCustomer: on && !!c.whatsapp, phoneCallEnabledForCustomer: false,
+    };
+  });
+  const r = await asaas(ctx, "/notifications/batch", "PUT", { customer, notifications });
+  return r.ok;
+}
+const canaisKey = (c: Canais) => `${c.email ? "e" : ""}${c.sms ? "s" : ""}${c.whatsapp ? "w" : ""}`;
+
 const errMsg = (d: any) => d?.errors?.[0]?.description || d?.error || "Erro no Asaas";
 
 Deno.serve(async (req) => {
@@ -59,6 +88,40 @@ Deno.serve(async (req) => {
     });
     if (!r.ok) return json({ error: errMsg(r.data) }, 400);
     return json({ ok: true, env: cfg.env });
+  }
+
+  if (input.action === "get_fees") {
+    const wsId = input.workspace_id;
+    if (!wsId || !(await gestorOf(wsId))) return json({ error: "Sem permissão." }, 403);
+    const cfg = await wsConfig(wsId);
+    if (!cfg) return json({ error: "Conecte sua conta do Asaas em Minha conta." }, 400);
+    useCfg(cfg);
+    const r = await asaas(ctx, "/myAccount/fees");
+    if (!r.ok) return json({ error: errMsg(r.data) }, 400);
+    const d = r.data;
+    return json({ ok: true, payment: { bankSlip: d.payment?.bankSlip, pix: d.payment?.pix, creditCard: d.payment?.creditCard }, notification: d.notification });
+  }
+
+  if (input.action === "save_notifications") {
+    const wsId = input.workspace_id;
+    if (!wsId || !(await gestorOf(wsId))) return json({ error: "Sem permissão." }, 403);
+    const cfg = await wsConfig(wsId);
+    if (!cfg) return json({ error: "Conecte sua conta do Asaas em Minha conta." }, 400);
+    useCfg(cfg);
+    const c: Canais = { email: !!input.canais?.email, sms: !!input.canais?.sms, whatsapp: !!input.canais?.whatsapp };
+    await rest(`workspace_asaas?workspace_id=eq.${encodeURIComponent(wsId)}`, { method: "PATCH", headers: { ...SH, prefer: "return=minimal" }, body: JSON.stringify({ notificacoes: c }) });
+    // aplica nos clientes que já têm cobrança no Asaas
+    const plans = (await rest(`payment_plans?workspace_id=eq.${encodeURIComponent(wsId)}&select=id,pagamento`)) || [];
+    const key = canaisKey(c);
+    let ok = true;
+    for (const pl of plans) {
+      const cust = pl.pagamento?.asaasCustomer;
+      if (!cust || pl.pagamento?.asaasNotif === key) continue;
+      const done = await applyNotifications(ctx, cust, c);
+      if (done) await rest(`payment_plans?id=eq.${encodeURIComponent(pl.id)}`, { method: "PATCH", headers: { ...SH, prefer: "return=minimal" }, body: JSON.stringify({ pagamento: { ...pl.pagamento, asaasNotif: key } }) });
+      else ok = false;
+    }
+    return json({ ok, canais: c });
   }
 
   if (input.action === "create_charge") {
@@ -103,6 +166,14 @@ Deno.serve(async (req) => {
       customer = c.data.id;
     }
 
+    // avisos automáticos ao cliente, conforme a configuração do espaço
+    const canais: Canais = cfg.notificacoes || {};
+    const nkey = canaisKey(canais);
+    let notifApplied = pagamento.asaasNotif;
+    if (customer && notifApplied !== nkey) {
+      if (await applyNotifications(ctx, customer, canais)) notifApplied = nkey;
+    }
+
     // cobrança (UNDEFINED = cliente escolhe Pix, boleto ou cartão na fatura)
     let chargeId = pc.asaasId as string | undefined;
     let invoiceUrl = pc.asaasUrl as string | undefined;
@@ -125,7 +196,7 @@ Deno.serve(async (req) => {
     });
     await rest(`payment_plans?id=eq.${encodeURIComponent(plan.id)}`, {
       method: "PATCH", headers: { ...SH, prefer: "return=minimal" },
-      body: JSON.stringify({ parcelas: next, pagamento: { ...pagamento, asaasCustomer: customer }, updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ parcelas: next, pagamento: { ...pagamento, asaasCustomer: customer, asaasNotif: notifApplied }, updated_at: new Date().toISOString() }),
     });
     return json({ ok: true, invoiceUrl, boleto: !!(bol.ok && bol.data.identificationField), pix: !!pix.ok, env: cfg.env });
   }
