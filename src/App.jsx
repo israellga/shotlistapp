@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronRight, Users, Clock,
   ExternalLink, ArrowLeft, CheckCircle2, Circle, PlayCircle,
-  Settings, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
+  Settings, FileUp, Loader2, AlertCircle, Wifi, WifiOff, LogOut, Share2, Copy, Check, Save, KeyRound,
   Truck, ClipboardCheck, Building2, Phone, Mail, FileText, Menu, X as XIcon, FileDown, ShieldCheck, DollarSign, Film, Sparkles, Archive, ArchiveRestore,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
@@ -806,7 +806,7 @@ function SaveTemplateButton({ production, onSave }) {
   );
 }
 
-function ProductionDetail({ onSaveTemplate, recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
+function ProductionDetail({ onImportPdf, onSaveTemplate, recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -925,6 +925,12 @@ function ProductionDetail({ onSaveTemplate, recentAddresses, production, fieldMo
           {saved ? "Salvo" : "Salvar"}
         </button>
       </div>
+
+      {!fieldMode && onImportPdf && !production.__shared && (
+        <button onClick={onImportPdf} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 8, padding: "7px 12px", marginBottom: 14, color: C.muted, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+          <FileUp size={14} /> Importar PDF de briefing nesta produção
+        </button>
+      )}
 
       {!fieldMode && (() => {
         const steps = [
@@ -1394,6 +1400,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("producoes"); // producoes | clientes
   const [statusFilter, setStatusFilter] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [importTarget, setImportTarget] = useState(null);
   const [tplOpen, setTplOpen] = useState(false);
   const [fieldMode, setFieldMode] = useState(false);
   const [status, setStatus] = useState("boot"); // boot | loading | ready
@@ -1967,7 +1974,7 @@ export default function App() {
     });
   }
 
-  function importProduction(d, client) {
+  function draftToProduction(d, client) {
     const p = emptyProduction();
     p.cliente = d.cliente || "";
     if (client) { p.clienteId = client.id; p.cliente = client.name; }
@@ -1998,6 +2005,51 @@ export default function App() {
       .map((sh) => ({ id: uid(), horario: formatHorario(sh.__horario), nome: sh.nome, local: "", elenco: "", observacao: "", shotId: sh.id }))
       .sort((a, b) => horarioMinutos(a.horario) - horarioMinutos(b.horario));
     p.shots.forEach((sh) => { delete sh.__horario; });
+    return p;
+  }
+
+  // Aplica o PDF numa produção existente: "mesclar" só completa o que falta; "substituir" troca o conteúdo extraído.
+  function importIntoProduction(id, d, client, mode) {
+    const cur = productions[id] || sharedProductions[id];
+    if (!cur) return;
+    const x = draftToProduction(d, client);
+    const norm = (t) => String(t || "").trim().toLowerCase();
+    let next;
+    if (mode === "replace") {
+      next = {
+        ...cur,
+        cliente: x.cliente || cur.cliente, clienteId: x.clienteId || cur.clienteId,
+        responsavel: x.responsavel, data: x.data, dataFim: x.dataFim, endereco: x.endereco,
+        horaInicio: x.horaInicio, horaFim: x.horaFim, objetivoDia: x.objetivoDia,
+        equipe: x.equipe, shots: x.shots, cronograma: x.cronograma,
+      };
+    } else {
+      const fill = (k) => (cur[k] ? cur[k] : x[k]);
+      const equipe = [...(cur.equipe || [])];
+      x.equipe.forEach((m) => {
+        if (!equipe.some((e) => norm(e.funcao) === norm(m.funcao) && norm(e.responsavel) === norm(m.responsavel))) equipe.push(m);
+      });
+      const known = new Set((cur.shots || []).map((sh) => norm(sh.nome)));
+      const novos = x.shots.filter((sh) => sh.nome && !known.has(norm(sh.nome)));
+      const novosIds = new Set(novos.map((sh) => sh.id));
+      const baseN = (cur.shots || []).length;
+      const renum = novos.map((sh, i) => ({ ...sh, numero: baseN + i + 1 }));
+      const cron = [...(cur.cronograma || []), ...x.cronograma.filter((c) => novosIds.has(c.shotId))]
+        .sort((a, b) => horarioMinutos(a.horario) - horarioMinutos(b.horario));
+      next = {
+        ...cur,
+        cliente: fill("cliente"), clienteId: cur.clienteId || x.clienteId,
+        responsavel: fill("responsavel"), data: fill("data"), dataFim: fill("dataFim"), endereco: fill("endereco"),
+        horaInicio: fill("horaInicio"), horaFim: fill("horaFim"), objetivoDia: fill("objetivoDia"),
+        equipe, shots: [...(cur.shots || []), ...renum], cronograma: cron,
+      };
+    }
+    updateProduction(id, next);
+    setImportTarget(null);
+  }
+
+  function importProduction(d, client) {
+    const p = draftToProduction(d, client);
     setProductions((prev) => ({ ...prev, [p.id]: p }));
     setOrder((prev) => [p.id, ...prev]);
     setCurrentId(p.id);
@@ -2382,6 +2434,14 @@ export default function App() {
       </div>
 
       {tplOpen && <TemplatePicker onPick={createFromTemplate} onClose={() => setTplOpen(false)} custom={wsTemplates} onDeleteCustom={deleteWsTemplate} />}
+      {importTarget && (productions[importTarget] || sharedProductions[importTarget]) && (
+        <ImportPdfDialog
+          target={productions[importTarget] || sharedProductions[importTarget]}
+          onClose={() => setImportTarget(null)}
+          onApply={(d, client, mode) => importIntoProduction(importTarget, d, client, mode)}
+          clients={clients}
+        />
+      )}
       {importOpen && <ImportPdfDialog onClose={() => setImportOpen(false)} onCreate={importProduction} clients={clients} />}
 
       {confirmLogout && (
@@ -2497,6 +2557,7 @@ export default function App() {
                   paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean)}
                   issuerName={myName || workspaceName}
                   onSaveTemplate={isGestor ? saveAsTemplate : undefined}
+                  onImportPdf={() => setImportTarget(current.id)}
                   finance={financeMap[current.id]}
                   onFinanceChange={(next) => updateFinance(current.id, next)}
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}

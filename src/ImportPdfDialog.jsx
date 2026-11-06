@@ -12,7 +12,8 @@ function toBase64(file) {
   });
 }
 
-export default function ImportPdfDialog({ onClose, onCreate, clients }) {
+export default function ImportPdfDialog({ onClose, onCreate, onApply, target, clients }) {
+  const [mode, setMode] = useState("merge");
   const input = useRef(null);
   const [state, setState] = useState("pick"); // pick | reading | preview
   const [error, setError] = useState("");
@@ -50,7 +51,7 @@ export default function ImportPdfDialog({ onClose, onCreate, clients }) {
     <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 60, display: "grid", placeItems: "center", padding: 20, fontFamily: FONT_BODY }}>
       <div className="modal-card" style={{ width: "100%", maxWidth: 520, maxHeight: "86vh", display: "flex", flexDirection: "column", borderRadius: 22 }}>
         <div style={{ display: "flex", alignItems: "center", padding: "16px 18px" }}>
-          <div style={{ flex: 1, fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 700, color: C.paper }}>Importar PDF</div>
+          <div style={{ flex: 1, fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 700, color: C.paper }}>{target ? "Importar PDF nesta produção" : "Importar PDF"}</div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", minWidth: 40, minHeight: 40 }}><X size={18} /></button>
         </div>
 
@@ -58,7 +59,7 @@ export default function ImportPdfDialog({ onClose, onCreate, clients }) {
           {state !== "preview" && (
             <>
               <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.5, marginTop: 0 }}>
-                Envie um briefing, shotlist ou roteiro em PDF. O app lê o documento e monta a produção com cliente, datas, horários, shots e equipe. Você confere antes de criar.
+                Envie um briefing, shotlist ou roteiro em PDF. O app lê o documento e monta a produção com cliente, datas, horários, shots e equipe. Você confere antes de criar.{target ? " Aqui ele completa a produção que você abriu." : ""}
               </p>
               <button
                 onClick={() => input.current?.click()}
@@ -105,8 +106,28 @@ export default function ImportPdfDialog({ onClose, onCreate, clients }) {
                 </div>
               )}
 
+              {target && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                  {[
+                    ["merge", "Mesclar com o que já tem", `Preenche só os campos vazios, soma equipe e adiciona os shots que ainda não existem (pelo nome). Nada do que você já escreveu é apagado.`],
+                    ["replace", "Substituir tudo", `Troca dados, equipe, shots e cronograma desta produção pelo conteúdo do PDF. Os ${(target.shots || []).length} shots atuais (com fotos, status e takes feitos) são removidos.`],
+                  ].map(([k, t, d]) => (
+                    <label key={k} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "11px 12px", borderRadius: 12, cursor: "pointer", border: `1px solid ${mode === k ? (k === "replace" ? C.brick : C.amber) : C.line}`, background: mode === k ? (k === "replace" ? C.brickDim : C.amberDim) : "transparent" }}>
+                      <input type="radio" name="import-mode" checked={mode === k} onChange={() => setMode(k)} style={{ marginTop: 3 }} />
+                      <span><span style={{ display: "block", fontSize: 14, fontWeight: 600, color: C.paper }}>{t}</span><span style={{ display: "block", fontSize: 12.5, color: C.muted, lineHeight: 1.45 }}>{d}</span></span>
+                    </label>
+                  ))}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => onCreate(draft, matched || null)} className="btn-glass-primary" style={{ flex: 1, minHeight: 48, border: "none", borderRadius: 24, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT_BODY }}>Criar produção</button>
+                <button
+                  onClick={() => {
+                    if (!target) return onCreate(draft, matched || null);
+                    if (mode === "replace" && !window.confirm("Substituir tudo? Os shots atuais, com fotos e status, serão apagados desta produção.")) return;
+                    onApply(draft, matched || null, mode);
+                  }}
+                  className="btn-glass-primary" style={{ flex: 1, minHeight: 48, border: "none", borderRadius: 24, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: FONT_BODY }}
+                >{target ? (mode === "replace" ? "Substituir produção" : "Mesclar na produção") : "Criar produção"}</button>
                 <button onClick={() => { setDraft(null); setState("pick"); }} style={{ minHeight: 48, padding: "0 18px", borderRadius: 24, background: "transparent", border: `1px solid ${C.line}`, color: C.muted, cursor: "pointer", fontFamily: FONT_BODY, fontSize: 14 }}>Outro PDF</button>
               </div>
             </>
