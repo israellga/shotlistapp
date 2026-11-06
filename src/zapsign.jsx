@@ -106,24 +106,10 @@ function fileToBase64(file) {
   });
 }
 
-// Gera um PDF simples (A4) a partir do texto do contrato.
+// Gera o PDF formatado do contrato (título, cláusulas em negrito, texto justificado, rodapé com páginas).
 export async function textToPdfBase64(titulo, texto) {
-  const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const W = 210, M = 20, maxW = W - M * 2;
-  let y = M;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-  for (const l of doc.splitTextToSize(titulo || "Contrato", maxW)) { doc.text(l, M, y); y += 7; }
-  y += 4;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10.5);
-  for (const para of String(texto || "").split("\n")) {
-    const lines = para.trim() ? doc.splitTextToSize(para, maxW) : [""];
-    for (const l of lines) {
-      if (y > 297 - M) { doc.addPage(); y = M; }
-      doc.text(l, M, y); y += 5.4;
-    }
-  }
-  return doc.output("datauristring").split(",")[1];
+  const { contractPdfBase64 } = await import("./contractPdf");
+  return contractPdfBase64({ titulo, texto, rodape: titulo });
 }
 
 const waDigits = (p) => (p || "").replace(/\D/g, "");

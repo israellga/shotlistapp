@@ -253,6 +253,29 @@ export function GenerateContractDialog({ workspaceId, client: clientFixed, clien
   const semCliente = !client;
   const nome = (id) => CAMPOS.find(([k]) => k === id)?.[1] || id;
 
+  const taRef = useRef(null);
+  function wrapSel(before, after = "") {
+    const el = taRef.current; if (!el) return;
+    const a = el.selectionStart, b = el.selectionEnd;
+    const sel = texto.slice(a, b);
+    setTexto(texto.slice(0, a) + before + sel + after + texto.slice(b));
+    setTimeout(() => { el.focus(); el.setSelectionRange(a + before.length, a + before.length + sel.length); }, 0);
+  }
+  function lineStart(prefix) {
+    const el = taRef.current; if (!el) return;
+    const a = el.selectionStart;
+    const ls = texto.lastIndexOf("\n", a - 1) + 1;
+    setTexto(texto.slice(0, ls) + prefix + texto.slice(ls));
+    setTimeout(() => el.focus(), 0);
+  }
+  async function preview() {
+    setBusy(true);
+    try {
+      const { buildContractPdf } = await import("./contractPdf");
+      const doc = await buildContractPdf({ titulo, texto, rodape: titulo });
+      window.open(URL.createObjectURL(doc.output("blob")), "_blank");
+    } finally { setBusy(false); }
+  }
   async function toPdf(download) {
     setBusy(true);
     try {
@@ -312,7 +335,14 @@ export function GenerateContractDialog({ workspaceId, client: clientFixed, clien
                 </div>
               )}
               <div style={{ fontSize: 11.5, color: C.faint, fontFamily: FONT_MONO }}>CONFIRA E EDITE O TEXTO ANTES DE ENVIAR</div>
-              <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={16} style={{ ...inputSt, fontFamily: FONT_BODY, lineHeight: 1.5, resize: "vertical" }} />
+              <div style={{ fontSize: 12, color: C.faint, lineHeight: 1.45 }}>O PDF é formatado sozinho: título, cláusulas numeradas em negrito, texto justificado e rodapé com páginas. Use os botões abaixo para ajustar (# título, ## cláusula, **negrito**, - lista).</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {[["Título", () => lineStart("# ")], ["Cláusula", () => lineStart("## ")], ["Negrito", () => wrapSel("**", "**")], ["Lista", () => lineStart("- ")], ["Linha", () => lineStart("---\n")]].map(([l, fn]) => (
+                  <button key={l} onClick={fn} style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.muted, borderRadius: 14, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: FONT_BODY, fontWeight: l === "Negrito" ? 700 : 500 }}>{l}</button>
+                ))}
+                <button disabled={busy} onClick={preview} style={{ marginLeft: "auto", border: `1px solid ${C.amber}`, background: "transparent", color: C.amber, borderRadius: 14, padding: "4px 12px", fontSize: 12, cursor: "pointer", fontFamily: FONT_BODY, fontWeight: 600 }}>Pré-visualizar PDF</button>
+              </div>
+              <textarea ref={taRef} value={texto} onChange={(e) => setTexto(e.target.value)} rows={16} style={{ ...inputSt, fontFamily: FONT_BODY, lineHeight: 1.5, resize: "vertical" }} />
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {zs?.connected && <button disabled={busy || !tpl || semCliente} onClick={() => toPdf(false)} style={{ ...btn, flex: 1, minHeight: 44, background: C.amberDim, borderColor: C.amber, color: C.amber, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}><PenLine size={14} /> {busy ? "Gerando…" : "Enviar para assinatura"}</button>}
                 <button disabled={busy || !tpl || semCliente} onClick={() => toPdf(true)} style={{ ...btn, minHeight: 44, display: "inline-flex", alignItems: "center", gap: 6 }}><Download size={14} /> Baixar PDF</button>
