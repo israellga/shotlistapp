@@ -22,7 +22,7 @@ import { fetchThumbnail, getLastThumbnailIssue } from "./thumbnail";
 import { analyzeReferenceFrames } from "./aiAnalysis";
 import AccountsPanel from "./AccountsPanel";
 import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
-import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
+import { ProductionsDashboard, ClientsDashboard, gcalLink } from "./dashboards";
 import ClientFeedback from "./ClientFeedback";
 import ShotPhotos from "./ShotPhotos";
 import ImportPdfDialog from "./ImportPdfDialog";
@@ -1003,6 +1003,16 @@ function ProductionDetail({ production, fieldMode, onChange, onSaveNow, onBack, 
           <LabeledHorarioInput label="Horário de início" value={production.horaInicio} onCommit={(v) => patch({ horaInicio: v })} />
           <LabeledHorarioInput label="Horário de fim" value={production.horaFim} onCommit={(v) => patch({ horaFim: v })} />
         </div>
+      )}
+
+      {!fieldMode && production.data && (
+        <a
+          href={gcalLink(production)} target="_blank" rel="noreferrer"
+          className="glass tap-scale"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 44, borderRadius: 14, marginBottom: 14, color: C.paper, fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+        >
+          + Adicionar ao Google Agenda
+        </a>
       )}
 
       {!fieldMode && (

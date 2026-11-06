@@ -190,7 +190,7 @@ function MonthResult({ productions, financeMap, today }) {
   );
 }
 
-function gcalLink(p) {
+export function gcalLink(p) {
   const d8 = (iso) => (iso || "").replace(/-/g, "");
   const hm = (h) => { const m = /^(\d{1,2}):?(\d{2})?/.exec(h || ""); return m ? String(m[1]).padStart(2, "0") + (m[2] || "00") : ""; };
   const ini = hm(p.horaInicio), fim = hm(p.horaFim);
