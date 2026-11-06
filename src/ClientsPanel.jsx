@@ -364,6 +364,8 @@ export function ClientDetail({
             clientEmail={client.email || ""}
             clientPhone={client.phone || ""}
             clientName={client.name || ""}
+            clientDoc={client.cnpj || ""}
+            issuer={issuerName}
             onAdd={onAddPaymentPlan}
             onChange={onChangePaymentPlan}
             onSave={onSavePaymentPlan}

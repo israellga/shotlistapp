@@ -1,7 +1,7 @@
 import PushPrompt from "./PushPrompt";
 import AddressField from "./AddressField";
 import BriefingSection from "./BriefingSection";
-import { EntregaSection, ChecklistSection, TemplatePicker, applyTemplate, etapaLabel } from "./productionExtras";
+import { EntregaSection, ChecklistSection, TemplatePicker, applyTemplate, makeChecklist, etapaLabel } from "./productionExtras";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronRight, Users, Clock,
@@ -28,6 +28,7 @@ import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard, gcalLink } from "./dashboards";
 import ClientFeedback from "./ClientFeedback";
 import ShotPhotos from "./ShotPhotos";
+import { LiveTracker, RefImages, GaleriaSection } from "./fieldExtras";
 import ImportPdfDialog from "./ImportPdfDialog";
 import { downloadSrt, shortTime } from "./srt";
 import { PRODUCTION_STATUS, productionStatus } from "./productionStatus";
@@ -528,6 +529,7 @@ function ShotCard({ shot, fieldMode, expanded, onToggle, onChange, onDelete }) {
               </button>
             )}
           </div>
+          <RefImages shot={shot} onChange={onChange} fieldMode={fieldMode} />
           <ShotPhotos shot={shot} onChange={onChange} />
         </div>
       )}
@@ -785,7 +787,26 @@ function PauseTimer() {
   );
 }
 
-function ProductionDetail({ recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
+function SaveTemplateButton({ production, onSave }) {
+  const [state, setState] = useState("idle");
+  return (
+    <button
+      onClick={async () => {
+        const nome = window.prompt("Nome do modelo (ex: Ensaio gastronômico)", production.cliente || "");
+        if (!nome || !nome.trim()) return;
+        setState("busy");
+        const ok = await onSave(production, nome.trim());
+        setState(ok ? "ok" : "err");
+        setTimeout(() => setState("idle"), 2500);
+      }}
+      style={{ display: "block", width: "100%", minHeight: 44, marginTop: 12, background: "transparent", border: `1px dashed ${C.line}`, borderRadius: 12, color: state === "ok" ? C.sage : state === "err" ? C.brick : C.muted, fontFamily: FONT_BODY, fontSize: 13.5, cursor: "pointer" }}
+    >
+      {state === "busy" ? "Salvando…" : state === "ok" ? "Modelo salvo" : state === "err" ? "Não consegui salvar" : "Salvar como modelo (equipe, shots e checklist)"}
+    </button>
+  );
+}
+
+function ProductionDetail({ onSaveTemplate, recentAddresses, production, fieldMode, onChange, onSaveNow, onBack, roster, onKnowPerson, clients, onSelectClient, onOpenClient, showBack, isGestor, finance, onFinanceChange, onFinanceSaveNow, paymentPlans, issuerName }) {
   const [expandedShot, setExpandedShot] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -926,6 +947,7 @@ function ProductionDetail({ recentAddresses, production, fieldMode, onChange, on
         );
       })()}
 
+      {fieldMode && <LiveTracker production={production} onChange={onChange} />}
       {fieldMode && <PauseTimer />}
 
       {fieldMode && production.clientShareEnabled && (
@@ -1040,6 +1062,14 @@ function ProductionDetail({ recentAddresses, production, fieldMode, onChange, on
         )}
       </div>
 
+      {!fieldMode && !production.__shared && (
+        <div style={{ marginBottom: 12 }}>
+          <Section title="Galeria de seleção" icon={<Film size={15} color={C.faint} />} count={(production.galeria || []).length}>
+            <GaleriaSection production={production} onChange={onChange} />
+          </Section>
+        </div>
+      )}
+
       <div style={{ marginBottom: 12 }}>
         <Section title="Checklist de equipamento" icon={<ClipboardCheck size={15} color={C.faint} />} count={(production.checklist || []).length}>
           <ChecklistSection checklist={production.checklist} onChange={(checklist) => patch({ checklist })} fieldMode={fieldMode} />
@@ -1119,6 +1149,8 @@ function ProductionDetail({ recentAddresses, production, fieldMode, onChange, on
           </Section>
         </div>
       )}
+
+      {!fieldMode && onSaveTemplate && !production.__shared && <SaveTemplateButton production={production} onSave={onSaveTemplate} />}
 
       {!fieldMode && production.atualizadoEm && (
         <div style={{ fontSize: 12, color: C.faint, margin: "14px 4px 0" }}>
@@ -1864,7 +1896,33 @@ export default function App() {
     });
   }
 
-  function addProduction() { setTplOpen(true); }
+  const [wsTemplates, setWsTemplates] = useState([]);
+  async function loadWsTemplates() {
+    if (!workspaceId) return;
+    const { data } = await supabase.from("workspace_templates").select("*").eq("workspace_id", workspaceId).order("created_at", { ascending: false });
+    if (Array.isArray(data)) setWsTemplates(data);
+  }
+  async function saveAsTemplate(prod, nome) {
+    const payload = {
+      objetivoDia: prod.objetivoDia || "",
+      equipe: (prod.equipe || []).map((m) => ({ funcao: m.funcao })),
+      checklist: (prod.checklist || []).map((c) => c.nome),
+      shots: (prod.shots || []).map((s) => ({
+        nome: s.nome, contexto: s.contexto, objetivo: s.objetivo, plano: s.plano, lente: s.lente, tipo: s.tipo,
+        equipamentos: s.equipamentos || [], equipamentoOutro: s.equipamentoOutro || "",
+        takes: (s.takes || []).map((t) => ({ acao: t.acao, transicao: t.transicao, tempo: t.tempo })),
+      })),
+    };
+    const row = { id: Math.random().toString(36).slice(2, 12), workspace_id: workspaceId, nome, payload };
+    const { error } = await supabase.from("workspace_templates").insert(row);
+    if (!error) setWsTemplates((prev) => [{ ...row, created_at: new Date().toISOString() }, ...prev]);
+    return !error;
+  }
+  async function deleteWsTemplate(t) {
+    setWsTemplates((prev) => prev.filter((x) => x.id !== t.id));
+    await supabase.from("workspace_templates").delete().eq("id", t.id);
+  }
+  function addProduction() { loadWsTemplates(); setTplOpen(true); }
 
   function exportBackup() {
     const dump = {
@@ -1884,7 +1942,20 @@ export default function App() {
 
   function createFromTemplate(key) {
     setTplOpen(false);
-    const p = applyTemplate(emptyProduction(), key, { emptyShot, emptyTake });
+    let p = emptyProduction();
+    if (key.startsWith("ws:")) {
+      const t = wsTemplates.find((x) => x.id === key.slice(3))?.payload || {};
+      p.objetivoDia = t.objetivoDia || "";
+      p.equipe = (t.equipe || []).map((m) => ({ id: Math.random().toString(36).slice(2, 9), funcao: m.funcao || "", responsavel: "" }));
+      p.shots = (t.shots || []).map((s, i) => ({
+        ...emptyShot(i + 1), nome: s.nome || "", contexto: s.contexto || "", objetivo: s.objetivo || "", plano: s.plano || "", lente: s.lente || "", tipo: s.tipo || "",
+        equipamentos: s.equipamentos || [], equipamentoOutro: s.equipamentoOutro || "",
+        takes: (s.takes || []).map((tk, j) => ({ ...emptyTake(j + 1), acao: tk.acao || "", transicao: tk.transicao || "", tempo: tk.tempo || "" })),
+      }));
+      p.checklist = makeChecklist(t.checklist || []);
+    } else {
+      p = applyTemplate(p, key, { emptyShot, emptyTake });
+    }
     setProductions((prev) => ({ ...prev, [p.id]: p }));
     setOrder((prev) => [p.id, ...prev]);
     setCurrentId(p.id);
@@ -2314,7 +2385,7 @@ export default function App() {
         </IconButton>
       </div>
 
-      {tplOpen && <TemplatePicker onPick={createFromTemplate} onClose={() => setTplOpen(false)} />}
+      {tplOpen && <TemplatePicker onPick={createFromTemplate} onClose={() => setTplOpen(false)} custom={wsTemplates} onDeleteCustom={deleteWsTemplate} />}
       {importOpen && <ImportPdfDialog onClose={() => setImportOpen(false)} onCreate={importProduction} clients={clients} />}
 
       {showAccounts && (
@@ -2431,6 +2502,7 @@ export default function App() {
                   isGestor={isGestor}
                   paymentPlans={paymentPlanOrder.map((id) => paymentPlans[id]).filter(Boolean)}
                   issuerName={myName || workspaceName}
+                  onSaveTemplate={isGestor ? saveAsTemplate : undefined}
                   finance={financeMap[current.id]}
                   onFinanceChange={(next) => updateFinance(current.id, next)}
                   onFinanceSaveNow={() => saveFinanceNow(current.id)}
@@ -2449,6 +2521,8 @@ export default function App() {
                   onOpenClient={openClientFromProduction}
                   onFilterStatus={(k) => setStatusFilter(k)}
                   onCreate={addProduction}
+                  onUpdateProduction={(id, next) => updateProduction(id, next)}
+                  issuerName={myName || workspaceName}
                   onCopyCalendar={copyCalendarLink}
                 />
               )

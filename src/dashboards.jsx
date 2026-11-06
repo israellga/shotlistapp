@@ -5,6 +5,7 @@ import { C, FONT_DISPLAY, FONT_MONO } from "./theme";
 import { etapaLabel } from "./productionExtras";
 import { YearReport } from "./reports";
 import PushPrompt from "./PushPrompt";
+import { CashForecast, Cobrancas, PosVenda, MargemLista } from "./growth";
 import { formatDataComDiaSemana, formatIntervaloDatas, formatIntervaloCurto } from "./datetime";
 import { productionStatus } from "./productionStatus";
 import { formatBRL, totalCustos, valorImposto } from "./finance";
@@ -232,7 +233,7 @@ export function gcalLink(p) {
     + (details ? `&details=${encodeURIComponent(details)}` : "");
 }
 
-export function ProductionsDashboard({ workspaceId, order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate, onCopyCalendar }) {
+export function ProductionsDashboard({ workspaceId, order, productions, userName, financeMap = {}, paymentPlans = [], clients = {}, isGestor, onOpenProduction, onOpenClient, onFilterStatus, onCreate, onCopyCalendar, onUpdateProduction, issuerName }) {
   const today = localISO();
   const all = order.map((id) => productions[id]).filter(Boolean).filter((p) => !p.arquivada);
   const counts = { afazer: 0, andamento: 0, concluido: 0 };
@@ -365,6 +366,11 @@ export function ProductionsDashboard({ workspaceId, order, productions, userName
           ))}
         </div>
       )}
+
+      {isGestor && <Cobrancas paymentPlans={paymentPlans} clients={clients} today={today} issuer={issuerName} />}
+      {isGestor && <CashForecast paymentPlans={paymentPlans} productions={all} financeMap={financeMap} today={today} />}
+      {isGestor && <MargemLista productions={all} financeMap={financeMap} onOpen={onOpenProduction} />}
+      {isGestor && onUpdateProduction && <PosVenda productions={all} clients={clients} today={today} onMark={(p) => onUpdateProduction(p.id, { ...p, posVendaEm: new Date().toISOString() })} />}
 
       {isGestor && teamList.length > 0 && (
         <div style={{ marginBottom: 24 }}>

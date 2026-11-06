@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail, MessageCircle } from "lucide-react";
+import { Plus, Trash2, Check, Copy, ChevronRight, Save, Loader2, CreditCard, Circle, CheckCircle2, Mail, MessageCircle, FileDown } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "./theme";
 import { IconButton, ConfirmDialog } from "./ui";
 import { formatBRL } from "./finance";
+import { exportReceiptPDF } from "./receiptPdf";
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -67,7 +68,7 @@ function waParcelaLink(phone, name, plan, parc, link) {
   return `https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(msg)}`;
 }
 
-export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, onChange, onSave, onDelete }) {
+export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, clientDoc, issuer, onChange, onSave, onDelete }) {
   const [testState, setTestState] = useState(""); // "" | "sending" | "ok" | mensagem de erro
   const [expanded, setExpanded] = useState(!plan.titulo);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -188,7 +189,7 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, onC
           {parcelas.map((p) => (
             <div key={p.id} style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
               <button
-                onClick={() => updateParcela(p.id, { pago: !p.pago })}
+                onClick={() => updateParcela(p.id, { pago: !p.pago, pagoEm: !p.pago ? new Date().toISOString() : null })}
                 title={p.pago ? "Marcar como pendente" : "Marcar como pago"}
                 className={`pop-check${p.pago ? " checked" : ""}`}
                 style={{ background: "transparent", border: "none", color: p.pago ? C.sage : C.faint, cursor: "pointer", flexShrink: 0 }}
@@ -205,6 +206,11 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, onC
                 type="date" value={p.vencimento} onChange={(e) => updateParcela(p.id, { vencimento: e.target.value })}
                 style={{ background: C.panel2, border: `1px solid ${C.line}`, borderRadius: 6, padding: "7px 9px", color: C.paper, fontSize: 12.5, outline: "none", colorScheme: "dark" }}
               />
+              {p.pago && (
+                <button onClick={() => exportReceiptPDF({ issuer, clientName, clientDoc, plan, parcela: p })} title="Baixar recibo em PDF" style={{ display: "grid", placeItems: "center", minWidth: 32, minHeight: 32, background: "transparent", border: "none", color: C.amber, cursor: "pointer", flexShrink: 0 }}>
+                  <FileDown size={16} />
+                </button>
+              )}
               {!p.pago && waDigits(clientPhone) && (
                 <a
                   href={waParcelaLink(clientPhone, clientName, plan, p, link)}
@@ -330,7 +336,7 @@ export function PaymentPlanRow({ plan, clientEmail, clientPhone, clientName, onC
   );
 }
 
-export function PaymentPlansSection({ plans, clientEmail, clientPhone, clientName, onAdd, onChange, onSave, onDelete }) {
+export function PaymentPlansSection({ plans, clientEmail, clientPhone, clientName, clientDoc, issuer, onAdd, onChange, onSave, onDelete }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
@@ -358,6 +364,8 @@ export function PaymentPlansSection({ plans, clientEmail, clientPhone, clientNam
             clientEmail={clientEmail}
             clientPhone={clientPhone}
             clientName={clientName}
+            clientDoc={clientDoc}
+            issuer={issuer}
             onChange={(next) => onChange(plan.id, next)}
             onSave={() => onSave(plan.id)}
             onDelete={() => onDelete(plan.id)}

@@ -180,13 +180,22 @@ export function applyTemplate(p, key, { emptyShot, emptyTake }) {
   return p;
 }
 
-export function TemplatePicker({ onPick, onClose }) {
+export function TemplatePicker({ onPick, onClose, custom = [], onDeleteCustom }) {
   return (
     <div className="modal-backdrop" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(0,0,0,0.55)", display: "grid", placeItems: "center", padding: 16 }}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, borderRadius: 26, padding: "20px 18px 14px" }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: C.paper, marginBottom: 4 }}>Nova produção</div>
         <div style={{ fontSize: 13.5, color: C.muted, marginBottom: 14 }}>Escolha um modelo pra já vir com equipe, shots e checklist.</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {custom.map((t) => (
+            <div key={t.id} style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+              <button onClick={() => onPick("ws:" + t.id)} className="glass hover-row tap-scale" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, minHeight: 56, padding: "10px 16px", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: FONT_BODY, color: C.paper }}>
+                <span style={{ fontSize: 15, fontWeight: 600 }}>{t.nome}</span>
+                <span style={{ fontSize: 12.5, color: C.muted }}>Seu modelo · {(t.payload?.shots || []).length} shots</span>
+              </button>
+              {onDeleteCustom && <IconButton onClick={() => onDeleteCustom(t)} tone="brick" size={40}><Trash2 size={14} /></IconButton>}
+            </div>
+          ))}
           {TEMPLATES.map((t) => (
             <button
               key={t.key}

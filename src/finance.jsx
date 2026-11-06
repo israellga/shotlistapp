@@ -78,7 +78,7 @@ export function FinanceSection({ finance, onChange, equipe = null }) {
             color: saldo >= 0 ? C.sage : C.brick, background: saldo >= 0 ? C.sageDim : C.brickDim,
             border: `1px solid ${saldo >= 0 ? C.sage : C.brick}`,
           }}>
-            {formatBRL(saldo)}
+            {formatBRL(saldo)}{orcamento > 0 ? ` · ${Math.round((saldo / orcamento) * 100)}%` : ""}
           </div>
         </div>
       </div>

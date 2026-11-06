@@ -3,7 +3,7 @@ import { Camera, Loader2, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { C, FONT_BODY } from "./theme";
 
-function resizeToJpeg(file, max = 1600) {
+export function resizeToJpeg(file, max = 1600) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);

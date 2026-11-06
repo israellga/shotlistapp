@@ -1,3 +1,4 @@
+import { ClientGaleria } from "./fieldExtras";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, AlertCircle, ExternalLink, RefreshCw, CheckCircle2, PlayCircle, Circle, MessageSquare, Send, ThumbsUp } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
@@ -461,6 +462,8 @@ export default function ClientView({ id }) {
       )}
 
       {data.entrega && (data.entrega.etapa !== "captacao" || data.entrega.prazo) && <EntregaCard entrega={data.entrega} onSend={sendFeedback} />}
+
+      <ClientGaleria galeria={data.galeria} feedback={feedback} onSend={sendFeedback} />
 
       {totalShots > 0 && <ApprovalCard feedback={feedback} onSend={sendFeedback} />}
 

@@ -30,6 +30,21 @@ CONTRATANTE: {{cliente}}
 
 O aceite eletrônico desta proposta, com nome e documento do(a) CONTRATANTE, tem valor de assinatura e confirma a concordância com todas as condições acima.`;
 
+export const TERMO_IMAGEM = `TERMO DE AUTORIZAÇÃO DE USO DE IMAGEM
+
+AUTORIZANTE: {{cliente}}
+AUTORIZADO(A): {{emissor}}
+
+1. O(A) AUTORIZANTE autoriza, de forma gratuita, o uso de sua imagem, voz, nome e/ou marca, captados nas fotografias e vídeos produzidos em "{{titulo}}".
+
+2. A autorização abrange o uso em portfólio, site, redes sociais, materiais impressos e digitais de divulgação profissional do(a) AUTORIZADO(A), sem limite de tempo e em território nacional e internacional.
+
+3. As imagens não serão usadas de forma que desabone o(a) AUTORIZANTE. Não há cessão de direitos autorais, que permanecem com o(a) AUTORIZADO(A), salvo o que constar no contrato de prestação de serviços.
+
+4. A autorização pode ser revogada por escrito, com efeito para novas publicações, sem obrigação de retirar materiais já distribuídos.
+
+O aceite eletrônico, com nome e documento, tem valor de assinatura.`;
+
 export function emptyProposal(workspaceId, client, issuer) {
   return {
     id: uid() + uid(),
@@ -163,6 +178,10 @@ export function ProposalsSection({ client, workspaceId, issuer, onConvert }) {
                     <Field label="Condições de pagamento" value={pr.payload.condicoes || ""} onChange={(v) => patchPayload(pr, { condicoes: v })} multiline autoGrow />
                     <Field label="Prazo de entrega" value={pr.payload.prazoEntrega || ""} onChange={(v) => patchPayload(pr, { prazoEntrega: v })} />
                     <DateField label="Proposta válida até" value={pr.payload.validade || ""} onChange={(v) => patchPayload(pr, { validade: v })} />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                      <button onClick={() => patchPayload(pr, { contrato: CONTRATO_PADRAO })} style={{ minHeight: 40, padding: "0 12px", borderRadius: 18, border: `1px solid ${C.line}`, background: "transparent", color: C.muted, fontSize: 12.5, cursor: "pointer" }}>Modelo: prestação de serviços</button>
+                      <button onClick={() => patchPayload(pr, { contrato: TERMO_IMAGEM })} style={{ minHeight: 40, padding: "0 12px", borderRadius: 18, border: `1px solid ${C.line}`, background: "transparent", color: C.muted, fontSize: 12.5, cursor: "pointer" }}>Modelo: termo de uso de imagem</button>
+                    </div>
                     <Field label="Contrato (use {{cliente}}, {{emissor}}, {{titulo}}, {{total}})" value={pr.payload.contrato || ""} onChange={(v) => patchPayload(pr, { contrato: v })} multiline autoGrow />
                   </fieldset>
                   <div style={{ fontSize: 12, color: C.faint, lineHeight: 1.5 }}>O contrato acima é um modelo geral. Revise com seu advogado antes de usar.</div>
