@@ -23,6 +23,7 @@ import { FinanceSection, ClientBalanceSummary, totalCustos } from "./finance";
 import { ProductionsDashboard, ClientsDashboard } from "./dashboards";
 import ClientFeedback from "./ClientFeedback";
 import ShotPhotos from "./ShotPhotos";
+import ImportPdfDialog from "./ImportPdfDialog";
 import { downloadSrt, shortTime } from "./srt";
 import { PRODUCTION_STATUS, productionStatus } from "./productionStatus";
 import { PaymentPlansSection, emptyPaymentPlan } from "./payments";
@@ -1309,6 +1310,7 @@ export default function App() {
   const [currentClientId, setCurrentClientId] = useState(null);
   const [activeTab, setActiveTab] = useState("producoes"); // producoes | clientes
   const [statusFilter, setStatusFilter] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
   const [fieldMode, setFieldMode] = useState(false);
   const [status, setStatus] = useState("boot"); // boot | loading | ready
   const [online, setOnline] = useState(true);
@@ -1822,6 +1824,48 @@ export default function App() {
     });
   }
 
+  function importProduction(d, client) {
+    const p = emptyProduction();
+    p.cliente = d.cliente || "";
+    if (client) { p.clienteId = client.id; p.cliente = client.name; }
+    p.responsavel = d.responsavel || "";
+    p.data = /^\d{4}-\d{2}-\d{2}$/.test(d.data || "") ? d.data : "";
+    p.dataFim = /^\d{4}-\d{2}-\d{2}$/.test(d.dataFim || "") ? d.dataFim : "";
+    p.horaInicio = d.horaInicio || "";
+    p.horaFim = d.horaFim || "";
+    p.objetivoDia = d.objetivoDia || "";
+    p.equipe = (d.equipe || []).filter((m) => m && (m.funcao || m.responsavel)).map((m) => ({ id: uid(), funcao: m.funcao || "", responsavel: m.responsavel || "" }));
+    p.shots = (d.shots || []).map((sh, i) => {
+      const shot = emptyShot(i + 1);
+      shot.nome = sh.nome || "";
+      shot.contexto = sh.contexto || "";
+      shot.tipo = TIPOS_PRODUCAO.includes(sh.tipo) ? sh.tipo : "";
+      shot.objetivo = sh.objetivo || "";
+      shot.referencia = sh.referencia || "";
+      shot.equipamentos = Array.isArray(sh.equipamentos) ? sh.equipamentos : [];
+      const takes = (sh.takes || []).filter((t) => t && t.acao);
+      shot.takes = (takes.length ? takes : [{ acao: shot.tipo === "Foto" || !shot.tipo ? "Fotografar" : shot.nome, transicao: "" }])
+        .map((t, k) => ({ ...emptyTake(k + 1), acao: t.acao, transicao: t.transicao || "" }));
+      shot.__horario = sh.horario || "";
+      return shot;
+    });
+    p.cronograma = p.shots
+      .filter((sh) => sh.__horario)
+      .map((sh) => ({ id: uid(), horario: formatHorario(sh.__horario), nome: sh.nome, local: "", elenco: "", observacao: "", shotId: sh.id }))
+      .sort((a, b) => horarioMinutos(a.horario) - horarioMinutos(b.horario));
+    p.shots.forEach((sh) => { delete sh.__horario; });
+    setProductions((prev) => ({ ...prev, [p.id]: p }));
+    setOrder((prev) => [p.id, ...prev]);
+    setCurrentId(p.id);
+    setActiveTab("producoes");
+    setImportOpen(false);
+    saveDraft("productions", p.id, p);
+    supabase.from(TABLE).upsert({ id: p.id, workspace_id: workspaceId, payload: p, updated_at: new Date().toISOString() }).then(({ error }) => {
+      setOnline(!error);
+      if (!error) clearDraft("productions", p.id);
+    });
+  }
+
   async function copyCalendarLink() {
     try {
       const { data: tok, error } = await supabase.rpc("get_or_create_calendar_token", { ws: workspaceId });
@@ -2177,6 +2221,8 @@ export default function App() {
         </IconButton>
       </div>
 
+      {importOpen && <ImportPdfDialog onClose={() => setImportOpen(false)} onCreate={importProduction} clients={clients} />}
+
       {showAccounts && (
         <AccountsPanel
           onClose={() => setShowAccounts(false)}
@@ -2245,9 +2291,16 @@ export default function App() {
             </div>
             <div className="sidebar-footer">
               {showingProductions ? (
+                <>
                 <button className="btn-glass-primary" onClick={addProduction} style={addButtonStyle}>
                   <Plus size={16} /> Nova produção
                 </button>
+                {isGestor && (
+                  <button onClick={() => setImportOpen(true)} style={{ width: "100%", minHeight: 44, marginTop: 8, background: "transparent", border: "none", color: C.muted, fontSize: 13.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                    Importar de um PDF
+                  </button>
+                )}
+                </>
               ) : (
                 <button className="btn-glass-primary" onClick={() => setCurrentClientId(addClient())} style={addButtonStyle}>
                   <Plus size={16} /> Novo cliente
