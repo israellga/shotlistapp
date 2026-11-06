@@ -222,7 +222,7 @@ export function SendProposalContract({ workspaceId, client, titulo, texto, issue
 const STATUS = { pending: ["Aguardando assinatura", C.amber], signed: ["Assinado", C.sage], refused: ["Recusado", C.brick] };
 
 // Lista de contratos do cliente + envio de um PDF próprio.
-export function ContractsSection({ client, workspaceId, issuerName, productions, plans }) {
+export function ContractsSection({ client, workspaceId, issuerName, productions, plans, financeMap }) {
   const [st] = useZapsignStatus(workspaceId);
   const [list, setList] = useState([]);
   const [busyId, setBusyId] = useState("");
@@ -319,7 +319,7 @@ export function ContractsSection({ client, workspaceId, issuerName, productions,
           );
         })}
       </div>
-      {gen && <GenerateContractDialog workspaceId={workspaceId} client={client} productions={productions || []} plans={plans || []} issuerName={issuerName} onClose={() => setGen(false)} onSent={load} />}
+      {gen && <GenerateContractDialog workspaceId={workspaceId} client={client} productions={productions || []} financeMap={financeMap} plans={plans || []} issuerName={issuerName} onClose={() => setGen(false)} onSent={load} />}
       {dlg && <SendContractDialog workspaceId={workspaceId} client={client} titulo={dlg.titulo} pdfBase64={dlg.pdf} fileName={dlg.name} issuerName={issuerName} onClose={() => setDlg(null)} onSent={load} />}
     </div>
   );

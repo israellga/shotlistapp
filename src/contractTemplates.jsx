@@ -46,10 +46,12 @@ export function reaisExtenso(v) {
 
 const dataBR = (iso) => (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split("-").reverse().join("/") : "");
 
-export function buildContext({ client, production, plan, issuer }) {
+export function buildContext({ client, production, plan, issuer, finance }) {
   const c = client || {}, p = production || {};
   const end = [c.logradouro && `${c.logradouro}${c.numero ? ", " + c.numero : ""}${c.complemento ? " " + c.complemento : ""}`, c.bairro, [c.cidade, c.estado].filter(Boolean).join("/"), c.cep && `CEP ${c.cep}`].filter(Boolean).join(", ");
-  const total = plan ? Number(plan.valor_total) || (plan.parcelas || []).reduce((a, x) => a + (Number(x.valor) || 0), 0) : 0;
+  // valor total: orçamento da produção > plano de pagamento > valor da proposta no cadastro do cliente
+  const planTotal = plan ? Number(plan.valor_total) || (plan.parcelas || []).reduce((a, x) => a + (Number(x.valor) || 0), 0) : 0;
+  const total = Number(finance?.orcamento) || planTotal || Number(c.valor_proposta) || 0;
   const parcelas = (plan?.parcelas || []).map((x) => `${x.numero}ª parcela: ${formatBRL(Number(x.valor) || 0)}${x.vencimento ? ` com vencimento em ${dataBR(x.vencimento)}` : ""}`).join("\n");
   return {
     cliente: c.name || "", documento: c.cnpj || "", email_cliente: c.email || "", telefone_cliente: c.phone || "", endereco_cliente: end,
@@ -216,7 +218,7 @@ export function TemplatesManager({ workspaceId }) {
 }
 
 // Gera o contrato do cliente a partir de um modelo, confere/edita o texto e envia para assinatura.
-export function GenerateContractDialog({ workspaceId, client: clientFixed, clientOptions, productions, plans: plansIn, issuerName, onClose, onSent }) {
+export function GenerateContractDialog({ workspaceId, client: clientFixed, clientOptions, productions, financeMap, plans: plansIn, issuerName, onClose, onSent }) {
   const [cid, setCid] = useState(clientFixed?.id || "");
   const client = clientFixed || (clientOptions || []).find((c) => c.id === cid) || null;
   const plans = (plansIn || []).filter((p) => !clientOptions || !client || p.client_id === client.id);
@@ -235,10 +237,10 @@ export function GenerateContractDialog({ workspaceId, client: clientFixed, clien
   useEffect(() => {
     const t = templates.find((x) => x.id === tid);
     if (!t) return;
-    const ctx = buildContext({ client, production: (productions || []).find((x) => x.id === pid), plan: (plans || []).find((x) => x.id === planId), issuer: issuerName });
+    const ctx = buildContext({ client, production: (productions || []).find((x) => x.id === pid), plan: (plans || []).find((x) => x.id === planId), issuer: issuerName, finance: financeMap?.[pid] });
     const m = mergeTemplate(t.texto, ctx);
     setTexto(m.texto); setInfo({ faltando: m.faltando, desconhecidos: m.desconhecidos });
-  }, [tid, pid, planId, templates, client, productions, plans, issuerName]);
+  }, [tid, pid, planId, templates, client, productions, plans, issuerName, financeMap]);
 
   const tpl = templates.find((x) => x.id === tid);
   const prod = (productions || []).find((x) => x.id === pid);

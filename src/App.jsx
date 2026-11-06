@@ -943,6 +943,7 @@ function ProductionDetail({ workspaceId, onImportPdf, onSaveTemplate, recentAddr
           client={(production.clienteId && (clients || []).find((c) => c.id === production.clienteId)) || undefined}
           clientOptions={(clients || []).filter((c) => c && c.name).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))}
           productions={[production]}
+          financeMap={{ [production.id]: finance }}
           plans={paymentPlans || []}
           issuerName={issuerName}
           onClose={() => setContractOpen(false)}
